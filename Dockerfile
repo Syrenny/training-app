@@ -24,7 +24,7 @@ COPY backend/ ./
 
 # Copy built frontend from stage 1
 COPY --from=frontend-builder /app/backend/static/frontend/ ./static/frontend/
-COPY --from=frontend-builder /app/backend/templates/index.html ./templates/index.html
+RUN mkdir -p ./templates && cp ./static/frontend/index.html ./templates/index.html
 
 # Collect static files
 RUN SECRET_KEY=build-placeholder uv run python manage.py collectstatic --noinput
