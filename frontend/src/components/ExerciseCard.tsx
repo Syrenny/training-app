@@ -1,0 +1,40 @@
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { SetDisplay } from "./SetDisplay";
+import type { DayExerciseData } from "@/lib/api";
+
+const categoryLabels: Record<string, string> = {
+  BENCH: "Жим",
+  SQUAT: "Присед",
+  DEADLIFT: "Тяга",
+  ACCESSORY: "Подсобка",
+};
+
+interface ExerciseCardProps {
+  dayExercise: DayExerciseData;
+}
+
+export function ExerciseCard({ dayExercise }: ExerciseCardProps) {
+  const { exercise, sets, order } = dayExercise;
+
+  return (
+    <Card className="mb-3">
+      <CardContent className="p-4">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-muted-foreground text-sm font-medium">
+            {order}.
+          </span>
+          <span className="font-semibold">{exercise.name}</span>
+          <Badge variant="secondary" className="text-xs">
+            {categoryLabels[exercise.category] ?? exercise.category}
+          </Badge>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {sets.map((set) => (
+            <SetDisplay key={set.id} set={set} />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
