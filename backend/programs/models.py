@@ -1,4 +1,25 @@
+from django.core.validators import MaxValueValidator
 from django.db import models
+
+
+class OneRepMax(models.Model):
+    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID")
+    bench = models.PositiveIntegerField(
+        default=0, validators=[MaxValueValidator(999)], verbose_name="Жим лёжа (кг)"
+    )
+    squat = models.PositiveIntegerField(
+        default=0, validators=[MaxValueValidator(999)], verbose_name="Присед (кг)"
+    )
+    deadlift = models.PositiveIntegerField(
+        default=0, validators=[MaxValueValidator(999)], verbose_name="Тяга (кг)"
+    )
+
+    class Meta:
+        verbose_name = "Разовый максимум"
+        verbose_name_plural = "Разовые максимумы"
+
+    def __str__(self):
+        return f"1ПМ (tg:{self.telegram_id}): жим={self.bench}, присед={self.squat}, тяга={self.deadlift}"
 
 
 class Weekday(models.TextChoices):

@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { WeekDetailData, WeekListItem } from "./api";
-import { fetchWeekDetail as apiFetchWeekDetail, fetchWeeks as apiFetchWeeks } from "./api";
+import type { OneRepMaxData, WeekDetailData, WeekListItem } from "./api";
+import {
+  fetchOneRepMax as apiFetchOneRepMax,
+  fetchWeekDetail as apiFetchWeekDetail,
+  fetchWeeks as apiFetchWeeks,
+  saveOneRepMax as apiSaveOneRepMax,
+} from "./api";
 
 interface ProgramState {
   // Persisted
@@ -13,12 +18,15 @@ interface ProgramState {
   weekDetailCache: Record<number, WeekDetailData>;
   loading: boolean;
   error: string | null;
+  oneRepMax: OneRepMaxData | null;
 
   // Actions
   setWeek: (week: number) => void;
   setDay: (day: string) => void;
   fetchWeeks: () => Promise<void>;
   fetchWeekDetail: (weekNumber: number) => Promise<void>;
+  fetchOneRepMax: () => Promise<void>;
+  saveOneRepMax: (data: Partial<OneRepMaxData>) => Promise<void>;
 }
 
 export const useProgramStore = create<ProgramState>()(
@@ -30,6 +38,7 @@ export const useProgramStore = create<ProgramState>()(
       weekDetailCache: {},
       loading: false,
       error: null,
+      oneRepMax: null,
 
       setWeek: (week) => set({ selectedWeek: week, selectedDay: null }),
 
@@ -65,6 +74,24 @@ export const useProgramStore = create<ProgramState>()(
           }));
         } catch {
           set({ loading: false, error: "Не удалось загрузить программу" });
+        }
+      },
+
+      fetchOneRepMax: async () => {
+        try {
+          const data = await apiFetchOneRepMax();
+          set({ oneRepMax: data });
+        } catch {
+          // Silent fail — 1RM is optional
+        }
+      },
+
+      saveOneRepMax: async (data) => {
+        try {
+          const result = await apiSaveOneRepMax(data);
+          set({ oneRepMax: result });
+        } catch {
+          // Silent fail
         }
       },
     }),

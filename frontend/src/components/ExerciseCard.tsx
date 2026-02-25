@@ -31,7 +31,7 @@ export function ExerciseCard({ dayExercise }: ExerciseCardProps) {
         </div>
         <div className="flex flex-wrap gap-1.5">
           {sets.map((set) => (
-            <SetDisplay key={set.id} set={set} />
+            <SetDisplay key={set.id} set={set} category={exercise.category} />
           ))}
         </div>
       </CardContent>

@@ -15,7 +15,7 @@ export function WeekSelector() {
   if (weeks.length === 0) return null;
 
   return (
-    <div className="mb-4">
+    <div>
       <Select
         value={selectedWeek?.toString() ?? ""}
         onValueChange={(v) => setWeek(Number(v))}

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useProgramStore } from "@/lib/store";
 import { DayTabs } from "@/components/DayTabs";
+import { Sidebar } from "@/components/Sidebar";
 import { WeekSelector } from "@/components/WeekSelector";
 
 export function ProgramPage() {
@@ -10,10 +11,12 @@ export function ProgramPage() {
   const weekDetailCache = useProgramStore((s) => s.weekDetailCache);
   const fetchWeeks = useProgramStore((s) => s.fetchWeeks);
   const fetchWeekDetail = useProgramStore((s) => s.fetchWeekDetail);
+  const fetchOneRepMax = useProgramStore((s) => s.fetchOneRepMax);
 
   useEffect(() => {
     fetchWeeks();
-  }, [fetchWeeks]);
+    fetchOneRepMax();
+  }, [fetchWeeks, fetchOneRepMax]);
 
   useEffect(() => {
     if (selectedWeek !== null) {
@@ -41,7 +44,12 @@ export function ProgramPage() {
 
   return (
     <div className="px-4 py-4">
-      <WeekSelector />
+      <div className="flex items-center gap-2 mb-4">
+        <Sidebar />
+        <div className="flex-1">
+          <WeekSelector />
+        </div>
+      </div>
 
       {weekData && <DayTabs days={weekData.days} />}
     </div>
