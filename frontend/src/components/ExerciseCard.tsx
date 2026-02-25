@@ -19,13 +19,13 @@ export function ExerciseCard({ dayExercise }: ExerciseCardProps) {
 
   return (
     <Card className="mb-3">
-      <CardContent className="p-4">
-        <div className="flex items-center gap-2 mb-2">
+      <CardContent>
+        <div className="flex items-start gap-2 mb-2">
           <span className="text-muted-foreground text-sm font-medium">
             {order}.
           </span>
           <span className="font-semibold">{exercise.name}</span>
-          <Badge variant="secondary" className="text-xs">
+          <Badge variant="secondary" className="text-xs ml-auto shrink-0">
             {categoryLabels[exercise.category] ?? exercise.category}
           </Badge>
         </div>

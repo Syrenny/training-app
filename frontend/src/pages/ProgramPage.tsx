@@ -1,39 +1,29 @@
-import { useEffect, useState } from "react";
-import { fetchWeekDetail, fetchWeeks } from "@/lib/api";
-import type { WeekDetailData, WeekListItem } from "@/lib/api";
+import { useEffect } from "react";
+import { useProgramStore } from "@/lib/store";
 import { DayTabs } from "@/components/DayTabs";
 import { WeekSelector } from "@/components/WeekSelector";
 
 export function ProgramPage() {
-  const [weeks, setWeeks] = useState<WeekListItem[]>([]);
-  const [currentWeek, setCurrentWeek] = useState(1);
-  const [weekData, setWeekData] = useState<WeekDetailData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const selectedWeek = useProgramStore((s) => s.selectedWeek);
+  const loading = useProgramStore((s) => s.loading);
+  const error = useProgramStore((s) => s.error);
+  const weekDetailCache = useProgramStore((s) => s.weekDetailCache);
+  const fetchWeeks = useProgramStore((s) => s.fetchWeeks);
+  const fetchWeekDetail = useProgramStore((s) => s.fetchWeekDetail);
 
   useEffect(() => {
-    fetchWeeks()
-      .then(setWeeks)
-      .catch(() => setWeeks([]));
-  }, []);
+    fetchWeeks();
+  }, [fetchWeeks]);
 
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    if (selectedWeek !== null) {
+      fetchWeekDetail(selectedWeek);
+    }
+  }, [selectedWeek, fetchWeekDetail]);
 
-    fetchWeekDetail(currentWeek)
-      .then((data) => {
-        setWeekData(data);
-        setLoading(false);
-      })
-      .catch(() => {
-        setWeekData(null);
-        setLoading(false);
-        setError("Не удалось загрузить программу");
-      });
-  }, [currentWeek]);
+  const weekData = selectedWeek !== null ? weekDetailCache[selectedWeek] : null;
 
-  if (loading) {
+  if (loading && !weekData) {
     return (
       <div className="flex items-center justify-center py-16">
         <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
@@ -51,13 +41,7 @@ export function ProgramPage() {
 
   return (
     <div className="px-4 py-4">
-      <h1 className="text-xl font-bold mb-4">Программа тренировок</h1>
-
-      <WeekSelector
-        weeks={weeks}
-        currentWeek={currentWeek}
-        onWeekChange={setCurrentWeek}
-      />
+      <WeekSelector />
 
       {weekData && <DayTabs days={weekData.days} />}
     </div>
