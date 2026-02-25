@@ -1,3 +1,18 @@
+docs/reference/program.pdf
+
+# Node.js
+node_modules/
+frontend/dist/
+
+# Django built frontend
+backend/static/frontend/
+backend/templates/index.html
+backend/staticfiles/
+
+# OS
+.DS_Store
+Thumbs.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
