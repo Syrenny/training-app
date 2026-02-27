@@ -7,6 +7,8 @@ import {
   fetchWeeks as apiFetchWeeks,
   saveOneRepMax as apiSaveOneRepMax,
 } from "./api";
+import type { NavigationResult } from "./navigation";
+import { resolveNext, resolvePrev, getAdjacentWeekNumber } from "./navigation";
 
 interface ProgramState {
   // Persisted
@@ -27,6 +29,8 @@ interface ProgramState {
   fetchWeekDetail: (weekNumber: number) => Promise<void>;
   fetchOneRepMax: () => Promise<void>;
   saveOneRepMax: (data: Partial<OneRepMaxData>) => Promise<void>;
+  navigateNext: () => Promise<NavigationResult>;
+  navigatePrev: () => Promise<NavigationResult>;
 }
 
 export const useProgramStore = create<ProgramState>()(
@@ -42,7 +46,24 @@ export const useProgramStore = create<ProgramState>()(
 
       setWeek: (week) => set({ selectedWeek: week, selectedDay: null }),
 
-      setDay: (day) => set({ selectedDay: day }),
+      setDay: (day) => {
+        set({ selectedDay: day });
+        // Prefetch adjacent weeks if on first/last day
+        const { selectedWeek, weeks, weekDetailCache, fetchWeekDetail: fetch } = get();
+        if (selectedWeek === null) return;
+        const weekData = weekDetailCache[selectedWeek];
+        if (!weekData) return;
+        const days = weekData.days;
+        const dayIndex = days.findIndex((d) => d.weekday === day);
+        if (dayIndex === 0) {
+          const prev = getAdjacentWeekNumber(selectedWeek, weeks, "prev");
+          if (prev !== null && !weekDetailCache[prev]) fetch(prev);
+        }
+        if (dayIndex === days.length - 1) {
+          const next = getAdjacentWeekNumber(selectedWeek, weeks, "next");
+          if (next !== null && !weekDetailCache[next]) fetch(next);
+        }
+      },
 
       fetchWeeks: async () => {
         try {
@@ -93,6 +114,48 @@ export const useProgramStore = create<ProgramState>()(
         } catch {
           // Silent fail
         }
+      },
+
+      navigateNext: async () => {
+        const { selectedWeek, selectedDay, weeks, weekDetailCache, fetchWeekDetail: fetch } = get();
+        if (selectedWeek === null || selectedDay === null) return { type: "boundary" };
+
+        const target = resolveNext(selectedWeek, selectedDay, weeks, weekDetailCache);
+        if (!target) return { type: "boundary" };
+
+        if (target.week !== selectedWeek) {
+          await fetch(target.week);
+        }
+        set({ selectedWeek: target.week, selectedDay: target.day });
+
+        // Prefetch adjacent week for next potential swipe
+        const nextWeek = getAdjacentWeekNumber(target.week, weeks, "next");
+        if (nextWeek !== null && !get().weekDetailCache[nextWeek]) {
+          fetch(nextWeek);
+        }
+
+        return { type: "navigated", week: target.week, day: target.day };
+      },
+
+      navigatePrev: async () => {
+        const { selectedWeek, selectedDay, weeks, weekDetailCache, fetchWeekDetail: fetch } = get();
+        if (selectedWeek === null || selectedDay === null) return { type: "boundary" };
+
+        const target = resolvePrev(selectedWeek, selectedDay, weeks, weekDetailCache);
+        if (!target) return { type: "boundary" };
+
+        if (target.week !== selectedWeek) {
+          await fetch(target.week);
+        }
+        set({ selectedWeek: target.week, selectedDay: target.day });
+
+        // Prefetch adjacent week for next potential swipe
+        const prevWeek = getAdjacentWeekNumber(target.week, weeks, "prev");
+        if (prevWeek !== null && !get().weekDetailCache[prevWeek]) {
+          fetch(prevWeek);
+        }
+
+        return { type: "navigated", week: target.week, day: target.day };
       },
     }),
     {
