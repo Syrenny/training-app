@@ -12,11 +12,13 @@ export function ProgramPage() {
   const fetchWeeks = useProgramStore((s) => s.fetchWeeks);
   const fetchWeekDetail = useProgramStore((s) => s.fetchWeekDetail);
   const fetchOneRepMax = useProgramStore((s) => s.fetchOneRepMax);
+  const fetchCompletions = useProgramStore((s) => s.fetchCompletions);
 
   useEffect(() => {
     fetchWeeks();
     fetchOneRepMax();
-  }, [fetchWeeks, fetchOneRepMax]);
+    fetchCompletions();
+  }, [fetchWeeks, fetchOneRepMax, fetchCompletions]);
 
   useEffect(() => {
     if (selectedWeek !== null) {

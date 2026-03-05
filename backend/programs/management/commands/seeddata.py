@@ -7,6 +7,7 @@ from programs.models import (
     ExerciseCategory,
     ExerciseSet,
     LoadType,
+    OneRepMax,
     Week,
 )
 
@@ -322,6 +323,11 @@ class Command(BaseCommand):
             action="store_true",
             help="Delete existing data and re-seed all weeks",
         )
+        parser.add_argument(
+            "--dev-user",
+            action="store_true",
+            help="Create OneRepMax record for dev user (telegram_id=1)",
+        )
 
     def handle(self, *args, **options):
         if options["force"]:
@@ -379,3 +385,10 @@ class Command(BaseCommand):
                 f"Done: {created_count} weeks created, {skipped_count} skipped"
             )
         )
+
+        if options["dev_user"]:
+            OneRepMax.objects.update_or_create(
+                telegram_id=1,
+                defaults={"bench": 100, "squat": 120, "deadlift": 140},
+            )
+            self.stdout.write(self.style.SUCCESS("Dev user OneRepMax created/updated (telegram_id=1)"))

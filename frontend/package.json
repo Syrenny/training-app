@@ -15,9 +15,9 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.575.0",
     "radix-ui": "^1.4.3",
+    "swiper": "^12.1.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "swiper": "^12.1.2",
     "tailwind-merge": "^3.5.0",
     "tailwindcss": "^4.2.1",
     "zustand": "^5.0.11"

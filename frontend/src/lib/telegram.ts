@@ -19,6 +19,11 @@ interface TelegramWebApp {
   onEvent: (event: string, callback: (...args: unknown[]) => void) => void;
 }
 
+export function isAuthorized(): boolean {
+  const tg = getTelegram();
+  return tg !== null && tg.initData !== "";
+}
+
 export function getTelegram(): TelegramWebApp | null {
   if (typeof window !== "undefined" && window.Telegram?.WebApp) {
     return window.Telegram.WebApp;
