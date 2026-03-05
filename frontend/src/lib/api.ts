@@ -3,12 +3,16 @@ import { getTelegram } from "./telegram";
 const BASE_URL = "/api";
 
 function getHeaders(): Record<string, string> {
-  const tg = getTelegram();
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-  if (tg?.initData) {
-    headers["X-Telegram-Init-Data"] = tg.initData;
+  if (import.meta.env.VITE_DEV_MODE === "true") {
+    headers["X-Dev-Mode"] = "1";
+  } else {
+    const tg = getTelegram();
+    if (tg?.initData) {
+      headers["X-Telegram-Init-Data"] = tg.initData;
+    }
   }
   return headers;
 }
@@ -97,4 +101,34 @@ export function fetchOneRepMax(): Promise<OneRepMaxData> {
 
 export function saveOneRepMax(data: Partial<OneRepMaxData>): Promise<OneRepMaxData> {
   return putApi<OneRepMaxData>("/one-rep-max/", data);
+}
+
+export interface CompletionsData {
+  completed_day_ids: number[];
+}
+
+export interface CompletionRecord {
+  day_id: number;
+  completed_at: string;
+}
+
+export function fetchCompletions(): Promise<CompletionsData> {
+  return fetchApi<CompletionsData>("/completions/");
+}
+
+export async function markComplete(dayId: number): Promise<CompletionRecord> {
+  const response = await fetch(`${BASE_URL}/completions/${dayId}/`, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  return response.json();
+}
+
+export async function unmarkComplete(dayId: number): Promise<void> {
+  const response = await fetch(`${BASE_URL}/completions/${dayId}/`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
 }

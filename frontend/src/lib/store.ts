@@ -2,10 +2,13 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { OneRepMaxData, WeekDetailData, WeekListItem } from "./api";
 import {
+  fetchCompletions as apiFetchCompletions,
   fetchOneRepMax as apiFetchOneRepMax,
   fetchWeekDetail as apiFetchWeekDetail,
   fetchWeeks as apiFetchWeeks,
+  markComplete as apiMarkComplete,
   saveOneRepMax as apiSaveOneRepMax,
+  unmarkComplete as apiUnmarkComplete,
 } from "./api";
 import type { NavigationResult } from "./navigation";
 import { resolveNext, resolvePrev, getAdjacentWeekNumber } from "./navigation";
@@ -21,6 +24,7 @@ interface ProgramState {
   loading: boolean;
   error: string | null;
   oneRepMax: OneRepMaxData | null;
+  completedDayIds: Set<number>;
 
   // Actions
   setWeek: (week: number) => void;
@@ -29,6 +33,8 @@ interface ProgramState {
   fetchWeekDetail: (weekNumber: number) => Promise<void>;
   fetchOneRepMax: () => Promise<void>;
   saveOneRepMax: (data: Partial<OneRepMaxData>) => Promise<void>;
+  fetchCompletions: () => Promise<void>;
+  toggleCompletion: (dayId: number) => Promise<void>;
   navigateNext: () => Promise<NavigationResult>;
   navigatePrev: () => Promise<NavigationResult>;
 }
@@ -43,6 +49,7 @@ export const useProgramStore = create<ProgramState>()(
       loading: false,
       error: null,
       oneRepMax: null,
+      completedDayIds: new Set<number>(),
 
       setWeek: (week) => set({ selectedWeek: week, selectedDay: null }),
 
@@ -113,6 +120,40 @@ export const useProgramStore = create<ProgramState>()(
           set({ oneRepMax: result });
         } catch {
           // Silent fail
+        }
+      },
+
+      fetchCompletions: async () => {
+        try {
+          const data = await apiFetchCompletions();
+          set({ completedDayIds: new Set(data.completed_day_ids) });
+        } catch {
+          // Silent fail — completions are non-critical
+        }
+      },
+
+      toggleCompletion: async (dayId) => {
+        const { completedDayIds } = get();
+        const isCompleted = completedDayIds.has(dayId);
+
+        // Optimistic update
+        const next = new Set(completedDayIds);
+        if (isCompleted) {
+          next.delete(dayId);
+        } else {
+          next.add(dayId);
+        }
+        set({ completedDayIds: next });
+
+        try {
+          if (isCompleted) {
+            await apiUnmarkComplete(dayId);
+          } else {
+            await apiMarkComplete(dayId);
+          }
+        } catch {
+          // Revert on error
+          set({ completedDayIds });
         }
       },
 

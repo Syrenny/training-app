@@ -112,6 +112,22 @@ class DayExercise(models.Model):
         return f"{self.order}. {self.exercise.name}"
 
 
+class WorkoutCompletion(models.Model):
+    telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    day = models.ForeignKey(
+        Day, on_delete=models.CASCADE, related_name="completions", verbose_name="День"
+    )
+    completed_at = models.DateTimeField(auto_now_add=True, verbose_name="Завершено")
+
+    class Meta:
+        unique_together = [("telegram_id", "day")]
+        verbose_name = "Завершение тренировки"
+        verbose_name_plural = "Завершения тренировок"
+
+    def __str__(self):
+        return f"tg:{self.telegram_id} — {self.day} — {self.completed_at:%Y-%m-%d}"
+
+
 class ExerciseSet(models.Model):
     day_exercise = models.ForeignKey(
         DayExercise,

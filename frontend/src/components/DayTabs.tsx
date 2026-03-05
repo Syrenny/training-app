@@ -25,6 +25,7 @@ export function DayTabs({ days }: DayTabsProps) {
   const setDay = useProgramStore((s) => s.setDay);
   const navigateNext = useProgramStore((s) => s.navigateNext);
   const navigatePrev = useProgramStore((s) => s.navigatePrev);
+  const completedDayIds = useProgramStore((s) => s.completedDayIds);
 
   const swiperRef = useRef<SwiperType | null>(null);
   const programmatic = useRef(false);
@@ -33,7 +34,6 @@ export function DayTabs({ days }: DayTabsProps) {
   const [pullDirection, setPullDirection] = useState<"next" | "prev" | null>(
     null,
   );
-  // Actual px offset to shift the content (dampened)
   const [pullOffset, setPullOffset] = useState(0);
 
   const prevWeekNum =
@@ -81,7 +81,6 @@ export function DayTabs({ days }: DayTabsProps) {
       if (swiper.isEnd && diff < 0 && nextWeekNum !== null) {
         const absDiff = Math.abs(diff);
         const progress = Math.min(absDiff / threshold, 1);
-        // Ease-out dampening: fast at first, slows down
         const dampened = MAX_PULL_PX * (1 - Math.pow(1 - progress, 2));
         setPullProgress(progress);
         setPullDirection("next");
@@ -131,6 +130,7 @@ export function DayTabs({ days }: DayTabsProps) {
     setDay(day);
   };
 
+  // eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
     const swiper = swiperRef.current;
     if (swiper && swiper.activeIndex !== activeIndex && activeIndex >= 0) {
@@ -154,12 +154,14 @@ export function DayTabs({ days }: DayTabsProps) {
               className="flex-1 text-base"
             >
               {day.weekday_display}
+              {completedDayIds.has(day.id) && (
+                <span className="block h-1.5 w-1.5 rounded-full bg-green-500 mx-auto mt-0.5" />
+              )}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
-      {/* Cross-week label — fixed to viewport center, slides in from the edge */}
       {isPulling && (
         <div
           className="pointer-events-none fixed inset-0 z-50 flex items-center"
@@ -202,7 +204,6 @@ export function DayTabs({ days }: DayTabsProps) {
       )}
 
       <div className="mt-4 overflow-hidden">
-        {/* Content that shifts to reveal the gap */}
         <div
           className="relative z-10 bg-background"
           style={{
@@ -225,7 +226,7 @@ export function DayTabs({ days }: DayTabsProps) {
           >
             {days.map((day) => (
               <SwiperSlide key={day.weekday}>
-                <ExerciseList exercises={day.exercises} />
+                <ExerciseList exercises={day.exercises} dayId={day.id} />
               </SwiperSlide>
             ))}
           </Swiper>

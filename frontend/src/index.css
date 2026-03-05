@@ -122,3 +122,9 @@
     @apply bg-background text-foreground;
     }
 }
+
+.slide-child {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
