@@ -1,11 +1,18 @@
 import { useEffect } from "react";
-import { initTelegram } from "@/lib/telegram";
+import { initTelegram, isAuthorized } from "@/lib/telegram";
 import { ProgramPage } from "@/pages/ProgramPage";
+import { UnauthorizedScreen } from "@/components/UnauthorizedScreen";
+
+const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 
 function App() {
   useEffect(() => {
     initTelegram();
   }, []);
+
+  if (!DEV_MODE && !isAuthorized()) {
+    return <UnauthorizedScreen />;
+  }
 
   return (
     <div

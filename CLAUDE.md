@@ -9,6 +9,12 @@ Auto-generated from all feature plans. Last updated: 2026-02-25
 - SQLite (existing, via Django ORM) (004-weight-calc)
 - TypeScript 5.9 (React 19 + Vite 7) + Radix UI (tabs, select), Zustand 5, Tailwind CSS 4, shadcn/ui (005-day-swipe)
 - N/A (frontend-only feature; existing Zustand persist to localStorage) (005-day-swipe)
+- TypeScript 5.9 (React 19 + Vite 7) + Swiper.js 12.1.2, Zustand 5, Tailwind CSS 4, shadcn/ui (006-fix-swipe)
+- N/A (frontend-only, no data changes) (006-fix-swipe)
+- TypeScript 5.9 (React 19 + Vite 7) + Motion 12.x (replacing Swiper.js 12.1.2), Zustand 5, Tailwind CSS 4, shadcn/ui (007-framer-swipe)
+- Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Motion 12.x + Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend) (008-workout-completion)
+- SQLite via Django ORM (008-workout-completion)
+- Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend) (009-auth-guard)
 
 - Python 3.11+ (backend), TypeScript (frontend) + Django 5.x, Django REST Framework, (001-program-viewer)
 
@@ -28,9 +34,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+ (backend), TypeScript (frontend): Follow standard conventions
 
 ## Recent Changes
-- 005-day-swipe: Added TypeScript 5.9 (React 19 + Vite 7) + Radix UI (tabs, select), Zustand 5, Tailwind CSS 4, shadcn/ui
-- 004-weight-calc: Added Python 3.13 (Django 6), TypeScript 5.9 (React 19) + Django REST Framework (existing), shadcn/ui (existing), Zustand (existing), lucide-react (existing)
-- 002-docker-deploy: Added Python 3.13 (Django 6.x), Node.js 22 (React 18 + Vite) + gunicorn, whitenoise, python-telegram-bot, uv
+- 009-auth-guard: Added Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend)
+- 008-workout-completion: Added Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Motion 12.x + Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend)
+- 007-framer-swipe: Added TypeScript 5.9 (React 19 + Vite 7) + Motion 12.x (replacing Swiper.js 12.1.2), Zustand 5, Tailwind CSS 4, shadcn/ui
 
 
 <!-- MANUAL ADDITIONS START -->
