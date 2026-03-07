@@ -1,237 +1,155 @@
-import { useRef, useCallback, useEffect, useState } from "react";
-import { Swiper, SwiperSlide } from "swiper/react";
-import type { Swiper as SwiperType } from "swiper";
-import "swiper/css";
-import { ArrowLeft, ArrowRight } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ExerciseList } from "./ExerciseList";
-import { useProgramStore } from "@/lib/store";
-import { getAdjacentWeekNumber } from "@/lib/navigation";
-import type { DayData } from "@/lib/api";
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useCrossWeekPull } from '@/hooks/useCrossWeekPull'
+import type { DayData } from '@/lib/api'
+import { useProgramStore } from '@/lib/store'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
+import type { Swiper as SwiperType } from 'swiper'
+import 'swiper/css'
+import { Swiper, SwiperSlide } from 'swiper/react'
+import { CrossWeekIndicator } from './CrossWeekIndicator'
+import { ExerciseList } from './ExerciseList'
 
 interface DayTabsProps {
-  days: DayData[];
+	days: DayData[]
 }
 
-/** Fraction of screen width the user must drag past the edge to switch weeks. */
-const CROSS_WEEK_RATIO = 0.55;
-/** Maximum px the content shifts when pulling at the edge. */
-const MAX_PULL_PX = 120;
-
 export function DayTabs({ days }: DayTabsProps) {
-  const selectedDay = useProgramStore((s) => s.selectedDay);
-  const selectedWeek = useProgramStore((s) => s.selectedWeek);
-  const weeks = useProgramStore((s) => s.weeks);
-  const setDay = useProgramStore((s) => s.setDay);
-  const navigateNext = useProgramStore((s) => s.navigateNext);
-  const navigatePrev = useProgramStore((s) => s.navigatePrev);
-  const completedDayIds = useProgramStore((s) => s.completedDayIds);
+	const selectedDay = useProgramStore(s => s.selectedDay)
+	const setDay = useProgramStore(s => s.setDay)
+	const completedDayIds = useProgramStore(s => s.completedDayIds)
 
-  const swiperRef = useRef<SwiperType | null>(null);
-  const programmatic = useRef(false);
+	const swiperRef = useRef<SwiperType | null>(null)
+	const programmatic = useRef(false)
+	const daysRef = useRef(days)
+	daysRef.current = days
 
-  const [pullProgress, setPullProgress] = useState(0);
-  const [pullDirection, setPullDirection] = useState<"next" | "prev" | null>(
-    null,
-  );
-  const [pullOffset, setPullOffset] = useState(0);
+	const {
+		containerRef,
+		indicatorRef,
+		onTouchStart,
+		onTouchMove,
+		onTouchEnd,
+	} = useCrossWeekPull()
 
-  const prevWeekNum =
-    selectedWeek !== null
-      ? getAdjacentWeekNumber(selectedWeek, weeks, "prev")
-      : null;
-  const nextWeekNum =
-    selectedWeek !== null
-      ? getAdjacentWeekNumber(selectedWeek, weeks, "next")
-      : null;
+	const activeDay = useMemo(() => {
+		const validDay = days.find(d => d.weekday === selectedDay)
+		return validDay ? selectedDay! : days[0]?.weekday
+	}, [days, selectedDay])
 
-  if (days.length === 0) {
-    return (
-      <p className="text-muted-foreground text-center py-8">
-        Нет тренировочных дней
-      </p>
-    );
-  }
+	const activeIndex = useMemo(
+		() => days.findIndex(d => d.weekday === activeDay),
+		[days, activeDay],
+	)
 
-  const validDay = days.find((d) => d.weekday === selectedDay);
-  const activeDay = validDay ? selectedDay! : days[0]?.weekday;
-  const activeIndex = days.findIndex((d) => d.weekday === activeDay);
+	const handleSlideChange = useCallback(
+		(swiper: SwiperType) => {
+			if (programmatic.current) {
+				programmatic.current = false
+				return
+			}
+			const day = daysRef.current[swiper.activeIndex]
+			if (day) setDay(day.weekday)
+		},
+		[setDay],
+	)
 
-  const handleSlideChange = useCallback(
-    (swiper: SwiperType) => {
-      if (programmatic.current) {
-        programmatic.current = false;
-        return;
-      }
-      const day = days[swiper.activeIndex];
-      if (day) {
-        setDay(day.weekday);
-      }
-    },
-    [days, setDay],
-  );
+	const handleTouchMove = useCallback(
+		(swiper: SwiperType, event: MouseEvent | TouchEvent | PointerEvent) => {
+			if (!programmatic.current) onTouchMove(swiper, event)
+		},
+		[onTouchMove],
+	)
 
-  const handleTouchMove = useCallback(
-    (swiper: SwiperType) => {
-      if (programmatic.current) return;
+	const handleTouchEnd = useCallback(
+		async (_swiper: SwiperType) => {
+			if (!programmatic.current) await onTouchEnd()
+		},
+		[onTouchEnd],
+	)
 
-      const diff = swiper.touches.diff;
-      const threshold = window.innerWidth * CROSS_WEEK_RATIO;
+	const handleTabClick = useCallback(
+		(day: string) => {
+			const index = daysRef.current.findIndex(d => d.weekday === day)
+			if (
+				index !== -1 &&
+				swiperRef.current &&
+				swiperRef.current.activeIndex !== index
+			) {
+				programmatic.current = true
+				swiperRef.current.slideTo(index, 300)
+			}
+			setDay(day)
+		},
+		[setDay],
+	)
 
-      if (swiper.isEnd && diff < 0 && nextWeekNum !== null) {
-        const absDiff = Math.abs(diff);
-        const progress = Math.min(absDiff / threshold, 1);
-        const dampened = MAX_PULL_PX * (1 - Math.pow(1 - progress, 2));
-        setPullProgress(progress);
-        setPullDirection("next");
-        setPullOffset(-dampened);
-      } else if (swiper.isBeginning && diff > 0 && prevWeekNum !== null) {
-        const progress = Math.min(diff / threshold, 1);
-        const dampened = MAX_PULL_PX * (1 - Math.pow(1 - progress, 2));
-        setPullProgress(progress);
-        setPullDirection("prev");
-        setPullOffset(dampened);
-      } else {
-        if (pullDirection !== null) {
-          setPullProgress(0);
-          setPullDirection(null);
-          setPullOffset(0);
-        }
-      }
-    },
-    [nextWeekNum, prevWeekNum, pullDirection],
-  );
+	useEffect(() => {
+		const swiper = swiperRef.current
+		if (swiper && swiper.activeIndex !== activeIndex && activeIndex >= 0) {
+			programmatic.current = true
+			swiper.slideTo(activeIndex, 0)
+		}
+	}, [activeIndex])
 
-  const handleTouchEnd = useCallback(
-    async (_swiper: SwiperType) => {
-      const wasPulling = pullDirection;
-      const wasReady = pullProgress >= 1;
-      setPullProgress(0);
-      setPullDirection(null);
-      setPullOffset(0);
+	if (days.length === 0) {
+		return (
+			<p className='text-muted-foreground text-center py-8'>
+				Нет тренировочных дней
+			</p>
+		)
+	}
 
-      if (programmatic.current) return;
+	return (
+		<div className='flex flex-col flex-1 min-h-0'>
+			<Tabs value={activeDay} onValueChange={handleTabClick}>
+				<TabsList className='w-full shrink-0'>
+					{days.map(day => (
+						<TabsTrigger
+							key={day.weekday}
+							value={day.weekday}
+							className='flex-1 text-base'
+						>
+							{day.weekday_display}
+							{completedDayIds.has(day.id) && (
+								<span className='block h-1.5 w-1.5 rounded-full bg-green-500 mx-auto mt-0.5' />
+							)}
+						</TabsTrigger>
+					))}
+				</TabsList>
+			</Tabs>
 
-      if (wasPulling === "next" && wasReady) {
-        await navigateNext();
-      } else if (wasPulling === "prev" && wasReady) {
-        await navigatePrev();
-      }
-    },
-    [pullDirection, pullProgress, navigateNext, navigatePrev],
-  );
+			<CrossWeekIndicator ref={indicatorRef} />
 
-  const handleTabClick = (day: string) => {
-    const index = days.findIndex((d) => d.weekday === day);
-    if (index !== -1 && swiperRef.current) {
-      programmatic.current = true;
-      swiperRef.current.slideTo(index, 300);
-    }
-    setDay(day);
-  };
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  useEffect(() => {
-    const swiper = swiperRef.current;
-    if (swiper && swiper.activeIndex !== activeIndex && activeIndex >= 0) {
-      programmatic.current = true;
-      swiper.slideTo(activeIndex, 0);
-    }
-  }, [activeIndex]);
-
-  const targetWeekNum =
-    pullDirection === "next" ? nextWeekNum : prevWeekNum;
-  const isPulling = pullDirection !== null && targetWeekNum !== null;
-
-  return (
-    <div>
-      <Tabs value={activeDay} onValueChange={handleTabClick}>
-        <TabsList className="w-full sticky top-0 z-10 bg-background">
-          {days.map((day) => (
-            <TabsTrigger
-              key={day.weekday}
-              value={day.weekday}
-              className="flex-1 text-base"
-            >
-              {day.weekday_display}
-              {completedDayIds.has(day.id) && (
-                <span className="block h-1.5 w-1.5 rounded-full bg-green-500 mx-auto mt-0.5" />
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-
-      {isPulling && (
-        <div
-          className="pointer-events-none fixed inset-0 z-50 flex items-center"
-          style={{
-            justifyContent:
-              pullDirection === "next" ? "flex-end" : "flex-start",
-          }}
-        >
-          <div
-            className="flex items-center gap-1.5 rounded-full border px-4 py-2.5 shadow-md"
-            style={{
-              transform:
-                pullDirection === "next"
-                  ? `translateX(${(1 - pullProgress) * 100}%)`
-                  : `translateX(${-(1 - pullProgress) * 100}%)`,
-              margin: pullDirection === "next" ? "0 12px 0 0" : "0 0 0 12px",
-              opacity: Math.min(pullProgress * 2.5, 1),
-              color:
-                pullProgress >= 1
-                  ? "var(--color-primary)"
-                  : "var(--color-muted-foreground)",
-              borderColor:
-                pullProgress >= 1
-                  ? "var(--color-primary)"
-                  : "var(--color-border)",
-              backgroundColor: "var(--color-background)",
-            }}
-          >
-            {pullDirection === "prev" && (
-              <ArrowLeft className="h-4 w-4" />
-            )}
-            <span className="text-sm font-medium whitespace-nowrap">
-              Нед. {targetWeekNum}
-            </span>
-            {pullDirection === "next" && (
-              <ArrowRight className="h-4 w-4" />
-            )}
-          </div>
-        </div>
-      )}
-
-      <div className="mt-4 overflow-hidden">
-        <div
-          className="relative z-10 bg-background"
-          style={{
-            transform: isPulling ? `translateX(${pullOffset}px)` : undefined,
-            transition: isPulling ? "none" : "transform 300ms ease-out",
-            willChange: isPulling ? "transform" : "auto",
-          }}
-        >
-          <Swiper
-            key={days.map((d) => d.weekday).join(",")}
-            onSwiper={(swiper) => {
-              swiperRef.current = swiper;
-            }}
-            initialSlide={activeIndex >= 0 ? activeIndex : 0}
-            onSlideChange={handleSlideChange}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            spaceBetween={16}
-            resistanceRatio={0}
-          >
-            {days.map((day) => (
-              <SwiperSlide key={day.weekday}>
-                <ExerciseList exercises={day.exercises} dayId={day.id} />
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        </div>
-      </div>
-    </div>
-  );
+			<div className='flex-1 min-h-0 mt-4'>
+				<div ref={containerRef} className='h-full'>
+					<Swiper
+						className='h-full'
+						key={days.map(d => d.weekday).join(',')}
+						onSwiper={swiper => {
+							swiperRef.current = swiper
+						}}
+						initialSlide={activeIndex >= 0 ? activeIndex : 0}
+						onSlideChange={handleSlideChange}
+						onTouchStart={onTouchStart}
+						onTouchMove={handleTouchMove}
+						onTouchEnd={handleTouchEnd}
+						spaceBetween={16}
+						resistanceRatio={0}
+					>
+						{days.map(day => (
+							<SwiperSlide key={day.weekday} className='h-full'>
+								<ScrollArea className='h-full'>
+									<ExerciseList
+										exercises={day.exercises}
+										dayId={day.id}
+									/>
+								</ScrollArea>
+							</SwiperSlide>
+						))}
+					</Swiper>
+				</div>
+			</div>
+		</div>
+	)
 }

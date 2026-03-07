@@ -45,15 +45,19 @@ export function ProgramPage() {
   }
 
   return (
-    <div className="px-4 py-4">
-      <div className="flex items-center gap-2 mb-4">
-        <Sidebar />
-        <div className="flex-1">
-          <WeekSelector />
+    <div className="flex flex-col flex-1 min-h-0">
+      <div className="px-4 pt-4 pb-4 shrink-0">
+        <div className="flex items-center gap-2">
+          <Sidebar />
+          <div className="flex-1">
+            <WeekSelector />
+          </div>
         </div>
       </div>
 
-      {weekData && <DayTabs days={weekData.days} />}
+      <div className="flex flex-col flex-1 min-h-0 px-4 pb-4">
+        {weekData && <DayTabs days={weekData.days} />}
+      </div>
     </div>
   );
 }

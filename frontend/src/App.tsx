@@ -16,7 +16,7 @@ function App() {
 
   return (
     <div
-      className="min-h-[var(--tg-viewport-height,100vh)] bg-background text-foreground overflow-y-auto"
+      className="h-dvh bg-background text-foreground flex flex-col"
       style={{
         paddingTop: "env(safe-area-inset-top)",
         paddingBottom: "env(safe-area-inset-bottom)",
