@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Day, DayExercise, Exercise, ExerciseSet, OneRepMax, Week, WorkoutCompletion
+from .models import AccessoryWeight, Day, DayExercise, Exercise, ExerciseSet, OneRepMax, Week, WorkoutCompletion
 
 
 class OneRepMaxSerializer(serializers.ModelSerializer):
@@ -68,6 +68,14 @@ class WorkoutCompletionSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkoutCompletion
         fields = ["day_id", "completed_at"]
+
+
+class AccessoryWeightSerializer(serializers.ModelSerializer):
+    week_number = serializers.IntegerField(source="week.number", read_only=True, default=None)
+
+    class Meta:
+        model = AccessoryWeight
+        fields = ["weight", "sets_display", "recorded_date", "week_number"]
 
 
 class WeekDetailSerializer(serializers.ModelSerializer):

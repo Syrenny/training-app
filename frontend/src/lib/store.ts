@@ -1,12 +1,14 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { OneRepMaxData, WeekDetailData, WeekListItem } from "./api";
+import type { AccessoryWeightLatest, OneRepMaxData, WeekDetailData, WeekListItem } from "./api";
 import {
+  fetchAccessoryWeightsLatest as apiFetchAccessoryWeightsLatest,
   fetchCompletions as apiFetchCompletions,
   fetchOneRepMax as apiFetchOneRepMax,
   fetchWeekDetail as apiFetchWeekDetail,
   fetchWeeks as apiFetchWeeks,
   markComplete as apiMarkComplete,
+  saveAccessoryWeight as apiSaveAccessoryWeight,
   saveOneRepMax as apiSaveOneRepMax,
   unmarkComplete as apiUnmarkComplete,
 } from "./api";
@@ -24,7 +26,8 @@ interface ProgramState {
   loading: boolean;
   error: string | null;
   oneRepMax: OneRepMaxData | null;
-  completedDayIds: Set<number>;
+  completions: Map<number, string>;
+  accessoryWeights: AccessoryWeightLatest;
 
   // Actions
   setWeek: (week: number) => void;
@@ -35,6 +38,8 @@ interface ProgramState {
   saveOneRepMax: (data: Partial<OneRepMaxData>) => Promise<void>;
   fetchCompletions: () => Promise<void>;
   toggleCompletion: (dayId: number) => Promise<void>;
+  fetchAccessoryWeights: () => Promise<void>;
+  saveAccessoryWeight: (exerciseId: number, weight: number, setsDisplay: string) => Promise<void>;
   navigateNext: () => Promise<NavigationResult>;
   navigatePrev: () => Promise<NavigationResult>;
 }
@@ -49,7 +54,8 @@ export const useProgramStore = create<ProgramState>()(
       loading: false,
       error: null,
       oneRepMax: null,
-      completedDayIds: new Set<number>(),
+      completions: new Map<number, string>(),
+      accessoryWeights: {},
 
       setWeek: (week) => set({ selectedWeek: week, selectedDay: null }),
 
@@ -126,24 +132,28 @@ export const useProgramStore = create<ProgramState>()(
       fetchCompletions: async () => {
         try {
           const data = await apiFetchCompletions();
-          set({ completedDayIds: new Set(data.completed_day_ids) });
+          const map = new Map<number, string>();
+          for (const [id, date] of Object.entries(data.completions)) {
+            map.set(Number(id), date);
+          }
+          set({ completions: map });
         } catch {
           // Silent fail — completions are non-critical
         }
       },
 
       toggleCompletion: async (dayId) => {
-        const { completedDayIds } = get();
-        const isCompleted = completedDayIds.has(dayId);
+        const { completions } = get();
+        const isCompleted = completions.has(dayId);
 
         // Optimistic update
-        const next = new Set(completedDayIds);
+        const next = new Map(completions);
         if (isCompleted) {
           next.delete(dayId);
         } else {
-          next.add(dayId);
+          next.set(dayId, new Date().toISOString().split("T")[0]);
         }
-        set({ completedDayIds: next });
+        set({ completions: next });
 
         try {
           if (isCompleted) {
@@ -153,7 +163,35 @@ export const useProgramStore = create<ProgramState>()(
           }
         } catch {
           // Revert on error
-          set({ completedDayIds });
+          set({ completions });
+        }
+      },
+
+      fetchAccessoryWeights: async () => {
+        try {
+          const data = await apiFetchAccessoryWeightsLatest();
+          set({ accessoryWeights: data });
+        } catch {
+          // Silent fail
+        }
+      },
+
+      saveAccessoryWeight: async (exerciseId, weight, setsDisplay) => {
+        const { selectedWeek } = get();
+        try {
+          await apiSaveAccessoryWeight(exerciseId, weight, selectedWeek, setsDisplay);
+          // Update local state optimistically
+          set((state) => ({
+            accessoryWeights: {
+              ...state.accessoryWeights,
+              [exerciseId]: {
+                weight: String(weight),
+                recorded_date: new Date().toISOString().split("T")[0],
+              },
+            },
+          }));
+        } catch {
+          // Silent fail
         }
       },
 

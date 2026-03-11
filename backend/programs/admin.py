@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Day, DayExercise, Exercise, ExerciseSet, Week, WorkoutCompletion
+from .models import AccessoryWeight, Day, DayExercise, Exercise, ExerciseSet, Week, WorkoutCompletion
 
 
 class ExerciseSetInline(admin.TabularInline):
@@ -64,3 +64,10 @@ class WorkoutCompletionAdmin(admin.ModelAdmin):
     list_display = ["telegram_id", "day", "completed_at"]
     list_filter = ["day__week"]
     ordering = ["-completed_at"]
+
+
+@admin.register(AccessoryWeight)
+class AccessoryWeightAdmin(admin.ModelAdmin):
+    list_display = ["telegram_id", "exercise", "weight", "sets_display", "recorded_date", "week"]
+    list_filter = ["exercise", "week"]
+    ordering = ["-recorded_date"]

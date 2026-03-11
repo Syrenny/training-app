@@ -3,7 +3,6 @@ import { ExerciseCard } from "./ExerciseCard";
 import { SupersetCard } from "./SupersetCard";
 import { CompletionButton } from "./CompletionButton";
 import type { DayExerciseData } from "@/lib/api";
-import { calcTonnage } from "@/lib/calc";
 import { useProgramStore } from "@/lib/store";
 
 type ExerciseItem =
@@ -43,37 +42,26 @@ interface ExerciseListProps {
   dayId: number;
 }
 
-function formatTonnage(value: number): string {
-  return value >= 1000
-    ? `${(value / 1000).toFixed(1)}т`
-    : `${value}кг`;
+function formatCompletionDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
 }
 
 export function ExerciseList({ exercises, dayId }: ExerciseListProps) {
-  const completedDayIds = useProgramStore((s) => s.completedDayIds);
+  const completions = useProgramStore((s) => s.completions);
   const toggleCompletion = useProgramStore((s) => s.toggleCompletion);
-  const oneRepMax = useProgramStore((s) => s.oneRepMax);
 
-  const totalTonnage = exercises.reduce((sum, ex) => {
-    if (ex.exercise.category === "ACCESSORY") return sum;
-    const t = calcTonnage(ex.sets, ex.exercise.category, oneRepMax);
-    return t != null ? sum + t : sum;
-  }, 0);
-
-  const isCompleted = completedDayIds.has(dayId);
+  const completionDate = completions.get(dayId);
+  const isCompleted = completionDate != null;
 
   return (
     <div>
-      {exercises.length > 0 && (
-        <div className="flex items-center gap-2 mb-3">
-          {totalTonnage > 0 && (
-            <p className="text-muted-foreground text-sm">
-              Тоннаж в базовых упражнениях: {formatTonnage(totalTonnage)}
-            </p>
-          )}
-          {isCompleted && (
-            <Check className="h-4 w-4 text-green-500 ml-auto shrink-0" />
-          )}
+      {exercises.length > 0 && isCompleted && (
+        <div className="flex items-center justify-end gap-1.5 mb-3">
+          <Check className="h-4 w-4 text-green-500 shrink-0" />
+          <span className="text-xs text-green-500">
+            {formatCompletionDate(completionDate)}
+          </span>
         </div>
       )}
       {exercises.length === 0 ? (

@@ -17,7 +17,7 @@ interface DayTabsProps {
 export function DayTabs({ days }: DayTabsProps) {
 	const selectedDay = useProgramStore(s => s.selectedDay)
 	const setDay = useProgramStore(s => s.setDay)
-	const completedDayIds = useProgramStore(s => s.completedDayIds)
+	const completions = useProgramStore(s => s.completions)
 
 	const swiperRef = useRef<SwiperType | null>(null)
 	const programmatic = useRef(false)
@@ -111,7 +111,7 @@ export function DayTabs({ days }: DayTabsProps) {
 							className='flex-1 text-base relative'
 						>
 							{day.weekday_display}
-							{completedDayIds.has(day.id) && (
+							{completions.has(day.id) && (
 								<span className='absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500' />
 							)}
 						</TabsTrigger>

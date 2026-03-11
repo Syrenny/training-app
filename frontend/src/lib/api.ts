@@ -105,7 +105,7 @@ export function saveOneRepMax(data: Partial<OneRepMaxData>): Promise<OneRepMaxDa
 }
 
 export interface CompletionsData {
-  completed_day_ids: number[];
+  completions: Record<string, string>;
 }
 
 export interface CompletionRecord {
@@ -132,4 +132,45 @@ export async function unmarkComplete(dayId: number): Promise<void> {
     headers: getHeaders(),
   });
   if (!response.ok) throw new Error(`API error: ${response.status}`);
+}
+
+// Accessory weights
+
+export interface AccessoryWeightLatest {
+  [exerciseId: string]: {
+    weight: string;
+    recorded_date: string;
+  };
+}
+
+export interface AccessoryWeightRecord {
+  weight: string;
+  sets_display: string;
+  recorded_date: string;
+  week_number: number | null;
+}
+
+export function fetchAccessoryWeightsLatest(): Promise<AccessoryWeightLatest> {
+  return fetchApi<AccessoryWeightLatest>("/accessory-weights/latest/");
+}
+
+export function saveAccessoryWeight(
+  exerciseId: number,
+  weight: number,
+  weekNumber: number | null,
+  setsDisplay: string,
+): Promise<AccessoryWeightRecord> {
+  return putApi<AccessoryWeightRecord>(`/accessory-weights/${exerciseId}/`, {
+    weight,
+    week_number: weekNumber,
+    sets_display: setsDisplay,
+  });
+}
+
+export function fetchAccessoryWeightHistory(
+  exerciseId: number,
+): Promise<AccessoryWeightRecord[]> {
+  return fetchApi<AccessoryWeightRecord[]>(
+    `/accessory-weights/${exerciseId}/history/`,
+  );
 }

@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SetDisplay } from "./SetDisplay";
+import { AccessoryWeightInput } from "./AccessoryWeightInput";
 import type { DayExerciseData } from "@/lib/api";
 import { calcTonnage } from "@/lib/calc";
 import { useProgramStore } from "@/lib/store";
@@ -47,6 +48,13 @@ export function ExerciseCard({ dayExercise, displayOrder }: ExerciseCardProps) {
           <p className="text-muted-foreground text-xs mt-2">
             Тоннаж: {tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)}т` : `${tonnage}кг`}
           </p>
+        )}
+        {exercise.category === "ACCESSORY" && (
+          <AccessoryWeightInput
+            exerciseId={exercise.id}
+            exerciseName={exercise.name}
+            setsDisplay={sets.map(s => s.display).join(", ")}
+          />
         )}
       </CardContent>
     </Card>

@@ -1,10 +1,14 @@
+from datetime import date
+
+from django.db.models import Max, Subquery, OuterRef
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Day, OneRepMax, Week, WorkoutCompletion
+from .models import AccessoryWeight, Day, Exercise, OneRepMax, Week, WorkoutCompletion
 from .serializers import (
+    AccessoryWeightSerializer,
     OneRepMaxSerializer,
     WeekDetailSerializer,
     WeekListSerializer,
@@ -64,10 +68,11 @@ class CompletionListView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        ids = list(
-            WorkoutCompletion.objects.filter(telegram_id=telegram_id).values_list("day_id", flat=True)
+        completions = WorkoutCompletion.objects.filter(telegram_id=telegram_id).values_list(
+            "day_id", "completed_at"
         )
-        return Response({"completed_day_ids": ids})
+        result = {day_id: completed_at.strftime("%Y-%m-%d") for day_id, completed_at in completions}
+        return Response({"completions": result})
 
 
 class CompletionDetailView(APIView):
@@ -112,6 +117,127 @@ class CompletionDetailView(APIView):
 
         WorkoutCompletion.objects.filter(telegram_id=telegram_id, day_id=day_id).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AccessoryWeightView(APIView):
+    permission_classes = [AllowAny]
+
+    def _get_telegram_id(self, request):
+        user = request.user
+        if isinstance(user, dict) and user.get("id"):
+            return user["id"]
+        return None
+
+    def put(self, request, exercise_id):
+        telegram_id = self._get_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        try:
+            exercise = Exercise.objects.get(pk=exercise_id)
+        except Exercise.DoesNotExist:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        weight = request.data.get("weight")
+        if weight is None:
+            return Response(
+                {"detail": "weight is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        sets_display = request.data.get("sets_display", "")
+
+        week_number = request.data.get("week_number")
+        week = None
+        if week_number is not None:
+            try:
+                week = Week.objects.get(number=week_number)
+            except Week.DoesNotExist:
+                pass
+
+        obj, _ = AccessoryWeight.objects.update_or_create(
+            telegram_id=telegram_id,
+            exercise=exercise,
+            recorded_date=date.today(),
+            defaults={"weight": weight, "sets_display": sets_display, "week": week},
+        )
+        return Response(AccessoryWeightSerializer(obj).data)
+
+
+class AccessoryWeightLatestView(APIView):
+    permission_classes = [AllowAny]
+
+    def _get_telegram_id(self, request):
+        user = request.user
+        if isinstance(user, dict) and user.get("id"):
+            return user["id"]
+        return None
+
+    def get(self, request):
+        telegram_id = self._get_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        # Get latest record per exercise
+        latest_dates = (
+            AccessoryWeight.objects.filter(
+                telegram_id=telegram_id,
+                exercise=OuterRef("exercise"),
+            )
+            .order_by("-recorded_date")
+            .values("recorded_date")[:1]
+        )
+
+        records = (
+            AccessoryWeight.objects.filter(
+                telegram_id=telegram_id,
+                recorded_date=Subquery(latest_dates),
+            )
+            .select_related("exercise", "week")
+        )
+
+        result = {}
+        for rec in records:
+            result[rec.exercise_id] = {
+                "weight": str(rec.weight),
+                "recorded_date": rec.recorded_date.isoformat(),
+            }
+
+        return Response(result)
+
+
+class AccessoryWeightHistoryView(APIView):
+    permission_classes = [AllowAny]
+
+    def _get_telegram_id(self, request):
+        user = request.user
+        if isinstance(user, dict) and user.get("id"):
+            return user["id"]
+        return None
+
+    def get(self, request, exercise_id):
+        telegram_id = self._get_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        records = (
+            AccessoryWeight.objects.filter(
+                telegram_id=telegram_id,
+                exercise_id=exercise_id,
+            )
+            .select_related("week")
+            .order_by("-recorded_date")
+        )
+
+        return Response(AccessoryWeightSerializer(records, many=True).data)
 
 
 class WeekListView(generics.ListAPIView):

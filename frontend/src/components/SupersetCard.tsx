@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { SetDisplay } from "./SetDisplay";
+import { AccessoryWeightInput } from "./AccessoryWeightInput";
 import type { DayExerciseData } from "@/lib/api";
 import { calcTonnage } from "@/lib/calc";
 import { useProgramStore } from "@/lib/store";
@@ -72,6 +73,13 @@ export function SupersetCard({ exercises, displayOrder }: SupersetCardProps) {
                       ? `${(tonnage / 1000).toFixed(1)}т`
                       : `${tonnage}кг`}
                   </p>
+                )}
+                {dayExercise.exercise.category === "ACCESSORY" && (
+                  <AccessoryWeightInput
+                    exerciseId={dayExercise.exercise.id}
+                    exerciseName={dayExercise.exercise.name}
+                    setsDisplay={dayExercise.sets.map((s) => s.display).join(", ")}
+                  />
                 )}
               </div>
             );

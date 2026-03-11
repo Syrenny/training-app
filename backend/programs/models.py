@@ -131,6 +131,40 @@ class WorkoutCompletion(models.Model):
         return f"tg:{self.telegram_id} — {self.day} — {self.completed_at:%Y-%m-%d}"
 
 
+class AccessoryWeight(models.Model):
+    telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name="accessory_weights",
+        verbose_name="Упражнение",
+    )
+    weight = models.DecimalField(
+        max_digits=6, decimal_places=1, verbose_name="Вес (кг)"
+    )
+    sets_display = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="Подходы (снапшот)"
+    )
+    recorded_date = models.DateField(verbose_name="Дата записи")
+    week = models.ForeignKey(
+        Week,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="accessory_weights",
+        verbose_name="Неделя",
+    )
+
+    class Meta:
+        unique_together = [("telegram_id", "exercise", "recorded_date")]
+        ordering = ["-recorded_date"]
+        verbose_name = "Вес подсобки"
+        verbose_name_plural = "Веса подсобок"
+
+    def __str__(self):
+        return f"tg:{self.telegram_id} — {self.exercise.name} — {self.weight}кг ({self.recorded_date})"
+
+
 class ExerciseSet(models.Model):
     day_exercise = models.ForeignKey(
         DayExercise,

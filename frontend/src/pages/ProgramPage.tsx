@@ -14,12 +14,14 @@ export function ProgramPage() {
   const fetchWeekDetail = useProgramStore((s) => s.fetchWeekDetail);
   const fetchOneRepMax = useProgramStore((s) => s.fetchOneRepMax);
   const fetchCompletions = useProgramStore((s) => s.fetchCompletions);
+  const fetchAccessoryWeights = useProgramStore((s) => s.fetchAccessoryWeights);
 
   useEffect(() => {
     fetchWeeks();
     fetchOneRepMax();
     fetchCompletions();
-  }, [fetchWeeks, fetchOneRepMax, fetchCompletions]);
+    fetchAccessoryWeights();
+  }, [fetchWeeks, fetchOneRepMax, fetchCompletions, fetchAccessoryWeights]);
 
   useEffect(() => {
     if (selectedWeek !== null) {

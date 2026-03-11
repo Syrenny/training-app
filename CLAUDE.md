@@ -11,8 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-25
 - N/A (frontend-only feature; existing Zustand persist to localStorage) (005-day-swipe)
 - TypeScript 5.9 (React 19 + Vite 7) + Swiper.js 12.1.2, Zustand 5, Tailwind CSS 4, shadcn/ui (006-fix-swipe)
 - N/A (frontend-only, no data changes) (006-fix-swipe)
-- TypeScript 5.9 (React 19 + Vite 7) + Motion 12.x (replacing Swiper.js 12.1.2), Zustand 5, Tailwind CSS 4, shadcn/ui (007-framer-swipe)
-- Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Motion 12.x + Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend) (008-workout-completion)
+- TypeScript 5.9 (React 19 + Vite 7) + Motion 12.x (007-framer-swipe — ROLLED BACK; Swiper.js 12.1.2 still in use)
+- Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend) (008-workout-completion)
 - SQLite via Django ORM (008-workout-completion)
 - Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend) (009-auth-guard)
 
@@ -36,7 +36,7 @@ Python 3.11+ (backend), TypeScript (frontend): Follow standard conventions
 ## Recent Changes
 - 009-auth-guard: Added Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend)
 - 008-workout-completion: Added Python 3.13 (backend) · TypeScript 5.9 / React 19 (frontend) + Django 6 + DRF (backend) · Motion 12.x + Zustand 5 + Tailwind CSS 4 + shadcn/ui (frontend)
-- 007-framer-swipe: Added TypeScript 5.9 (React 19 + Vite 7) + Motion 12.x (replacing Swiper.js 12.1.2), Zustand 5, Tailwind CSS 4, shadcn/ui
+- 007-framer-swipe: ROLLED BACK — Motion 12.x migration reverted, Swiper.js 12.1.2 remains active
 
 
 <!-- MANUAL ADDITIONS START -->
