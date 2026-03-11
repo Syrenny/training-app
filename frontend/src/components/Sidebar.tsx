@@ -21,7 +21,7 @@ export function Sidebar() {
       </SheetTrigger>
       <SheetContent side="left" className="w-72">
         <SheetHeader>
-          <SheetTitle>Настройки</SheetTitle>
+          <SheetTitle>Разовые максимумы</SheetTitle>
         </SheetHeader>
         <div className="px-4">
           <OneRepMaxPage />

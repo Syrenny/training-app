@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useProgramStore } from "@/lib/store";
 import { DayTabs } from "@/components/DayTabs";
+import { InfoButton } from "@/components/InfoButton";
 import { Sidebar } from "@/components/Sidebar";
 import { WeekSelector } from "@/components/WeekSelector";
 
@@ -52,6 +53,7 @@ export function ProgramPage() {
           <div className="flex-1">
             <WeekSelector />
           </div>
+          <InfoButton />
         </div>
       </div>
 

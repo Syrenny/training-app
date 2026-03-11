@@ -108,11 +108,11 @@ export function DayTabs({ days }: DayTabsProps) {
 						<TabsTrigger
 							key={day.weekday}
 							value={day.weekday}
-							className='flex-1 text-base'
+							className='flex-1 text-base relative'
 						>
 							{day.weekday_display}
 							{completedDayIds.has(day.id) && (
-								<span className='block h-1.5 w-1.5 rounded-full bg-green-500 mx-auto mt-0.5' />
+								<span className='absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500' />
 							)}
 						</TabsTrigger>
 					))}
@@ -139,7 +139,7 @@ export function DayTabs({ days }: DayTabsProps) {
 					>
 						{days.map(day => (
 							<SwiperSlide key={day.weekday} className='h-full'>
-								<ScrollArea className='h-full'>
+								<ScrollArea className='h-full [&>[data-slot=scroll-area-scrollbar]]:hidden'>
 									<ExerciseList
 										exercises={day.exercises}
 										dayId={day.id}

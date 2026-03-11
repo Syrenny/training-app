@@ -44,7 +44,7 @@ class DayExerciseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DayExercise
-        fields = ["id", "order", "exercise", "sets"]
+        fields = ["id", "order", "exercise", "sets", "superset_group"]
 
 
 class DaySerializer(serializers.ModelSerializer):

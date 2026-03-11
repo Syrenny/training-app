@@ -102,6 +102,9 @@ class DayExercise(models.Model):
         Exercise, on_delete=models.CASCADE, verbose_name="Упражнение"
     )
     order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
+    superset_group = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="Группа суперсета"
+    )
 
     class Meta:
         ordering = ["order"]

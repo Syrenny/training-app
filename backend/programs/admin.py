@@ -12,7 +12,7 @@ class ExerciseSetInline(admin.TabularInline):
 class DayExerciseInline(admin.TabularInline):
     model = DayExercise
     extra = 1
-    fields = ["order", "exercise"]
+    fields = ["order", "exercise", "superset_group"]
     show_change_link = True
 
 
@@ -47,7 +47,7 @@ class ExerciseAdmin(admin.ModelAdmin):
 
 @admin.register(DayExercise)
 class DayExerciseAdmin(admin.ModelAdmin):
-    list_display = ["day", "exercise", "order"]
+    list_display = ["day", "exercise", "order", "superset_group"]
     list_filter = ["day__week", "day__weekday"]
     ordering = ["day__week__number", "day__order", "order"]
     inlines = [ExerciseSetInline]

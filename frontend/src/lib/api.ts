@@ -62,6 +62,7 @@ export interface DayExerciseData {
   order: number;
   exercise: ExerciseData;
   sets: ExerciseSetData[];
+  superset_group: number | null;
 }
 
 export interface DayData {
