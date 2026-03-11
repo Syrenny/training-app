@@ -18,23 +18,24 @@ class CompletionAPITest(TestCase):
     # --- GET /api/completions/ ---
 
     def test_get_empty_list(self):
-        """GET returns empty list when no completions exist."""
+        """GET returns empty dict when no completions exist."""
         response = self.client.get("/api/completions/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json(), {"completed_day_ids": []})
+        self.assertEqual(response.json(), {"completions": {}})
 
-    def test_get_returns_completed_day_ids(self):
-        """GET returns list of completed day IDs for the current user."""
+    def test_get_returns_completions_with_dates(self):
+        """GET returns dict of day_id -> date for the current user."""
         WorkoutCompletion.objects.create(telegram_id=42, day=self.day)
         response = self.client.get("/api/completions/")
         self.assertEqual(response.status_code, 200)
-        self.assertIn(self.day.id, response.json()["completed_day_ids"])
+        completions = response.json()["completions"]
+        self.assertIn(str(self.day.id), completions)
 
     def test_get_only_returns_current_user_completions(self):
         """GET does not return another user's completions."""
         WorkoutCompletion.objects.create(telegram_id=99, day=self.day)
         response = self.client.get("/api/completions/")
-        self.assertEqual(response.json()["completed_day_ids"], [])
+        self.assertEqual(response.json()["completions"], {})
 
     # --- POST /api/completions/<day_id>/ ---
 
