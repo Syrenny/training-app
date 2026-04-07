@@ -1,7 +1,7 @@
-import { Check } from "lucide-react";
 import { ExerciseCard } from "./ExerciseCard";
 import { SupersetCard } from "./SupersetCard";
 import { CompletionButton } from "./CompletionButton";
+import { WorkoutSummaryCard } from "./WorkoutSummaryCard";
 import type { DayExerciseData } from "@/lib/api";
 import { useProgramStore } from "@/lib/store";
 
@@ -42,11 +42,6 @@ interface ExerciseListProps {
   dayId: number;
 }
 
-function formatCompletionDate(iso: string): string {
-  const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
-}
-
 export function ExerciseList({ exercises, dayId }: ExerciseListProps) {
   const completions = useProgramStore((s) => s.completions);
   const toggleCompletion = useProgramStore((s) => s.toggleCompletion);
@@ -56,13 +51,12 @@ export function ExerciseList({ exercises, dayId }: ExerciseListProps) {
 
   return (
     <div>
-      {exercises.length > 0 && isCompleted && (
-        <div className="flex items-center justify-end gap-1.5 mb-3">
-          <Check className="h-4 w-4 text-green-500 shrink-0" />
-          <span className="text-xs text-green-500">
-            {formatCompletionDate(completionDate)}
-          </span>
-        </div>
+      {exercises.length > 0 && (
+        <WorkoutSummaryCard
+          exercises={exercises}
+          isCompleted={isCompleted}
+          completionDate={completionDate}
+        />
       )}
       {exercises.length === 0 ? (
         <p className="text-muted-foreground text-center py-8">
