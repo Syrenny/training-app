@@ -1,0 +1,50 @@
+services:
+  web:
+    build:
+      context: .
+      target: web
+    image: ${WEB_IMAGE:-training-app-web:local}
+    restart: unless-stopped
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-me}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,web,frontend-static}
+      DB_DIR: /app/db
+      DEBUG: ${DEBUG:-false}
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
+    volumes:
+      - ${APP_DB_DIR:-./data/db}:/app/db
+
+  bot:
+    build:
+      context: .
+      target: bot
+    image: ${BOT_IMAGE:-training-app-bot:local}
+    restart: unless-stopped
+    depends_on:
+      - web
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.prod
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-me}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,web,frontend-static}
+      DB_DIR: /app/db
+      DEBUG: ${DEBUG:-false}
+    volumes:
+      - ${APP_DB_DIR:-./data/db}:/app/db
+
+  frontend-static:
+    build:
+      context: .
+      target: frontend-static
+    image: ${FRONTEND_STATIC_IMAGE:-training-app-frontend-static:local}
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - ${FRONTEND_PORT:-80}:80

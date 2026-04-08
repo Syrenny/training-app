@@ -1,11 +1,13 @@
 import hashlib
 import hmac
 import json
-from urllib.parse import parse_qs, unquote
+from urllib.parse import unquote
 
 from django.conf import settings
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+
+from .auth_utils import sync_telegram_user
 
 
 class TelegramInitDataAuthentication(BaseAuthentication):
@@ -13,7 +15,7 @@ class TelegramInitDataAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
         if settings.DEBUG and request.headers.get("X-Dev-Mode") == "1":
-            return ({"id": 1, "first_name": "Dev"}, None)
+            return (sync_telegram_user({"id": 1, "first_name": "Dev"}, username_prefix="dev"), None)
 
         init_data = request.headers.get("X-Telegram-Init-Data", "")
         if not init_data:
@@ -28,7 +30,10 @@ class TelegramInitDataAuthentication(BaseAuthentication):
             if "=" in chunk
         )
         user_data = json.loads(params.get("user", "{}"))
-        return (user_data, None)
+        user = sync_telegram_user(user_data)
+        if user is None:
+            raise AuthenticationFailed("Telegram user not found in initData")
+        return (user, None)
 
     @staticmethod
     def validate_init_data(init_data: str, bot_token: str) -> bool:

@@ -1,0 +1,68 @@
+services:
+  web:
+    build:
+      context: .
+      target: python-base
+    working_dir: /workspace/backend
+    command: >
+      sh -c "uv sync &&
+      uv run python manage.py migrate &&
+      uv run python manage.py runserver 0.0.0.0:8000"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-me}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost:5173}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,web}
+      DB_DIR: /workspace/data/db
+      DEBUG: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/workspace/backend
+      - ./data/db:/workspace/data/db
+      - backend_venv:/workspace/backend/.venv
+
+  bot:
+    build:
+      context: .
+      target: python-base
+    working_dir: /workspace/backend
+    command: >
+      sh -c "uv sync &&
+      uv run python manage.py runbot"
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+      SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-me}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost:5173}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,web}
+      DB_DIR: /workspace/data/db
+      DEBUG: "true"
+    depends_on:
+      - web
+    volumes:
+      - ./backend:/workspace/backend
+      - ./data/db:/workspace/data/db
+      - backend_venv:/workspace/backend/.venv
+
+  frontend:
+    image: node:22-slim
+    working_dir: /workspace/frontend
+    command: >
+      sh -c "npm ci &&
+      npm run dev -- --host 0.0.0.0 --port 5173"
+    environment:
+      VITE_DEV_MODE: ${VITE_DEV_MODE:-false}
+      VITE_API_PROXY_TARGET: http://web:8000
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/workspace/frontend
+      - frontend_node_modules:/workspace/frontend/node_modules
+
+volumes:
+  backend_venv:
+  frontend_node_modules:

@@ -1,0 +1,19 @@
+{
+  "name": "Программа тренировок",
+  "short_name": "Тренировки",
+  "description": "Тренировочная программа с локальной сессией после входа через Telegram.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

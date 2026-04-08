@@ -10,14 +10,13 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE: ghcr.io/syrenny/training-app
+  WEB_IMAGE: ghcr.io/syrenny/training-app-web
+  BOT_IMAGE: ghcr.io/syrenny/training-app-bot
+  FRONTEND_STATIC_IMAGE: ghcr.io/syrenny/training-app-frontend-static
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
 
@@ -27,8 +26,23 @@ jobs:
 
       - uses: astral-sh/setup-uv@v5
 
-      - run: uv sync --frozen
-      - run: uv run python manage.py test tests/ --verbosity=2
+      - name: Run backend tests
+        working-directory: backend
+        run: |
+          uv sync --frozen
+          uv run pytest tests -q
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
 
   build:
     needs: test
@@ -45,32 +59,69 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/build-push-action@v6
+      - name: Build and push web image
+        uses: docker/build-push-action@v6
         with:
           context: .
+          target: web
           push: true
           tags: |
-            ${{ env.IMAGE }}:${{ github.sha }}
-            ${{ env.IMAGE }}:latest
+            ${{ env.WEB_IMAGE }}:${{ github.sha }}
+            ${{ env.WEB_IMAGE }}:latest
+
+      - name: Build and push bot image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: bot
+          push: true
+          tags: |
+            ${{ env.BOT_IMAGE }}:${{ github.sha }}
+            ${{ env.BOT_IMAGE }}:latest
+
+      - name: Build and push frontend-static image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: frontend-static
+          push: true
+          tags: |
+            ${{ env.FRONTEND_STATIC_IMAGE }}:${{ github.sha }}
+            ${{ env.FRONTEND_STATIC_IMAGE }}:latest
 
   deploy:
     needs: build
     runs-on: self-hosted
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - name: Pull and restart container
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write compose env file
         run: |
-          docker pull ${{ env.IMAGE }}:latest
-          docker stop training-app || true
-          docker rm training-app || true
-          docker run -d \
-            --name training-app \
-            --restart unless-stopped \
-            -p 8000:8000 \
-            -v /opt/training-app/db:/app/db \
-            -e TELEGRAM_BOT_TOKEN="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-            -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
-            -e TELEGRAM_WEBAPP_URL="${{ secrets.TELEGRAM_WEBAPP_URL }}" \
-            -e ALLOWED_HOSTS="${{ secrets.ALLOWED_HOSTS }}" \
-            -e DB_DIR=/app/db \
-            -e DEBUG=false \
-            ${{ env.IMAGE }}:latest
+          mkdir -p /opt/training-app/db
+          cat > .env.production <<EOF
+          WEB_IMAGE=${{ env.WEB_IMAGE }}:latest
+          BOT_IMAGE=${{ env.BOT_IMAGE }}:latest
+          FRONTEND_STATIC_IMAGE=${{ env.FRONTEND_STATIC_IMAGE }}:latest
+          APP_DB_DIR=/opt/training-app/db
+          TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_USERNAME=${{ secrets.TELEGRAM_BOT_USERNAME }}
+          SECRET_KEY=${{ secrets.SECRET_KEY }}
+          TELEGRAM_WEBAPP_URL=${{ secrets.TELEGRAM_WEBAPP_URL }}
+          ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
+          DEBUG=false
+          FRONTEND_PORT=80
+          EOF
+
+      - name: Pull and restart stack
+        run: |
+          docker compose -f compose.prod.yaml --env-file .env.production pull
+          docker compose -f compose.prod.yaml --env-file .env.production up -d --remove-orphans

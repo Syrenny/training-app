@@ -24,6 +24,7 @@ class TestDevBypass:
             result = auth.authenticate(request)
         assert result is None
 
+    @pytest.mark.django_db
     def test_dev_mode_header_debug_true_returns_dev_user(self, auth, factory):
         """X-Dev-Mode: 1 with DEBUG=True should return dev user with id=1."""
         request = factory.get("/api/one-rep-max/", HTTP_X_DEV_MODE="1")
@@ -31,8 +32,8 @@ class TestDevBypass:
             result = auth.authenticate(request)
         assert result is not None
         user, token = result
-        assert user["id"] == 1
-        assert user["first_name"] == "Dev"
+        assert user.profile.telegram_id == 1
+        assert user.first_name == "Dev"
         assert token is None
 
     def test_dev_mode_header_debug_false_is_ignored(self, auth, factory):
@@ -41,4 +42,6 @@ class TestDevBypass:
         with patch("programs.authentication.settings.DEBUG", False):
             result = auth.authenticate(request)
         # Should not return dev user — fall through to normal auth (returns None for missing initData)
-        assert result is None or (result is not None and result[0].get("id") != 1)
+        assert result is None or (
+            result is not None and getattr(result[0], "profile", None).telegram_id != 1
+        )

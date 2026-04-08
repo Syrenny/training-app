@@ -1,3 +1,4 @@
+import type { AuthUser } from "@/lib/api";
 import { useEffect } from "react";
 import { useProgramStore } from "@/lib/store";
 import { DayTabs } from "@/components/DayTabs";
@@ -5,7 +6,12 @@ import { InfoButton } from "@/components/InfoButton";
 import { Sidebar } from "@/components/Sidebar";
 import { WeekSelector } from "@/components/WeekSelector";
 
-export function ProgramPage() {
+interface ProgramPageProps {
+  user: AuthUser | null;
+  onLogout: () => void;
+}
+
+export function ProgramPage({ user, onLogout }: ProgramPageProps) {
   const selectedWeek = useProgramStore((s) => s.selectedWeek);
   const loading = useProgramStore((s) => s.loading);
   const error = useProgramStore((s) => s.error);
@@ -51,7 +57,10 @@ export function ProgramPage() {
     <div className="flex flex-col flex-1 min-h-0">
       <div className="px-4 pt-4 pb-4 shrink-0">
         <div className="flex items-center gap-2">
-          <Sidebar />
+          <Sidebar
+            userName={user?.first_name || user?.telegram_username || undefined}
+            onLogout={onLogout}
+          />
           <div className="flex-1">
             <WeekSelector />
           </div>

@@ -24,6 +24,11 @@ export function isAuthorized(): boolean {
   return tg !== null && tg.initData !== "";
 }
 
+export function isTelegramContext(): boolean {
+  const tg = getTelegram();
+  return tg !== null && typeof tg.initData === "string" && tg.initData.length > 0;
+}
+
 export function getTelegram(): TelegramWebApp | null {
   if (typeof window !== "undefined" && window.Telegram?.WebApp) {
     return window.Telegram.WebApp;
@@ -33,7 +38,7 @@ export function getTelegram(): TelegramWebApp | null {
 
 export function initTelegram(): void {
   const tg = getTelegram();
-  if (!tg) return;
+  if (!tg || !tg.initData) return;
 
   tg.ready();
   tg.expand();

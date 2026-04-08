@@ -2,6 +2,42 @@ import { getTelegram } from "./telegram";
 
 const BASE_URL = "/api";
 
+export interface AuthUser {
+  id: number;
+  telegram_id: number | null;
+  first_name: string;
+  last_name: string;
+  telegram_username: string;
+}
+
+export interface AuthSessionData {
+  authenticated: boolean;
+  telegram_bot_username: string;
+  user: AuthUser | null;
+}
+
+export interface TelegramWidgetAuthData {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  photo_url?: string;
+  auth_date: number;
+  hash: string;
+}
+
+function getCookie(name: string): string {
+  if (typeof document === "undefined") return "";
+  const match = document.cookie
+    .split("; ")
+    .find((part) => part.startsWith(`${name}=`));
+  return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : "";
+}
+
+function getCsrfToken(): string {
+  return getCookie("csrftoken");
+}
+
 function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -17,8 +53,25 @@ function getHeaders(): Record<string, string> {
   return headers;
 }
 
+function getRequestOptions(method?: string, data?: unknown): RequestInit {
+  const headers = getHeaders();
+  if (method && method !== "GET") {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) {
+      headers["X-CSRFToken"] = csrfToken;
+    }
+  }
+
+  return {
+    method,
+    headers,
+    credentials: "include",
+    body: data === undefined ? undefined : JSON.stringify(data),
+  };
+}
+
 async function fetchApi<T>(path: string): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, { headers: getHeaders() });
+  const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("GET"));
 
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
@@ -28,17 +81,43 @@ async function fetchApi<T>(path: string): Promise<T> {
 }
 
 async function putApi<T>(path: string, data: unknown): Promise<T> {
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method: "PUT",
-    headers: getHeaders(),
-    body: JSON.stringify(data),
-  });
+  const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("PUT", data));
 
   if (!response.ok) {
     throw new Error(`API error: ${response.status}`);
   }
 
   return response.json();
+}
+
+export async function fetchSession(): Promise<AuthSessionData> {
+  return fetchApi<AuthSessionData>("/auth/session/");
+}
+
+export async function loginWithTelegram(
+  initData?: string,
+  authData?: TelegramWidgetAuthData,
+): Promise<AuthSessionData> {
+  const response = await fetch(
+    `${BASE_URL}/auth/telegram/`,
+    getRequestOptions(
+      "POST",
+      initData ? { init_data: initData } : { auth_data: authData },
+    ),
+  );
+
+  if (!response.ok) {
+    throw new Error(`Auth error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+export async function logoutSession(): Promise<void> {
+  const response = await fetch(`${BASE_URL}/auth/logout/`, getRequestOptions("POST"));
+  if (!response.ok) {
+    throw new Error(`Logout error: ${response.status}`);
+  }
 }
 
 export interface ExerciseSetData {
@@ -118,19 +197,19 @@ export function fetchCompletions(): Promise<CompletionsData> {
 }
 
 export async function markComplete(dayId: number): Promise<CompletionRecord> {
-  const response = await fetch(`${BASE_URL}/completions/${dayId}/`, {
-    method: "POST",
-    headers: getHeaders(),
-  });
+  const response = await fetch(
+    `${BASE_URL}/completions/${dayId}/`,
+    getRequestOptions("POST"),
+  );
   if (!response.ok) throw new Error(`API error: ${response.status}`);
   return response.json();
 }
 
 export async function unmarkComplete(dayId: number): Promise<void> {
-  const response = await fetch(`${BASE_URL}/completions/${dayId}/`, {
-    method: "DELETE",
-    headers: getHeaders(),
-  });
+  const response = await fetch(
+    `${BASE_URL}/completions/${dayId}/`,
+    getRequestOptions("DELETE"),
+  );
   if (!response.ok) throw new Error(`API error: ${response.status}`);
 }
 

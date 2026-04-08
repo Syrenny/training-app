@@ -1,5 +1,31 @@
+from django.conf import settings
 from django.core.validators import MaxValueValidator
 from django.db import models
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="profile",
+        verbose_name="Пользователь",
+    )
+    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID")
+    telegram_username = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Telegram username",
+    )
+    first_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Имя")
+    last_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Фамилия")
+
+    class Meta:
+        verbose_name = "Профиль пользователя"
+        verbose_name_plural = "Профили пользователей"
+
+    def __str__(self):
+        return f"{self.user.username} (tg:{self.telegram_id})"
 
 
 class OneRepMax(models.Model):
