@@ -38,49 +38,18 @@ export function getTelegram(): TelegramWebApp | null {
 }
 
 export function initTelegram(): void {
-  if (typeof window === "undefined") return;
-
   const tg = getTelegram();
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-  const handleThemeChange = () => syncTheme(tg, media.matches);
-  const handleViewportChange = () => {
-    if (tg) {
-      syncViewport(tg);
-    }
-  };
-
-  if (tg) {
-    tg.ready();
-    tg.expand();
-    syncViewport(tg);
-    tg.onEvent("themeChanged", handleThemeChange);
-    tg.onEvent("viewportChanged", handleViewportChange);
-  }
-
-  syncTheme(tg, media.matches);
-
-  if (typeof media.addEventListener === "function") {
-    media.addEventListener("change", handleThemeChange);
-  } else {
-    media.addListener(handleThemeChange);
-  }
-}
-
-function syncTheme(tg: TelegramWebApp | null, systemPrefersDark: boolean): void {
-  const root = document.documentElement;
-  const isDark = tg ? tg.colorScheme === "dark" : systemPrefersDark;
-
-  if (isDark) {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-  root.style.colorScheme = isDark ? "dark" : "light";
-
   if (!tg) return;
 
+  const handleViewportChange = () => syncViewport(tg);
+
+  tg.ready();
+  tg.expand();
+  syncViewport(tg);
+  tg.onEvent("viewportChanged", handleViewportChange);
+
   const tp = tg.themeParams;
+  const root = document.documentElement;
   if (tp.bg_color) root.style.setProperty("--tg-bg-color", tp.bg_color);
   if (tp.text_color) root.style.setProperty("--tg-text-color", tp.text_color);
   if (tp.hint_color) root.style.setProperty("--tg-hint-color", tp.hint_color);
