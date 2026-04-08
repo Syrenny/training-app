@@ -17,6 +17,18 @@ services:
       GUNICORN_WORKERS: ${GUNICORN_WORKERS:-2}
     volumes:
       - ${APP_DB_DIR:-./data/db}:/app/db
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import socket; s=socket.create_connection(('127.0.0.1', 8000), 2); s.close()",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   bot:
     build:
@@ -25,7 +37,8 @@ services:
     image: ${BOT_IMAGE:-training-app-bot:local}
     restart: unless-stopped
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.prod
       SECRET_KEY: ${SECRET_KEY:-django-insecure-dev-key-change-me}
@@ -45,6 +58,7 @@ services:
     image: ${FRONTEND_STATIC_IMAGE:-training-app-frontend-static:local}
     restart: unless-stopped
     depends_on:
-      - web
+      web:
+        condition: service_healthy
     ports:
       - ${FRONTEND_BIND_HOST:-127.0.0.1}:${FRONTEND_PORT:-8000}:80

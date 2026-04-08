@@ -66,14 +66,14 @@ If Caddy runs directly on the host, keep only `frontend-static` published on loo
 
 ```caddy
 your-domain.example {
-    reverse_proxy 127.0.0.1:8080
+    reverse_proxy 127.0.0.1:8000
 }
 ```
 
 Recommended production binding:
 
 - `FRONTEND_BIND_HOST=127.0.0.1`
-- `FRONTEND_PORT=8080`
+- `FRONTEND_PORT=8000`
 
 In this setup:
 
