@@ -61,9 +61,9 @@ export function UnauthorizedScreen({
             />
           </div>
         ) : (
-          <p className="mt-6 text-sm text-muted-foreground">
-            Telegram Login пока не настроен: укажите `TELEGRAM_BOT_USERNAME`.
-          </p>
+          <div className="mt-6 flex justify-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+          </div>
         )}
       </div>
     </div>

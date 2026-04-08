@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 
 export interface TelegramWidgetAuthData {
   id: number;
@@ -21,6 +21,7 @@ export function TelegramLoginWidget({
 }: TelegramLoginWidgetProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const callbackNameRef = useRef(`telegramLoginWidgetAuth_${Math.random().toString(36).slice(2)}`);
+  const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
     if (!botUsername || !containerRef.current) return;
@@ -29,6 +30,13 @@ export function TelegramLoginWidget({
     const callbackName = callbackNameRef.current;
     const script = document.createElement("script");
     const windowWithCallback = window as typeof window & Record<string, unknown>;
+    const observer = new MutationObserver(() => {
+      if (container.querySelector("iframe")) {
+        setIsReady(true);
+      }
+    });
+
+    setIsReady(false);
 
     windowWithCallback[callbackName] = (user: TelegramWidgetAuthData) => {
       onAuth(user);
@@ -44,13 +52,27 @@ export function TelegramLoginWidget({
     script.setAttribute("data-onauth", `${callbackName}(user)`);
 
     container.innerHTML = "";
+    observer.observe(container, { childList: true, subtree: true });
     container.appendChild(script);
 
     return () => {
+      observer.disconnect();
       delete windowWithCallback[callbackName];
       container.innerHTML = "";
     };
   }, [botUsername, onAuth]);
 
-  return <div ref={containerRef} className="min-h-11" />;
+  return (
+    <div className="relative min-h-11 min-w-[244px]">
+      {!isReady ? (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      ) : null}
+      <div
+        ref={containerRef}
+        className={isReady ? "min-h-11" : "min-h-11 opacity-0"}
+      />
+    </div>
+  );
 }

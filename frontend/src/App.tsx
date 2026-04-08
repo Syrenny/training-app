@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useTheme } from "next-themes";
 import type { AuthUser } from "@/lib/api";
 import type { TelegramWidgetAuthData } from "@/lib/api";
 import { fetchSession, loginWithTelegram, logoutSession } from "@/lib/api";
@@ -16,29 +15,12 @@ function App() {
   const [botUsername, setBotUsername] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [authResetKey, setAuthResetKey] = useState(0);
-  const { setTheme } = useTheme();
 
   const inTelegram = isTelegramContext();
 
   useEffect(() => {
     initTelegram();
   }, []);
-
-  useEffect(() => {
-    const tg = getTelegram();
-    if (!tg) return;
-
-    const syncTelegramTheme = () => {
-      setTheme(tg.colorScheme);
-    };
-
-    syncTelegramTheme();
-    tg.onEvent("themeChanged", syncTelegramTheme);
-
-    return () => {
-      tg.offEvent?.("themeChanged", syncTelegramTheme);
-    };
-  }, [setTheme]);
 
   useEffect(() => {
     let mounted = true;
