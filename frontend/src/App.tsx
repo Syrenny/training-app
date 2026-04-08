@@ -19,7 +19,7 @@ function App() {
   const inTelegram = isTelegramContext();
 
   useEffect(() => {
-    initTelegram();
+    return initTelegram();
   }, []);
 
   useEffect(() => {

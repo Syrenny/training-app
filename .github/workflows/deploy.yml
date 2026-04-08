@@ -9,11 +9,6 @@ concurrency:
   group: deploy-production
   cancel-in-progress: true
 
-env:
-  WEB_IMAGE: ghcr.io/syrenny/training-app-web
-  BOT_IMAGE: ghcr.io/syrenny/training-app-bot
-  FRONTEND_STATIC_IMAGE: ghcr.io/syrenny/training-app-frontend-static
-
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -44,73 +39,18 @@ jobs:
           npm ci
           npm run build
 
-  build:
-    needs: test
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push web image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: web
-          push: true
-          tags: |
-            ${{ env.WEB_IMAGE }}:${{ github.sha }}
-            ${{ env.WEB_IMAGE }}:latest
-
-      - name: Build and push bot image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: bot
-          push: true
-          tags: |
-            ${{ env.BOT_IMAGE }}:${{ github.sha }}
-            ${{ env.BOT_IMAGE }}:latest
-
-      - name: Build and push frontend-static image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          target: frontend-static
-          push: true
-          tags: |
-            ${{ env.FRONTEND_STATIC_IMAGE }}:${{ github.sha }}
-            ${{ env.FRONTEND_STATIC_IMAGE }}:latest
-
   deploy:
-    needs: build
+    needs: test
     runs-on: self-hosted
     permissions:
       contents: read
-      packages: read
     steps:
       - uses: actions/checkout@v4
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Write compose env file
         run: |
           mkdir -p /opt/training-app/db
           cat > .env.production <<EOF
-          WEB_IMAGE=${{ env.WEB_IMAGE }}:latest
-          BOT_IMAGE=${{ env.BOT_IMAGE }}:latest
-          FRONTEND_STATIC_IMAGE=${{ env.FRONTEND_STATIC_IMAGE }}:latest
           APP_DB_DIR=/opt/training-app/db
           TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_BOT_USERNAME=${{ secrets.TELEGRAM_BOT_USERNAME }}
@@ -120,7 +60,6 @@ jobs:
           DEBUG=false
           EOF
 
-      - name: Pull and restart stack
+      - name: Build and restart stack
         run: |
-          docker compose -f compose.prod.yaml --env-file .env.production pull
-          docker compose -f compose.prod.yaml --env-file .env.production up -d --remove-orphans
+          docker compose -f compose.prod.yaml --env-file .env.production up -d --build --remove-orphans

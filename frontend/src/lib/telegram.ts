@@ -37,17 +37,29 @@ export function getTelegram(): TelegramWebApp | null {
   return null;
 }
 
-export function initTelegram(): void {
+export function initTelegram(): () => void {
   const tg = getTelegram();
-  if (!tg) return;
+  if (!tg || typeof tg.initData !== "string" || tg.initData.length === 0) {
+    return () => {};
+  }
 
   const handleViewportChange = () => syncViewport(tg);
+  const handleThemeChange = () => syncThemeParams(tg);
 
   tg.ready();
   tg.expand();
   syncViewport(tg);
+  syncThemeParams(tg);
   tg.onEvent("viewportChanged", handleViewportChange);
+  tg.onEvent("themeChanged", handleThemeChange);
 
+  return () => {
+    tg.offEvent?.("viewportChanged", handleViewportChange);
+    tg.offEvent?.("themeChanged", handleThemeChange);
+  };
+}
+
+function syncThemeParams(tg: TelegramWebApp): void {
   const tp = tg.themeParams;
   const root = document.documentElement;
   if (tp.bg_color) root.style.setProperty("--tg-bg-color", tp.bg_color);

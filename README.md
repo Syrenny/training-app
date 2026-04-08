@@ -20,9 +20,8 @@ In Docker-based development, the frontend proxies API requests to the `web` serv
 
 Production uses [compose.prod.yaml](/home/syrenny/Desktop/clones/training-app/compose.prod.yaml):
 
-- `web`: Django + Gunicorn + migrations
-- `bot`: Telegram bot worker
-- `frontend-static`: Nginx serving the built SPA and proxying `/api`, `/admin`, and `/static` to `web`
+- `web`: Django + Gunicorn + migrations, also serves the built SPA and static files
+- `bot`: Telegram bot worker using the same prebuilt application image as `web`
 
 Useful files:
 
@@ -38,7 +37,7 @@ Useful environment variables:
 - `TELEGRAM_WEBAPP_URL`
 - `ALLOWED_HOSTS`
 - `APP_DB_DIR`
-- `FRONTEND_PORT`
+- `WEB_PORT`
 
 For Telegram website login outside the Mini App, configure the bot domain in `@BotFather` and expose the site over HTTPS.
 
@@ -62,7 +61,7 @@ Production compose startup:
 docker compose -f compose.prod.yaml --env-file .env.production up -d
 ```
 
-If Caddy runs directly on the host, keep only `frontend-static` published on loopback and proxy Caddy to it:
+If Caddy runs directly on the host, publish only `web` on loopback and proxy Caddy to it:
 
 ```caddy
 your-domain.example {
@@ -72,11 +71,10 @@ your-domain.example {
 
 Recommended production binding:
 
-- `FRONTEND_BIND_HOST=127.0.0.1`
-- `FRONTEND_PORT=8000`
+- `WEB_BIND_HOST=127.0.0.1`
+- `WEB_PORT=8000`
 
 In this setup:
 
-- `frontend-static` is the only published container
-- `web` stays internal to Docker
+- `web` is the only published container
 - `bot` exposes no ports

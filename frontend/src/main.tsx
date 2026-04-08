@@ -25,7 +25,7 @@ if ("serviceWorker" in navigator) {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider>
       <App />
     </ThemeProvider>
   </StrictMode>,
