@@ -118,7 +118,6 @@ jobs:
           TELEGRAM_WEBAPP_URL=${{ secrets.TELEGRAM_WEBAPP_URL }}
           ALLOWED_HOSTS=${{ secrets.ALLOWED_HOSTS }}
           DEBUG=false
-          FRONTEND_PORT=80
           EOF
 
       - name: Pull and restart stack
