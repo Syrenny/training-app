@@ -26,21 +26,21 @@ function App() {
     let mounted = true;
 
     async function bootstrapAuth() {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const widgetAuthData = params.get("hash")
-          ? {
-              id: Number(params.get("id")),
-              first_name: params.get("first_name") ?? undefined,
-              last_name: params.get("last_name") ?? undefined,
-              username: params.get("username") ?? undefined,
-              photo_url: params.get("photo_url") ?? undefined,
-              auth_date: Number(params.get("auth_date")),
-              hash: params.get("hash") ?? "",
-            }
-          : null;
+      const params = new URLSearchParams(window.location.search);
+      const widgetAuthData = params.get("hash")
+        ? {
+            id: Number(params.get("id")),
+            first_name: params.get("first_name") ?? undefined,
+            last_name: params.get("last_name") ?? undefined,
+            username: params.get("username") ?? undefined,
+            photo_url: params.get("photo_url") ?? undefined,
+            auth_date: Number(params.get("auth_date")),
+            hash: params.get("hash") ?? "",
+          }
+        : null;
 
-        if (widgetAuthData?.id && widgetAuthData.hash && widgetAuthData.auth_date) {
+      if (widgetAuthData?.id && widgetAuthData.hash && widgetAuthData.auth_date) {
+        try {
           const auth = await loginWithTelegram(undefined, widgetAuthData);
           if (!mounted) return;
           setUser(auth.user);
@@ -49,8 +49,15 @@ function App() {
           setAuthState("authenticated");
           window.history.replaceState({}, document.title, window.location.pathname);
           return;
+        } catch {
+          if (!mounted) return;
+          setAuthError("Вход через Telegram не удался.");
+          setAuthState("unauthenticated");
+          return;
         }
+      }
 
+      try {
         const session = await fetchSession();
         if (!mounted) return;
         setBotUsername(session.telegram_bot_username ?? "");
@@ -60,7 +67,12 @@ function App() {
           setAuthState("authenticated");
           return;
         }
+      } catch {
+        if (!mounted) return;
+        setBotUsername("");
+      }
 
+      try {
         const tg = getTelegram();
         if (DEV_MODE || tg?.initData) {
           const auth = await loginWithTelegram(tg?.initData);
@@ -71,13 +83,15 @@ function App() {
           setAuthState("authenticated");
           return;
         }
-
-        setAuthState("unauthenticated");
       } catch {
         if (!mounted) return;
-        setAuthError("Не удалось выполнить вход. Проверьте доступ к Telegram и повторите попытку.");
-        setAuthState("unauthenticated");
+        if (inTelegram || DEV_MODE) {
+          setAuthError("Не удалось выполнить вход. Проверьте доступ к Telegram и повторите попытку.");
+        }
       }
+
+      if (!mounted) return;
+      setAuthState("unauthenticated");
     }
 
     bootstrapAuth();

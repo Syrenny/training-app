@@ -4,7 +4,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: prod
-    image: ${WEB_IMAGE:-training-app-web:local}
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/app/docker/web-entrypoint.sh"]
     environment:
@@ -37,7 +36,6 @@ services:
       context: ./backend
       dockerfile: Dockerfile
       target: prod
-    image: ${BOT_IMAGE:-training-app-bot:local}
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/app/docker/bot-entrypoint.sh"]
     depends_on:
@@ -59,7 +57,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    image: ${FRONTEND_STATIC_IMAGE:-training-app-frontend-static:local}
     restart: unless-stopped
     depends_on:
       web:
