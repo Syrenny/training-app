@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { AuthUser, TelegramWidgetAuthData } from "@/lib/api";
+import type { AuthUser } from "@/lib/api";
 import { fetchSession, loginWithTelegram, logoutSession } from "@/lib/api";
 import { getTelegram, initTelegram, isTelegramContext } from "@/lib/telegram";
 import { ProgramPage } from "@/pages/ProgramPage";
@@ -13,6 +13,7 @@ function App() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [botUsername, setBotUsername] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authResetKey, setAuthResetKey] = useState(0);
 
   const inTelegram = isTelegramContext();
 
@@ -99,25 +100,13 @@ function App() {
     }
   }
 
-  async function handleWidgetAuth(authData: TelegramWidgetAuthData) {
-    setAuthState("loading");
-    setAuthError(null);
-    try {
-      const auth = await loginWithTelegram(undefined, authData);
-      setUser(auth.user);
-      setBotUsername(auth.telegram_bot_username ?? "");
-      setAuthState("authenticated");
-    } catch {
-      setAuthError("Вход через Telegram не удался.");
-      setAuthState("unauthenticated");
-    }
-  }
-
   async function handleLogout() {
     try {
       await logoutSession();
     } finally {
       setUser(null);
+      setAuthError(null);
+      setAuthResetKey((value) => value + 1);
       setAuthState("unauthenticated");
     }
   }
@@ -139,10 +128,10 @@ function App() {
         inTelegram={inTelegram}
         devMode={DEV_MODE}
         botUsername={botUsername}
+        resetKey={authResetKey}
         loading={authState === "loading"}
         error={authError}
         onLogin={handleLogin}
-        onWidgetAuth={handleWidgetAuth}
       />
     );
   }

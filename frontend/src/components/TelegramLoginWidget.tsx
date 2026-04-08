@@ -22,6 +22,7 @@ export function TelegramLoginWidget({
   useEffect(() => {
     if (!botUsername || !containerRef.current) return;
 
+    const container = containerRef.current;
     const script = document.createElement("script");
     script.src = "https://telegram.org/js/telegram-widget.js?22";
     script.async = true;
@@ -35,8 +36,12 @@ export function TelegramLoginWidget({
       `${window.location.origin}${window.location.pathname}`,
     );
 
-    containerRef.current.innerHTML = "";
-    containerRef.current.appendChild(script);
+    container.innerHTML = "";
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = "";
+    };
   }, [botUsername]);
 
   return <div ref={containerRef} className="min-h-11" />;
