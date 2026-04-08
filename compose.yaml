@@ -1,11 +1,12 @@
 services:
   web:
     build:
-      context: .
-      target: python-base
-    working_dir: /workspace/backend
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    working_dir: /app
     command: >
-      sh -c "uv sync &&
+      sh -c "uv sync --frozen &&
       uv run python manage.py migrate &&
       uv run python manage.py runserver 0.0.0.0:8000"
     environment:
@@ -15,22 +16,23 @@ services:
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost:5173}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,web}
-      DB_DIR: /workspace/data/db
+      DB_DIR: /data/db
       DEBUG: "true"
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/workspace/backend
-      - ./data/db:/workspace/data/db
-      - backend_venv:/workspace/backend/.venv
+      - ./backend:/app
+      - ./data/db:/data/db
+      - backend_venv:/app/.venv
 
   bot:
     build:
-      context: .
-      target: python-base
-    working_dir: /workspace/backend
+      context: ./backend
+      dockerfile: Dockerfile
+      target: dev
+    working_dir: /app
     command: >
-      sh -c "uv sync &&
+      sh -c "uv sync --frozen &&
       uv run python manage.py runbot"
     environment:
       DJANGO_SETTINGS_MODULE: config.settings.dev
@@ -39,14 +41,14 @@ services:
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBAPP_URL: ${TELEGRAM_WEBAPP_URL:-http://localhost:5173}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,0.0.0.0,web}
-      DB_DIR: /workspace/data/db
+      DB_DIR: /data/db
       DEBUG: "true"
     depends_on:
       - web
     volumes:
-      - ./backend:/workspace/backend
-      - ./data/db:/workspace/data/db
-      - backend_venv:/workspace/backend/.venv
+      - ./backend:/app
+      - ./data/db:/data/db
+      - backend_venv:/app/.venv
 
   frontend:
     image: node:22-slim
