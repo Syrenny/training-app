@@ -52,10 +52,7 @@ export function UnauthorizedScreen({
           </button>
         ) : botUsername && onWidgetAuth ? (
           <div className="mt-6 flex justify-center">
-            <TelegramLoginWidget
-              botUsername={botUsername}
-              onAuth={onWidgetAuth}
-            />
+            <TelegramLoginWidget botUsername={botUsername} />
           </div>
         ) : (
           <p className="mt-6 text-sm text-muted-foreground">
