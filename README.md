@@ -61,3 +61,22 @@ Production compose startup:
 ```bash
 docker compose -f compose.prod.yaml --env-file .env.production up -d
 ```
+
+If Caddy runs directly on the host, keep only `frontend-static` published on loopback and proxy Caddy to it:
+
+```caddy
+your-domain.example {
+    reverse_proxy 127.0.0.1:8080
+}
+```
+
+Recommended production binding:
+
+- `FRONTEND_BIND_HOST=127.0.0.1`
+- `FRONTEND_PORT=8080`
+
+In this setup:
+
+- `frontend-static` is the only published container
+- `web` stays internal to Docker
+- `bot` exposes no ports
