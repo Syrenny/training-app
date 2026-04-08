@@ -12,8 +12,6 @@ interface TelegramWebApp {
   close: () => void;
   initData: string;
   initDataUnsafe: Record<string, unknown>;
-  colorScheme: "light" | "dark";
-  themeParams: Record<string, string>;
   viewportHeight: number;
   viewportStableHeight: number;
   onEvent: (event: string, callback: (...args: unknown[]) => void) => void;
@@ -44,31 +42,15 @@ export function initTelegram(): () => void {
   }
 
   const handleViewportChange = () => syncViewport(tg);
-  const handleThemeChange = () => syncThemeParams(tg);
 
   tg.ready();
   tg.expand();
   syncViewport(tg);
-  syncThemeParams(tg);
   tg.onEvent("viewportChanged", handleViewportChange);
-  tg.onEvent("themeChanged", handleThemeChange);
 
   return () => {
     tg.offEvent?.("viewportChanged", handleViewportChange);
-    tg.offEvent?.("themeChanged", handleThemeChange);
   };
-}
-
-function syncThemeParams(tg: TelegramWebApp): void {
-  const tp = tg.themeParams;
-  const root = document.documentElement;
-  if (tp.bg_color) root.style.setProperty("--tg-bg-color", tp.bg_color);
-  if (tp.text_color) root.style.setProperty("--tg-text-color", tp.text_color);
-  if (tp.hint_color) root.style.setProperty("--tg-hint-color", tp.hint_color);
-  if (tp.button_color)
-    root.style.setProperty("--tg-button-color", tp.button_color);
-  if (tp.button_text_color)
-    root.style.setProperty("--tg-button-text-color", tp.button_text_color);
 }
 
 function syncViewport(tg: TelegramWebApp): void {
