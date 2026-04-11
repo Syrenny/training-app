@@ -37,6 +37,7 @@ def sync_telegram_user(user_data: dict, *, username_prefix: str = "tg"):
             "telegram_username": user_data.get("username", "")[:255],
             "first_name": user_data.get("first_name", "")[:255],
             "last_name": user_data.get("last_name", "")[:255],
+            "telegram_photo_url": user_data.get("photo_url", "")[:500],
         },
     )
     return user

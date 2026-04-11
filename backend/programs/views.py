@@ -47,6 +47,7 @@ class AuthSessionView(APIView):
                         "first_name": profile.first_name or request.user.first_name,
                         "last_name": profile.last_name or request.user.last_name,
                         "telegram_username": getattr(profile, "telegram_username", ""),
+                        "telegram_photo_url": getattr(profile, "telegram_photo_url", ""),
                     },
                 }
             )
@@ -70,6 +71,7 @@ def _serialize_auth_user(user):
             "first_name": getattr(profile, "first_name", "") or user.first_name,
             "last_name": getattr(profile, "last_name", "") or user.last_name,
             "telegram_username": getattr(profile, "telegram_username", ""),
+            "telegram_photo_url": getattr(profile, "telegram_photo_url", ""),
         },
     }
 

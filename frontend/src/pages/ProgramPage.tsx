@@ -36,6 +36,7 @@ export function ProgramPage({ user, onLogout }: ProgramPageProps) {
   }, [selectedWeek, fetchWeekDetail]);
 
   const weekData = selectedWeek !== null ? weekDetailCache[selectedWeek] : null;
+  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim();
 
   if (loading && !weekData) {
     return (
@@ -58,7 +59,9 @@ export function ProgramPage({ user, onLogout }: ProgramPageProps) {
       <div className="px-4 pt-4 pb-4 shrink-0">
         <div className="flex items-center gap-2">
           <Sidebar
-            userName={user?.first_name || user?.telegram_username || undefined}
+            userName={fullName || user?.first_name || user?.telegram_username || undefined}
+            username={user?.telegram_username || undefined}
+            photoUrl={user?.telegram_photo_url || undefined}
             onLogout={onLogout}
           />
           <div className="flex-1">

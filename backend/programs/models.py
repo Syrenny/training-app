@@ -19,6 +19,12 @@ class UserProfile(models.Model):
     )
     first_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Имя")
     last_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Фамилия")
+    telegram_photo_url = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        verbose_name="URL фото Telegram",
+    )
 
     class Meta:
         verbose_name = "Профиль пользователя"

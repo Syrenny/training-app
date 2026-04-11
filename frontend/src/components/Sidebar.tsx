@@ -10,10 +10,17 @@ import { OneRepMaxPage } from "./OneRepMaxPage";
 
 interface SidebarProps {
   userName?: string;
+  username?: string;
+  photoUrl?: string;
   onLogout?: () => void;
 }
 
-export function Sidebar({ userName, onLogout }: SidebarProps) {
+function getInitial(userName?: string, username?: string) {
+  const source = userName || username || "T";
+  return source.trim().charAt(0).toUpperCase();
+}
+
+export function Sidebar({ userName, username, photoUrl, onLogout }: SidebarProps) {
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -34,9 +41,29 @@ export function Sidebar({ userName, onLogout }: SidebarProps) {
             <p className="text-xs uppercase tracking-[0.2em] text-muted-foreground">
               Сессия
             </p>
-            <p className="mt-2 text-sm font-medium">
-              {userName || "Пользователь Telegram"}
-            </p>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-sm font-semibold text-accent-foreground">
+                {photoUrl ? (
+                  <img
+                    src={photoUrl}
+                    alt={userName || username || "Пользователь Telegram"}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  getInitial(userName, username)
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">
+                  {userName || "Пользователь Telegram"}
+                </p>
+                {username ? (
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    @{username}
+                  </p>
+                ) : null}
+              </div>
+            </div>
             {onLogout ? (
               <button
                 type="button"

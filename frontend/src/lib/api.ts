@@ -8,6 +8,7 @@ export interface AuthUser {
   first_name: string;
   last_name: string;
   telegram_username: string;
+  telegram_photo_url: string;
 }
 
 export interface AuthSessionData {

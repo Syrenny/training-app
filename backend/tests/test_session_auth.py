@@ -53,6 +53,7 @@ class TelegramWebsiteLoginAPITest(TestCase):
             "first_name": "Alice",
             "last_name": "Tester",
             "username": "alice",
+            "photo_url": "https://t.me/i/userpic/320/alice.jpg",
             "auth_date": int(time.time()),
         }
         data_check_string = "\n".join(
@@ -75,7 +76,19 @@ class TelegramWebsiteLoginAPITest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["authenticated"], True)
         self.assertEqual(response.json()["user"]["telegram_id"], 42)
+        self.assertEqual(response.json()["user"]["telegram_username"], "alice")
+        self.assertEqual(
+            response.json()["user"]["telegram_photo_url"],
+            "https://t.me/i/userpic/320/alice.jpg",
+        )
 
         session_response = self.client.get("/api/auth/session/")
         self.assertEqual(session_response.status_code, 200)
         self.assertEqual(session_response.json()["authenticated"], True)
+        self.assertEqual(session_response.json()["user"]["first_name"], "Alice")
+        self.assertEqual(session_response.json()["user"]["last_name"], "Tester")
+        self.assertEqual(session_response.json()["user"]["telegram_username"], "alice")
+        self.assertEqual(
+            session_response.json()["user"]["telegram_photo_url"],
+            "https://t.me/i/userpic/320/alice.jpg",
+        )
