@@ -213,6 +213,27 @@ function structuralSignature(draft: DraftProgram) {
   );
 }
 
+function contentSignature(draft: DraftProgram) {
+  return JSON.stringify({
+    weeks: draft.weeks.map((week) => ({
+      title: week.title,
+      days: week.days.map((day) => ({
+        weekday: day.weekday,
+        exercises: day.exercises.map((exercise) => ({
+          exerciseId: exercise.exerciseId,
+          supersetGroup: exercise.supersetGroup,
+          sets: exercise.sets.map((set) => ({
+            loadType: set.loadType,
+            loadValue: set.loadValue,
+            reps: set.reps,
+            sets: set.sets,
+          })),
+        })),
+      })),
+    })),
+  });
+}
+
 function renderDraftSetDisplay(set: DraftSet) {
   const parts: string[] = [];
   if (set.loadType === "PERCENT") {
@@ -423,8 +444,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const [exercisePickerIndex, setExercisePickerIndex] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [initialSignature, setInitialSignature] = useState("");
+  const [initialContentSignature, setInitialContentSignature] = useState("");
   const [commitMessage, setCommitMessage] = useState("");
   const [setEditor, setSetEditor] = useState<SetEditorState | null>(null);
 
@@ -446,6 +469,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         setCatalog(exercises);
         setHistory(items);
         setInitialSignature(structuralSignature(nextDraft));
+        setInitialContentSignature(contentSignature(nextDraft));
         setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
         setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
         setCommitMessage("");
@@ -498,7 +522,8 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   );
 
   const hasStructuralChanges = draft ? structuralSignature(draft) !== initialSignature : false;
-  const canSave = draft != null && catalog.length > 0 && isDraftValid(draft) && !saving;
+  const hasChanges = draft ? contentSignature(draft) !== initialContentSignature : false;
+  const canSave = draft != null && catalog.length > 0 && isDraftValid(draft) && hasChanges && !saving;
   const weekLongPressProps = useLongPress({
     disabled: !selectedWeek,
     onLongPress: () => {
@@ -614,6 +639,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     setNotice("Несохраненные изменения отменены.");
     setHistoryOpen(false);
     setConfirmOpen(false);
+    setResetConfirmOpen(false);
     setDeleteTarget(null);
     setExercisePickerIndex(null);
   }
@@ -995,6 +1021,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       setDraft(nextDraft);
       setHistory(items);
       setInitialSignature(structuralSignature(nextDraft));
+      setInitialContentSignature(contentSignature(nextDraft));
       setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
       setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
       setCommitMessage("");
@@ -1044,10 +1071,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   }
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col bg-muted/20">
-      <div className="shrink-0 border-b bg-background px-4 py-3">
-        <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 text-base font-semibold">Редактор</p>
+    <div className="flex flex-1 min-h-0 flex-col">
+      <div className="shrink-0 px-4 pt-4 pb-4">
+        <div className="flex items-center gap-2 ">
+          <div className="flex-1" />
           <Button
             variant="outline"
             size="icon-sm"
@@ -1060,7 +1087,8 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             variant="outline"
             size="icon-sm"
             aria-label="Отменить все"
-            onClick={cancelAllChanges}
+            onClick={() => setResetConfirmOpen(true)}
+            disabled={!hasChanges}
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -1086,16 +1114,13 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 items={editorWeeks}
                 selectedNumber={selectedWeekNumber}
                 onSelect={selectWeekByNumber}
+                onAdd={addWeek}
                 triggerButtonProps={{
                   ...weekLongPressProps,
                   className: "h-auto justify-start px-0 text-lg font-semibold",
                 }}
               />
             </div>
-            <Button variant="outline" size="sm" onClick={addWeek}>
-              <Plus className="h-4 w-4" />
-              Добавить неделю
-            </Button>
           </div>
 
           {!selectedWeek ? (
@@ -1273,6 +1298,25 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </Button>
             <Button onClick={performSave} disabled={!canSave || !commitMessage.trim()}>
               {saving ? "Сохранение..." : "Сохранить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Отменить все изменения?</DialogTitle>
+            <DialogDescription>
+              Все несохраненные изменения в редакторе будут сброшены.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setResetConfirmOpen(false)}>
+              Назад
+            </Button>
+            <Button variant="destructive" onClick={cancelAllChanges}>
+              Сбросить
             </Button>
           </DialogFooter>
         </DialogContent>

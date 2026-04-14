@@ -28,16 +28,11 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="shrink-0 px-4 pt-4">
-        <h1 className="text-lg font-semibold">Профиль</h1>
-      </div>
-
       <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-4 px-4 py-4">
           <Card>
             <CardHeader>
               <CardTitle>Сессия Telegram</CardTitle>
-              <CardDescription>Текущий аккаунт, через который открыт мини-апп.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">

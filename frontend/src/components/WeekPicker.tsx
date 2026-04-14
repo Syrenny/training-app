@@ -20,6 +20,7 @@ interface WeekPickerProps {
   items: WeekPickerItem[];
   selectedNumber: number | null;
   onSelect: (weekNumber: number) => void;
+  onAdd?: () => void;
   triggerButtonProps?: React.ComponentProps<"button">;
 }
 
@@ -27,15 +28,14 @@ export function WeekPicker({
   items,
   selectedNumber,
   onSelect,
+  onAdd,
   triggerButtonProps,
 }: WeekPickerProps) {
   const [open, setOpen] = useState(false);
   const triggerClassName = triggerButtonProps?.className;
 
-  if (items.length === 0) return null;
-
   const current = items.find((week) => week.number === selectedNumber);
-  const title = current?.title || `${selectedNumber} неделя`;
+  const title = current?.title || (selectedNumber ? `${selectedNumber} неделя` : "Недели");
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -54,19 +54,37 @@ export function WeekPicker({
           <DialogTitle>Выберите неделю</DialogTitle>
         </DialogHeader>
         <div className="grid gap-1">
-          {items.map((week) => (
+          {items.length === 0 ? (
+            <p className="py-2 text-sm text-muted-foreground">
+              Пока нет недель.
+            </p>
+          ) : (
+            items.map((week) => (
+              <Button
+                key={week.id}
+                variant={week.number === selectedNumber ? "default" : "ghost"}
+                className="w-full justify-start"
+                onClick={() => {
+                  onSelect(week.number);
+                  setOpen(false);
+                }}
+              >
+                {week.title || `${week.number} неделя`}
+              </Button>
+            ))
+          )}
+          {onAdd ? (
             <Button
-              key={week.id}
-              variant={week.number === selectedNumber ? "default" : "ghost"}
-              className="w-full justify-start"
+              variant="outline"
+              className="mt-2 w-full"
               onClick={() => {
-                onSelect(week.number);
+                onAdd();
                 setOpen(false);
               }}
             >
-              {week.title || `${week.number} неделя`}
+              Добавить неделю
             </Button>
-          ))}
+          ) : null}
         </div>
       </DialogContent>
     </Dialog>

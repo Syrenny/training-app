@@ -33,6 +33,9 @@ export function useLongPress({
   const startHold = useCallback(
     (event: React.PointerEvent) => {
       if (disabled) return;
+      if (event.pointerType === "mouse" && event.button !== 0) {
+        return;
+      }
       if (
         event.target instanceof Element &&
         event.currentTarget instanceof Element &&
@@ -41,6 +44,7 @@ export function useLongPress({
       ) {
         return;
       }
+      event.preventDefault();
       firedRef.current = false;
       startPointRef.current = { x: event.clientX, y: event.clientY };
       clearHold();
@@ -87,6 +91,15 @@ export function useLongPress({
     onPointerCancel: cancelHold,
     onPointerLeave: cancelHold,
     onClickCapture: blockClickAfterHold,
-    onContextMenu: (event: React.MouseEvent) => event.preventDefault(),
+    onContextMenu: (event: React.MouseEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    onAuxClick: (event: React.MouseEvent) => {
+      if (event.button === 1 || event.button === 2) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    },
   };
 }
