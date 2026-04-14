@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { WeekPicker } from "@/components/WeekPicker";
 
 const WEEKDAY_OPTIONS = [
   { value: "MON", label: "Понедельник" },
@@ -38,6 +39,16 @@ const WEEKDAY_OPTIONS = [
   { value: "SAT", label: "Суббота" },
   { value: "SUN", label: "Воскресенье" },
 ];
+
+const WEEKDAY_SHORT_LABELS: Record<string, string> = {
+  MON: "Пн",
+  TUE: "Вт",
+  WED: "Ср",
+  THU: "Чт",
+  FRI: "Пт",
+  SAT: "Сб",
+  SUN: "Вс",
+};
 
 const WEEKDAY_ORDER = Object.fromEntries(
   WEEKDAY_OPTIONS.map((option, index) => [option.value, index]),
@@ -210,6 +221,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [savedProgram, setSavedProgram] = useState<ProgramData | null>(null);
   const [draft, setDraft] = useState<DraftProgram | null>(null);
   const [history, setHistory] = useState<ProgramHistoryItem[]>([]);
   const [catalog, setCatalog] = useState<ExerciseData[]>([]);
@@ -236,6 +248,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         ]);
         if (!mounted) return;
         const nextDraft = draftFromProgram(program);
+        setSavedProgram(program);
         setDraft(nextDraft);
         setCatalog(exercises);
         setHistory(items);
@@ -275,12 +288,38 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     const used = new Set(selectedWeek.days.map((day) => day.weekday));
     return WEEKDAY_OPTIONS.filter((option) => !used.has(option.value));
   }, [selectedWeek]);
+  const editorWeeks = useMemo(
+    () =>
+      draft?.weeks.map((week, index) => ({
+        id: week.uid,
+        number: index + 1,
+        title: week.title || `${index + 1} неделя`,
+      })) ?? [],
+    [draft],
+  );
+  const selectedWeekNumber = useMemo(
+    () =>
+      draft?.weeks.findIndex((week) => week.uid === selectedWeekUid) !== -1
+        ? (draft?.weeks.findIndex((week) => week.uid === selectedWeekUid) ?? 0) + 1
+        : null,
+    [draft, selectedWeekUid],
+  );
 
   const hasStructuralChanges = draft ? structuralSignature(draft) !== initialSignature : false;
   const canSave = draft != null && catalog.length > 0 && isDraftValid(draft) && !saving;
 
   function getCommitMessage() {
     return commitInputRef.current?.value.trim() ?? "";
+  }
+
+  function resetEditorToProgram(program: ProgramData, commitMessage = "") {
+    const nextDraft = draftFromProgram(program);
+    setDraft(nextDraft);
+    setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
+    setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
+    setCommitInputValue(commitMessage);
+    setCommitInputKey((value) => value + 1);
+    setError(null);
   }
 
   useEffect(() => {
@@ -347,6 +386,21 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         weeks: [...current.weeks, nextWeek],
       };
     });
+  }
+
+  function selectWeekByNumber(weekNumber: number) {
+    const nextWeek = draft?.weeks[weekNumber - 1];
+    if (!nextWeek) return;
+    setSelectedWeekUid(nextWeek.uid);
+    setSelectedDayUid(nextWeek.days[0]?.uid ?? null);
+  }
+
+  function cancelAllChanges() {
+    if (!savedProgram) return;
+    resetEditorToProgram(savedProgram);
+    setNotice("Несохраненные изменения отменены.");
+    setHistoryOpen(false);
+    setConfirmOpen(false);
   }
 
   function removeWeek(weekUid: string) {
@@ -429,6 +483,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       setError(null);
       const result = await saveProgramSnapshot(buildSavePayload(draft, commitMessage));
       const nextDraft = draftFromProgram(result);
+      setSavedProgram(result);
       const items = await fetchProgramHistory().catch(() => history);
       setDraft(nextDraft);
       setHistory(items);
@@ -452,14 +507,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   async function restoreVersion(version: number) {
     try {
       const program = await fetchProgramHistoryDetail(version);
-      const nextDraft = draftFromProgram(program);
-      setDraft(nextDraft);
-      setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
-      setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
-      setCommitInputValue(
+      resetEditorToProgram(
+        program,
         `Восстановление версии ${version}${program.commit_message ? `: ${program.commit_message}` : ""}`,
       );
-      setCommitInputKey((value) => value + 1);
       setNotice(`В редактор загружена версия ${version}. Сохраните ее как новый снапшот.`);
       setHistoryOpen(false);
     } catch {
@@ -499,6 +550,9 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
             <History className="h-4 w-4" />
             История
+          </Button>
+          <Button variant="outline" size="sm" onClick={cancelAllChanges}>
+            Отменить все
           </Button>
           <Button size="sm" onClick={() => (hasStructuralChanges ? setConfirmOpen(true) : performSave())} disabled={!canSave}>
             <Save className="h-4 w-4" />
@@ -545,20 +599,14 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
 
-          <div className="flex flex-wrap gap-2">
-            {draft.weeks.map((week, index) => (
-              <Button
-                key={week.uid}
-                variant={week.uid === selectedWeekUid ? "default" : "outline"}
-                size="sm"
-                onClick={() => {
-                  setSelectedWeekUid(week.uid);
-                  setSelectedDayUid(week.days[0]?.uid ?? null);
-                }}
-              >
-                {week.title || `${index + 1} неделя`}
-              </Button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <WeekPicker
+                items={editorWeeks}
+                selectedNumber={selectedWeekNumber}
+                onSelect={selectWeekByNumber}
+              />
+            </div>
             <Button variant="outline" size="sm" onClick={addWeek}>
               <Plus className="h-4 w-4" />
               Добавить неделю
@@ -572,65 +620,64 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
               </CardContent>
             </Card>
           ) : (
-            <Card>
-              <CardContent className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold">{selectedWeek.title}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Удаление недели сдвинет нумерацию следующих недель при сохранении.
-                    </p>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => removeWeek(selectedWeek.uid)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                    Удалить неделю
-                  </Button>
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
-                  <Select value={newDayWeekday} onValueChange={setNewDayWeekday}>
-                    <SelectTrigger className="w-full sm:w-52">
-                      <SelectValue placeholder="Добавить день" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {remainingWeekdays.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addDay}
-                    disabled={remainingWeekdays.length === 0}
-                  >
-                    <Plus className="h-4 w-4" />
-                    Добавить день
-                  </Button>
-                </div>
-
-                {selectedWeek.days.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    В этой неделе пока нет тренировочных дней.
+            <div className="space-y-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">{selectedWeek.title}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Удаление недели сдвинет нумерацию следующих недель при сохранении.
                   </p>
-                ) : (
-                  <Tabs
-                    value={selectedDay?.uid}
-                    onValueChange={(value) => setSelectedDayUid(value)}
-                  >
-                    <TabsList className="w-full">
-                      {selectedWeek.days.map((day) => (
-                        <TabsTrigger key={day.uid} value={day.uid} className="flex-1">
-                          {WEEKDAY_OPTIONS.find((option) => option.value === day.weekday)?.label.slice(0, 2) ?? day.weekday}
-                        </TabsTrigger>
-                      ))}
-                    </TabsList>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => removeWeek(selectedWeek.uid)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Удалить неделю
+                </Button>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
+                <Select value={newDayWeekday} onValueChange={setNewDayWeekday}>
+                  <SelectTrigger className="w-full sm:w-52">
+                    <SelectValue placeholder="Добавить день" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {remainingWeekdays.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addDay}
+                  disabled={remainingWeekdays.length === 0}
+                >
+                  <Plus className="h-4 w-4" />
+                  Добавить день
+                </Button>
+              </div>
+
+              {selectedWeek.days.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  В этой неделе пока нет тренировочных дней.
+                </p>
+              ) : (
+                <Tabs
+                  value={selectedDay?.uid}
+                  onValueChange={(value) => setSelectedDayUid(value)}
+                >
+                  <TabsList className="w-full">
+                    {selectedWeek.days.map((day) => (
+                      <TabsTrigger key={day.uid} value={day.uid} className="flex-1">
+                        {WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
+                      </TabsTrigger>
+                    ))}
+                  </TabsList>
 
                     {selectedDay ? (
                       <TabsContent value={selectedDay.uid} className="space-y-3">
@@ -867,11 +914,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                           Добавить упражнение
                         </Button>
                       </TabsContent>
-                    ) : null}
-                  </Tabs>
-                )}
-              </CardContent>
-            </Card>
+                  ) : null}
+                </Tabs>
+              )}
+            </div>
           )}
         </div>
       </div>

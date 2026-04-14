@@ -68,11 +68,13 @@ function cacheTab(tab: AppTab) {
 }
 
 function App() {
+  const initialTab = loadCachedTab();
   const [user, setUser] = useState<AuthUser | null>(() => loadCachedUser());
   const [authState, setAuthState] = useState<AuthState>(() =>
     loadCachedUser() ? "authenticated" : "loading",
   );
-  const [screen, setScreen] = useState<AppTab>(() => loadCachedTab());
+  const [screen, setScreen] = useState<AppTab>(initialTab);
+  const [editorMounted, setEditorMounted] = useState(initialTab === "editor");
   const [botUsername, setBotUsername] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [authResetKey, setAuthResetKey] = useState(0);
@@ -85,6 +87,12 @@ function App() {
 
   useEffect(() => {
     cacheTab(screen);
+  }, [screen]);
+
+  useEffect(() => {
+    if (screen === "editor") {
+      setEditorMounted(true);
+    }
   }, [screen]);
 
   useEffect(() => {
@@ -244,9 +252,17 @@ function App() {
       }}
     >
       <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
-        {screen === "home" ? <ProgramPage user={user} /> : null}
-        {screen === "editor" ? <ProgramEditPage /> : null}
-        {screen === "profile" ? <ProfilePage user={user} onLogout={handleLogout} /> : null}
+        <div className={screen === "home" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+          <ProgramPage user={user} />
+        </div>
+        {editorMounted ? (
+          <div className={screen === "editor" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+            <ProgramEditPage />
+          </div>
+        ) : null}
+        <div className={screen === "profile" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+          <ProfilePage user={user} onLogout={handleLogout} />
+        </div>
       </div>
       <BottomTabBar activeTab={screen} onChange={setScreen} />
     </div>
