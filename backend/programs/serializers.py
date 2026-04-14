@@ -146,6 +146,7 @@ class ProgramWeekInputSerializer(serializers.Serializer):
 
 
 class ProgramSnapshotInputSerializer(serializers.Serializer):
+    commit_message = serializers.CharField(max_length=255, allow_blank=False, trim_whitespace=True)
     source_snapshot_version = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     weeks = ProgramWeekInputSerializer(many=True)
 

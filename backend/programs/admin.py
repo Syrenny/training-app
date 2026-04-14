@@ -77,7 +77,7 @@ class WorkoutCompletionAdmin(admin.ModelAdmin):
 
 @admin.register(ProgramSnapshot)
 class ProgramSnapshotAdmin(admin.ModelAdmin):
-    list_display = ["telegram_id", "version", "created_at", "source_snapshot_version"]
+    list_display = ["telegram_id", "version", "commit_message", "created_at", "source_snapshot_version"]
     list_filter = ["telegram_id"]
     ordering = ["telegram_id", "-version"]
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronDown,
@@ -137,8 +137,9 @@ function emptyExercise(exercises: ExerciseData[]): DraftExercise {
   };
 }
 
-function buildSavePayload(draft: DraftProgram): ProgramSnapshotInput {
+function buildSavePayload(draft: DraftProgram, commitMessage: string): ProgramSnapshotInput {
   return {
+    commit_message: commitMessage.trim(),
     source_snapshot_version: draft.sourceSnapshotVersion,
     weeks: draft.weeks.map((week) => ({
       title: week.title,
@@ -220,6 +221,9 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [initialSignature, setInitialSignature] = useState("");
+  const [commitInputValue, setCommitInputValue] = useState("");
+  const [commitInputKey, setCommitInputKey] = useState(0);
+  const commitInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -240,6 +244,8 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         setInitialSignature(structuralSignature(nextDraft));
         setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
         setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
+        setCommitInputValue("");
+        setCommitInputKey((value) => value + 1);
         setError(null);
       } catch {
         if (!mounted) return;
@@ -274,6 +280,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 
   const hasStructuralChanges = draft ? structuralSignature(draft) !== initialSignature : false;
   const canSave = draft != null && catalog.length > 0 && isDraftValid(draft) && !saving;
+
+  function getCommitMessage() {
+    return commitInputRef.current?.value.trim() ?? "";
+  }
 
   useEffect(() => {
     if (!selectedWeek && draft?.weeks.length) {
@@ -325,6 +335,22 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     setSelectedDayUid(nextDay.uid);
   }
 
+  function addWeek() {
+    updateDraft((current) => {
+      const nextWeek: DraftWeek = {
+        uid: createUid(),
+        title: `${current.weeks.length + 1} неделя`,
+        days: [],
+      };
+      setSelectedWeekUid(nextWeek.uid);
+      setSelectedDayUid(null);
+      return {
+        ...current,
+        weeks: [...current.weeks, nextWeek],
+      };
+    });
+  }
+
   function removeWeek(weekUid: string) {
     updateDraft((current) => {
       const weeks = current.weeks.filter((week) => week.uid !== weekUid);
@@ -369,12 +395,41 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     }));
   }
 
+  function updateExerciseField(
+    exerciseUid: string,
+    updater: (exercise: DraftExercise) => DraftExercise,
+  ) {
+    updateSelectedDay((currentDay) => ({
+      ...currentDay,
+      exercises: currentDay.exercises.map((item) =>
+        item.uid === exerciseUid ? updater(item) : item,
+      ),
+    }));
+  }
+
+  function updateSetField(
+    exerciseUid: string,
+    setUid: string,
+    updater: (set: DraftSet) => DraftSet,
+  ) {
+    updateExerciseField(exerciseUid, (exercise) => ({
+      ...exercise,
+      sets: exercise.sets.map((entry) => (entry.uid === setUid ? updater(entry) : entry)),
+    }));
+  }
+
   async function performSave() {
     if (!draft || !canSave) return;
+    const commitMessage = getCommitMessage();
+    if (!commitMessage) {
+      setError("Добавьте комментарий к сохранению.");
+      setConfirmOpen(false);
+      return;
+    }
     try {
       setSaving(true);
       setError(null);
-      const result = await saveProgramSnapshot(buildSavePayload(draft));
+      const result = await saveProgramSnapshot(buildSavePayload(draft, commitMessage));
       const nextDraft = draftFromProgram(result);
       const items = await fetchProgramHistory().catch(() => history);
       setDraft(nextDraft);
@@ -382,6 +437,8 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       setInitialSignature(structuralSignature(nextDraft));
       setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
       setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
+      setCommitInputValue("");
+      setCommitInputKey((value) => value + 1);
       setNotice("Снапшот программы сохранен.");
       await refreshProgram();
       await refreshCompletions();
@@ -401,6 +458,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       setDraft(nextDraft);
       setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
       setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
+      setCommitInputValue(
+        `Восстановление версии ${version}${program.commit_message ? `: ${program.commit_message}` : ""}`,
+      );
+      setCommitInputKey((value) => value + 1);
       setNotice(`В редактор загружена версия ${version}. Сохраните ее как новый снапшот.`);
       setHistoryOpen(false);
     } catch {
@@ -469,6 +530,23 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </CardContent>
           </Card>
 
+          <Card>
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-sm font-semibold">Комментарий к сохранению</p>
+                <p className="text-xs text-muted-foreground">
+                  Это обязательный коммит снапшота. Без него сохранить изменения нельзя.
+                </p>
+              </div>
+              <Input
+                key={commitInputKey}
+                ref={commitInputRef}
+                placeholder="Например: добавил субботу и обновил подсобку на 2 неделе"
+                defaultValue={commitInputValue}
+              />
+            </CardContent>
+          </Card>
+
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
 
@@ -486,6 +564,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 {week.title || `${index + 1} неделя`}
               </Button>
             ))}
+            <Button variant="outline" size="sm" onClick={addWeek}>
+              <Plus className="h-4 w-4" />
+              Добавить неделю
+            </Button>
           </div>
 
           {!selectedWeek ? (
@@ -555,23 +637,23 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                       ))}
                     </TabsList>
 
-                    {selectedWeek.days.map((day) => (
-                      <TabsContent key={day.uid} value={day.uid} className="space-y-3">
+                    {selectedDay ? (
+                      <TabsContent value={selectedDay.uid} className="space-y-3">
                         <div className="flex flex-wrap items-center gap-2 rounded-xl border p-3">
                           <p className="min-w-0 flex-1 text-sm text-muted-foreground">
-                            {WEEKDAY_OPTIONS.find((option) => option.value === day.weekday)?.label ?? day.weekday}
+                            {WEEKDAY_OPTIONS.find((option) => option.value === selectedDay.weekday)?.label ?? selectedDay.weekday}
                           </p>
                           <Button
                             variant="destructive"
                             size="sm"
-                            onClick={() => removeDay(day.uid)}
+                            onClick={() => removeDay(selectedDay.uid)}
                           >
                             <Trash2 className="h-4 w-4" />
                             Удалить день
                           </Button>
                         </div>
 
-                        {day.exercises.map((exercise, exerciseIndex) => (
+                        {selectedDay.exercises.map((exercise, exerciseIndex) => (
                           <Card key={exercise.uid}>
                             <CardContent className="space-y-4">
                               <div className="flex flex-wrap items-center gap-2">
@@ -592,7 +674,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                                   variant="outline"
                                   size="icon-sm"
                                   onClick={() => moveExercise(exercise.uid, 1)}
-                                  disabled={exerciseIndex === day.exercises.length - 1}
+                                  disabled={exerciseIndex === selectedDay.exercises.length - 1}
                                 >
                                   <ChevronDown className="h-4 w-4" />
                                 </Button>
@@ -614,13 +696,9 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                                 <Select
                                   value={String(exercise.exerciseId)}
                                   onValueChange={(value) =>
-                                    updateSelectedDay((currentDay) => ({
-                                      ...currentDay,
-                                      exercises: currentDay.exercises.map((item) =>
-                                        item.uid === exercise.uid
-                                          ? { ...item, exerciseId: Number(value) }
-                                          : item,
-                                      ),
+                                    updateExerciseField(exercise.uid, (item) => ({
+                                      ...item,
+                                      exerciseId: Number(value),
                                     }))
                                   }
                                 >
@@ -636,18 +714,15 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                                   </SelectContent>
                                 </Select>
                                 <Input
+                                  key={`${exercise.uid}:superset:${exercise.supersetGroup}`}
                                   type="number"
                                   min="1"
                                   placeholder="Суперсет"
-                                  value={exercise.supersetGroup}
-                                  onChange={(event) =>
-                                    updateSelectedDay((currentDay) => ({
-                                      ...currentDay,
-                                      exercises: currentDay.exercises.map((item) =>
-                                        item.uid === exercise.uid
-                                          ? { ...item, supersetGroup: event.target.value }
-                                          : item,
-                                      ),
+                                  defaultValue={exercise.supersetGroup}
+                                  onBlur={(event) =>
+                                    updateExerciseField(exercise.uid, (item) => ({
+                                      ...item,
+                                      supersetGroup: event.target.value,
                                     }))
                                   }
                                 />
@@ -702,27 +777,13 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                                       <Select
                                         value={set.loadType}
                                         onValueChange={(value: LoadType) =>
-                                          updateSelectedDay((currentDay) => ({
-                                            ...currentDay,
-                                            exercises: currentDay.exercises.map((item) =>
-                                              item.uid === exercise.uid
-                                                ? {
-                                                    ...item,
-                                                    sets: item.sets.map((entry) =>
-                                                      entry.uid === set.uid
-                                                        ? {
-                                                            ...entry,
-                                                            loadType: value,
-                                                            loadValue:
-                                                              value === "PERCENT" || value === "KG"
-                                                                ? entry.loadValue
-                                                                : "",
-                                                          }
-                                                        : entry,
-                                                    ),
-                                                  }
-                                                : item,
-                                            ),
+                                          updateSetField(exercise.uid, set.uid, (entry) => ({
+                                            ...entry,
+                                            loadType: value,
+                                            loadValue:
+                                              value === "PERCENT" || value === "KG"
+                                                ? entry.loadValue
+                                                : "",
                                           }))
                                         }
                                       >
@@ -737,72 +798,42 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                                         </SelectContent>
                                       </Select>
                                       <Input
+                                        key={`${set.uid}:load:${set.loadType}:${set.loadValue}`}
                                         type="number"
                                         step="0.5"
                                         placeholder="Вес / %"
                                         disabled={set.loadType === "INDIVIDUAL" || set.loadType === "BODYWEIGHT"}
-                                        value={set.loadValue}
-                                        onChange={(event) =>
-                                          updateSelectedDay((currentDay) => ({
-                                            ...currentDay,
-                                            exercises: currentDay.exercises.map((item) =>
-                                              item.uid === exercise.uid
-                                                ? {
-                                                    ...item,
-                                                    sets: item.sets.map((entry) =>
-                                                      entry.uid === set.uid
-                                                        ? { ...entry, loadValue: event.target.value }
-                                                        : entry,
-                                                    ),
-                                                  }
-                                                : item,
-                                            ),
+                                        defaultValue={set.loadValue}
+                                        onBlur={(event) =>
+                                          updateSetField(exercise.uid, set.uid, (entry) => ({
+                                            ...entry,
+                                            loadValue: event.target.value,
                                           }))
                                         }
                                       />
                                       <Input
+                                        key={`${set.uid}:reps:${set.reps}`}
                                         type="number"
                                         min="1"
                                         placeholder="Повторы"
-                                        value={set.reps}
-                                        onChange={(event) =>
-                                          updateSelectedDay((currentDay) => ({
-                                            ...currentDay,
-                                            exercises: currentDay.exercises.map((item) =>
-                                              item.uid === exercise.uid
-                                                ? {
-                                                    ...item,
-                                                    sets: item.sets.map((entry) =>
-                                                      entry.uid === set.uid
-                                                        ? { ...entry, reps: event.target.value }
-                                                        : entry,
-                                                    ),
-                                                  }
-                                                : item,
-                                            ),
+                                        defaultValue={set.reps}
+                                        onBlur={(event) =>
+                                          updateSetField(exercise.uid, set.uid, (entry) => ({
+                                            ...entry,
+                                            reps: event.target.value,
                                           }))
                                         }
                                       />
                                       <Input
+                                        key={`${set.uid}:sets:${set.sets}`}
                                         type="number"
                                         min="1"
                                         placeholder="Подходы"
-                                        value={set.sets}
-                                        onChange={(event) =>
-                                          updateSelectedDay((currentDay) => ({
-                                            ...currentDay,
-                                            exercises: currentDay.exercises.map((item) =>
-                                              item.uid === exercise.uid
-                                                ? {
-                                                    ...item,
-                                                    sets: item.sets.map((entry) =>
-                                                      entry.uid === set.uid
-                                                        ? { ...entry, sets: event.target.value }
-                                                        : entry,
-                                                    ),
-                                                  }
-                                                : item,
-                                            ),
+                                        defaultValue={set.sets}
+                                        onBlur={(event) =>
+                                          updateSetField(exercise.uid, set.uid, (entry) => ({
+                                            ...entry,
+                                            sets: event.target.value,
                                           }))
                                         }
                                       />
@@ -815,13 +846,9 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                                 variant="outline"
                                 size="sm"
                                 onClick={() =>
-                                  updateSelectedDay((currentDay) => ({
-                                    ...currentDay,
-                                    exercises: currentDay.exercises.map((item) =>
-                                      item.uid === exercise.uid
-                                        ? { ...item, sets: [...item.sets, emptySet()] }
-                                        : item,
-                                    ),
+                                  updateExerciseField(exercise.uid, (item) => ({
+                                    ...item,
+                                    sets: [...item.sets, emptySet()],
                                   }))
                                 }
                               >
@@ -845,7 +872,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                           Добавить упражнение
                         </Button>
                       </TabsContent>
-                    ))}
+                    ) : null}
                   </Tabs>
                 )}
               </CardContent>
@@ -871,6 +898,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                   <div className="flex items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium">Версия {item.version}</p>
+                      <p className="mt-1 text-sm">{item.commit_message || "Без комментария"}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(item.created_at).toLocaleString()}
                       </p>

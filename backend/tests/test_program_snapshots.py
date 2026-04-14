@@ -37,12 +37,14 @@ class ProgramSnapshotAPITest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIsNone(data["version"])
+        self.assertIsNone(data["commit_message"])
         self.assertEqual(len(data["weeks"]), 1)
         self.assertEqual(data["weeks"][0]["days"][0]["weekday"], "MON")
         self.assertEqual(data["weeks"][0]["days"][0]["exercises"][0]["exercise"]["name"], "Приседания")
 
     def test_post_snapshot_creates_new_version(self):
         payload = {
+            "commit_message": "Добавил вторник",
             "weeks": [
                 {
                     "days": [
@@ -70,14 +72,17 @@ class ProgramSnapshotAPITest(TestCase):
         response = self.authenticated.post("/api/program/snapshots/", payload, format="json")
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["version"], 1)
+        self.assertEqual(response.json()["commit_message"], "Добавил вторник")
         snapshot = ProgramSnapshot.objects.get(telegram_id=42, version=1)
+        self.assertEqual(snapshot.commit_message, "Добавил вторник")
         self.assertEqual(snapshot.payload["weeks"][0]["days"][0]["weekday"], "TUE")
 
     def test_program_history_returns_snapshots(self):
-        for weekday in ("MON", "WED"):
+        for index, weekday in enumerate(("MON", "WED"), start=1):
             self.authenticated.post(
                 "/api/program/snapshots/",
                 {
+                    "commit_message": f"Версия {index}",
                     "weeks": [
                         {
                             "days": [
@@ -109,12 +114,14 @@ class ProgramSnapshotAPITest(TestCase):
         history = response.json()
         self.assertEqual(len(history), 2)
         self.assertEqual(history[0]["version"], 2)
+        self.assertEqual(history[0]["commit_message"], "Версия 2")
         self.assertEqual(history[0]["day_count"], 1)
 
     def test_program_history_detail_returns_snapshot(self):
         self.authenticated.post(
             "/api/program/snapshots/",
             {
+                "commit_message": "Силовая воскресенья",
                 "weeks": [
                     {
                         "days": [
@@ -144,7 +151,19 @@ class ProgramSnapshotAPITest(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertEqual(data["version"], 1)
+        self.assertEqual(data["commit_message"], "Силовая воскресенья")
         self.assertEqual(data["weeks"][0]["days"][0]["weekday"], "SUN")
+
+    def test_snapshot_requires_commit_message(self):
+        response = self.authenticated.post(
+            "/api/program/snapshots/",
+            {
+                "weeks": [],
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("commit_message", response.json())
 
     def test_exercise_catalog_lists_available_exercises(self):
         response = self.client.get("/api/exercises/")

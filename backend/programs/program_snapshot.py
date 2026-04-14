@@ -126,7 +126,7 @@ def collect_exercise_ids(payload):
     return ids
 
 
-def build_program_response(payload, *, version=None, created_at=None):
+def build_program_response(payload, *, version=None, created_at=None, commit_message=None):
     exercise_ids = collect_exercise_ids(payload)
     exercises = Exercise.objects.in_bulk(exercise_ids)
 
@@ -196,6 +196,7 @@ def build_program_response(payload, *, version=None, created_at=None):
     return {
         "version": version,
         "updated_at": created_at.isoformat() if created_at else None,
+        "commit_message": commit_message,
         "weeks": weeks,
     }
 

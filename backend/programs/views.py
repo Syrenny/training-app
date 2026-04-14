@@ -435,6 +435,7 @@ class ProgramCurrentView(APIView):
                 payload,
                 version=snapshot.version,
                 created_at=snapshot.created_at,
+                commit_message=snapshot.commit_message,
             )
         )
 
@@ -460,6 +461,7 @@ class ProgramSnapshotCreateView(APIView):
         snapshot = ProgramSnapshot.objects.create(
             telegram_id=telegram_id,
             version=next_version,
+            commit_message=serializer.validated_data["commit_message"],
             payload=payload,
             source_snapshot_version=serializer.validated_data.get("source_snapshot_version"),
         )
@@ -468,6 +470,7 @@ class ProgramSnapshotCreateView(APIView):
                 snapshot.payload,
                 version=snapshot.version,
                 created_at=snapshot.created_at,
+                commit_message=snapshot.commit_message,
             ),
             status=status.HTTP_201_CREATED,
         )
@@ -491,6 +494,7 @@ class ProgramHistoryListView(APIView):
                 {
                     "version": snapshot.version,
                     "created_at": snapshot.created_at.isoformat(),
+                    "commit_message": snapshot.commit_message,
                     "source_snapshot_version": snapshot.source_snapshot_version,
                     **count_program_entities(snapshot.payload),
                 }
@@ -521,5 +525,6 @@ class ProgramHistoryDetailView(APIView):
                 snapshot.payload,
                 version=snapshot.version,
                 created_at=snapshot.created_at,
+                commit_message=snapshot.commit_message,
             )
         )

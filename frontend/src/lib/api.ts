@@ -169,6 +169,7 @@ export interface WeekDetailData extends WeekListItem {
 export interface ProgramData {
   version: number | null;
   updated_at: string | null;
+  commit_message: string | null;
   weeks: WeekDetailData[];
 }
 
@@ -196,6 +197,7 @@ export interface ProgramWeekInput {
 }
 
 export interface ProgramSnapshotInput {
+  commit_message: string;
   source_snapshot_version?: number | null;
   weeks: ProgramWeekInput[];
 }
@@ -203,6 +205,7 @@ export interface ProgramSnapshotInput {
 export interface ProgramHistoryItem {
   version: number;
   created_at: string;
+  commit_message: string;
   source_snapshot_version: number | null;
   week_count: number;
   day_count: number;

@@ -201,6 +201,12 @@ class ProgramSnapshot(models.Model):
     telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
     version = models.PositiveIntegerField(verbose_name="Версия")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    commit_message = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Комментарий к версии",
+    )
     payload = models.JSONField(default=dict, verbose_name="Снапшот программы")
     source_snapshot_version = models.PositiveIntegerField(
         null=True,
@@ -215,7 +221,8 @@ class ProgramSnapshot(models.Model):
         verbose_name_plural = "Снапшоты программы"
 
     def __str__(self):
-        return f"tg:{self.telegram_id} — версия {self.version}"
+        suffix = self.commit_message or "без комментария"
+        return f"tg:{self.telegram_id} — версия {self.version}: {suffix}"
 
 
 class AccessoryWeight(models.Model):
