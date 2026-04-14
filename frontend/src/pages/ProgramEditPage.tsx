@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ArrowLeft,
   ChevronDown,
   ChevronUp,
   History,
@@ -27,7 +26,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -80,7 +78,7 @@ interface DraftProgram {
 }
 
 interface ProgramEditPageProps {
-  onClose: () => void;
+  onClose?: () => void;
 }
 
 function createUid() {
@@ -442,7 +440,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       setNotice("Снапшот программы сохранен.");
       await refreshProgram();
       await refreshCompletions();
-      onClose();
+      onClose?.();
     } catch {
       setError("Не удалось сохранить программу");
     } finally {
@@ -492,9 +490,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     <div className="flex flex-1 min-h-0 flex-col bg-muted/20">
       <div className="shrink-0 border-b bg-background px-4 py-4">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon-sm" onClick={onClose} aria-label="Назад">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Редактор тренировки</p>
             <p className="text-xs text-muted-foreground">
@@ -512,7 +507,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         </div>
       </div>
 
-      <ScrollArea className="flex-1">
+      <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-4 px-4 py-4">
           <Card className="border-amber-200 bg-amber-50/70">
             <CardContent className="space-y-3 text-sm text-amber-950">
@@ -879,7 +874,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </Card>
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent>

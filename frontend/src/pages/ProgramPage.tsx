@@ -3,17 +3,13 @@ import { useEffect } from "react";
 import { useProgramStore } from "@/lib/store";
 import { DayTabs } from "@/components/DayTabs";
 import { InfoButton } from "@/components/InfoButton";
-import { Sidebar } from "@/components/Sidebar";
 import { WeekSelector } from "@/components/WeekSelector";
-import { Button } from "@/components/ui/button";
 
 interface ProgramPageProps {
   user: AuthUser | null;
-  onLogout: () => void;
-  onEditProgram: () => void;
 }
 
-export function ProgramPage({ user, onLogout, onEditProgram }: ProgramPageProps) {
+export function ProgramPage({ user: _user }: ProgramPageProps) {
   const selectedWeek = useProgramStore((s) => s.selectedWeek);
   const loading = useProgramStore((s) => s.loading);
   const error = useProgramStore((s) => s.error);
@@ -31,7 +27,6 @@ export function ProgramPage({ user, onLogout, onEditProgram }: ProgramPageProps)
   }, [fetchProgram, fetchOneRepMax, fetchCompletions, fetchAccessoryWeights]);
 
   const weekData = selectedWeek !== null ? weekDetailCache[selectedWeek] : null;
-  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(" ").trim();
 
   if (loading && !weekData) {
     return (
@@ -53,18 +48,9 @@ export function ProgramPage({ user, onLogout, onEditProgram }: ProgramPageProps)
     <div className="flex flex-col flex-1 min-h-0">
       <div className="px-4 pt-4 pb-4 shrink-0">
         <div className="flex items-center gap-2">
-          <Sidebar
-            userName={fullName || user?.first_name || user?.telegram_username || undefined}
-            username={user?.telegram_username || undefined}
-            photoUrl={user?.telegram_photo_url || undefined}
-            onLogout={onLogout}
-          />
           <div className="flex-1">
             <WeekSelector />
           </div>
-          <Button variant="outline" size="sm" onClick={onEditProgram}>
-            Редактировать
-          </Button>
           <InfoButton />
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { Info } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
@@ -27,12 +28,9 @@ export function InfoButton() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <button
-          className="inline-flex items-center justify-center rounded-md h-9 w-9 border border-input bg-background hover:bg-accent hover:text-accent-foreground"
-          aria-label="Справка"
-        >
+        <Button variant="outline" size="icon-sm" aria-label="Справка">
           <Info className="h-5 w-5" />
-        </button>
+        </Button>
       </SheetTrigger>
       <SheetContent side="right" className="w-80 overflow-y-auto">
         <SheetHeader>

@@ -5,10 +5,13 @@ import { fetchSession, loginWithTelegram, logoutSession } from "@/lib/api";
 import { getTelegram, initTelegram, isTelegramContext } from "@/lib/telegram";
 import { ProgramPage } from "@/pages/ProgramPage";
 import { ProgramEditPage } from "@/pages/ProgramEditPage";
+import { ProfilePage } from "@/pages/ProfilePage";
+import { BottomTabBar, type AppTab } from "@/components/BottomTabBar";
 import { UnauthorizedScreen } from "@/components/UnauthorizedScreen";
 
 const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 const AUTH_CACHE_KEY = "training-app-auth-user";
+const TAB_CACHE_KEY = "training-app-active-tab";
 type AuthState = "loading" | "authenticated" | "unauthenticated";
 
 function LoadingScreen() {
@@ -48,12 +51,28 @@ function cacheUser(user: AuthUser | null) {
   window.sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify(user));
 }
 
+function loadCachedTab(): AppTab {
+  if (typeof window === "undefined") {
+    return "home";
+  }
+
+  const raw = window.sessionStorage.getItem(TAB_CACHE_KEY);
+  return raw === "home" || raw === "editor" || raw === "profile" ? raw : "home";
+}
+
+function cacheTab(tab: AppTab) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.sessionStorage.setItem(TAB_CACHE_KEY, tab);
+}
+
 function App() {
   const [user, setUser] = useState<AuthUser | null>(() => loadCachedUser());
   const [authState, setAuthState] = useState<AuthState>(() =>
     loadCachedUser() ? "authenticated" : "loading",
   );
-  const [screen, setScreen] = useState<"program" | "editor">("program");
+  const [screen, setScreen] = useState<AppTab>(() => loadCachedTab());
   const [botUsername, setBotUsername] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [authResetKey, setAuthResetKey] = useState(0);
@@ -63,6 +82,10 @@ function App() {
   useEffect(() => {
     return initTelegram();
   }, []);
+
+  useEffect(() => {
+    cacheTab(screen);
+  }, [screen]);
 
   useEffect(() => {
     let mounted = true;
@@ -185,9 +208,10 @@ function App() {
     try {
       await logoutSession();
     } finally {
-      setScreen("program");
+      setScreen("home");
       setUser(null);
       cacheUser(null);
+      cacheTab("home");
       setAuthError(null);
       setAuthResetKey((value) => value + 1);
       setAuthState("unauthenticated");
@@ -217,18 +241,14 @@ function App() {
       className="h-dvh bg-background text-foreground flex flex-col"
       style={{
         paddingTop: "env(safe-area-inset-top)",
-        paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
-      {screen === "editor" ? (
-        <ProgramEditPage onClose={() => setScreen("program")} />
-      ) : (
-        <ProgramPage
-          user={user}
-          onLogout={handleLogout}
-          onEditProgram={() => setScreen("editor")}
-        />
-      )}
+      <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
+        {screen === "home" ? <ProgramPage user={user} /> : null}
+        {screen === "editor" ? <ProgramEditPage /> : null}
+        {screen === "profile" ? <ProfilePage user={user} onLogout={handleLogout} /> : null}
+      </div>
+      <BottomTabBar activeTab={screen} onChange={setScreen} />
     </div>
   );
 }

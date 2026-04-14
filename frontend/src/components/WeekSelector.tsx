@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useProgramStore } from "@/lib/store";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -23,10 +24,10 @@ export function WeekSelector() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button className="flex items-center gap-2 text-lg font-semibold">
+        <Button variant="ghost" className="h-auto justify-start px-0 text-lg font-semibold">
           {title}
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
-        </button>
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xs">
         <DialogHeader>
@@ -34,20 +35,17 @@ export function WeekSelector() {
         </DialogHeader>
         <div className="grid gap-1">
           {weeks.map((week) => (
-            <button
+            <Button
               key={week.id}
-              className={`w-full text-left rounded-md px-3 py-2.5 text-sm transition-colors ${
-                week.number === selectedWeek
-                  ? "bg-primary text-primary-foreground"
-                  : "hover:bg-accent"
-              }`}
+              variant={week.number === selectedWeek ? "default" : "ghost"}
+              className="w-full justify-start"
               onClick={() => {
                 setWeek(week.number);
                 setOpen(false);
               }}
             >
               {week.title || `${week.number} неделя`}
-            </button>
+            </Button>
           ))}
         </div>
       </DialogContent>

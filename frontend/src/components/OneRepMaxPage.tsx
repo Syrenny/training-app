@@ -1,6 +1,9 @@
 import { useCallback, useState } from "react";
 import { useProgramStore } from "@/lib/store";
 import type { OneRepMaxData } from "@/lib/api";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 const FIELDS = [
   { key: "bench" as const, label: "Жим лежа" },
@@ -44,41 +47,46 @@ export function OneRepMaxPage() {
   const hasDraftChanges = Object.keys(draft).length > 0;
 
   return (
-    <div className="space-y-4 py-2">
-      {FIELDS.map(({ key, label }) => (
-        <div key={key}>
-          <label className="text-sm text-muted-foreground mb-1 block">
-            {label}, кг
-          </label>
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            maxLength={3}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-            value={getValue(key) || ""}
-            onChange={(e) => handleChange(key, e.target.value)}
-            placeholder="0"
-          />
-        </div>
-      ))}
+    <Card>
+      <CardHeader>
+        <CardTitle>Разовые максимумы</CardTitle>
+        <CardDescription>Используются для расчета процентов в программе.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {FIELDS.map(({ key, label }) => (
+          <div key={key}>
+            <label className="mb-1 block text-sm text-muted-foreground">
+              {label}, кг
+            </label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={3}
+              value={getValue(key) || ""}
+              onChange={(e) => handleChange(key, e.target.value)}
+              placeholder="0"
+            />
+          </div>
+        ))}
 
-      <button
-        className="w-full h-10 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 disabled:pointer-events-none"
-        onClick={handleSave}
-        disabled={!hasDraftChanges || status === "saving"}
-      >
-        {status === "saving" ? "Сохранение..." : "Сохранить"}
-      </button>
+        <Button
+          className="w-full"
+          onClick={handleSave}
+          disabled={!hasDraftChanges || status === "saving"}
+        >
+          {status === "saving" ? "Сохранение..." : "Сохранить"}
+        </Button>
 
-      {status === "saved" && (
-        <p className="text-sm text-green-600 text-center">Сохранено</p>
-      )}
-      {status === "error" && (
-        <p className="text-sm text-destructive text-center">
-          Ошибка сохранения
-        </p>
-      )}
-    </div>
+        {status === "saved" && (
+          <p className="text-center text-sm text-green-600">Сохранено</p>
+        )}
+        {status === "error" && (
+          <p className="text-center text-sm text-destructive">
+            Ошибка сохранения
+          </p>
+        )}
+      </CardContent>
+    </Card>
   );
 }
