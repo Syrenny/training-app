@@ -1,6 +1,8 @@
 import type { AuthUser } from "@/lib/api";
-import { LogOut } from "lucide-react";
+import { useState } from "react";
+import { LogOut, RotateCcw } from "lucide-react";
 import { OneRepMaxPage } from "@/components/OneRepMaxPage";
+import { useProgramStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -16,6 +18,13 @@ function getInitial(userName?: string, username?: string) {
 
 export function ProfilePage({ user, onLogout }: ProfilePageProps) {
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+  const resetCompletions = useProgramStore((s) => s.resetCompletions);
+  const [resetNotice, setResetNotice] = useState<string | null>(null);
+
+  async function handleResetCompletions() {
+    await resetCompletions();
+    setResetNotice("Отметки выполнения сброшены.");
+  }
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -68,6 +77,29 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
           </Card>
 
           <OneRepMaxPage />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Отметки выполнения</CardTitle>
+              <CardDescription>
+                Отметки привязаны только к номеру недели и дню недели. После сильных
+                изменений программы их можно обнулить здесь.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Если структура тренировок изменилась, старые отметки могут больше не
+                совпадать с текущей программой.
+              </p>
+              <Button variant="outline" className="w-full" onClick={handleResetCompletions}>
+                <RotateCcw className="h-4 w-4" />
+                Сбросить отметки выполнения
+              </Button>
+              {resetNotice ? (
+                <p className="text-sm text-muted-foreground">{resetNotice}</p>
+              ) : null}
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

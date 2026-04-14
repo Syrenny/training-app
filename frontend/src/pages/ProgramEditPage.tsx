@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
+  Pencil,
   History,
   Plus,
   RotateCcw,
@@ -9,6 +10,7 @@ import {
   Trash2,
 } from "lucide-react";
 import type {
+  ExerciseSetData,
   ExerciseData,
   ProgramData,
   ProgramHistoryItem,
@@ -23,12 +25,15 @@ import {
 } from "@/lib/api";
 import { useProgramStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WeekPicker } from "@/components/WeekPicker";
+import { SetDisplay } from "@/components/SetDisplay";
+import { calcTonnage } from "@/lib/calc";
 
 const WEEKDAY_OPTIONS = [
   { value: "MON", label: "Понедельник" },
@@ -48,6 +53,13 @@ const WEEKDAY_SHORT_LABELS: Record<string, string> = {
   FRI: "Пт",
   SAT: "Сб",
   SUN: "Вс",
+};
+
+const categoryLabels: Record<string, string> = {
+  BENCH: "Жим",
+  SQUAT: "Присед",
+  DEADLIFT: "Тяга",
+  ACCESSORY: "Подсобка",
 };
 
 const WEEKDAY_ORDER = Object.fromEntries(
@@ -86,6 +98,12 @@ interface DraftWeek {
 interface DraftProgram {
   sourceSnapshotVersion: number | null;
   weeks: DraftWeek[];
+}
+
+interface SetEditorState {
+  exerciseUid: string;
+  setUid: string | null;
+  draft: DraftSet;
 }
 
 interface ProgramEditPageProps {
@@ -189,6 +207,71 @@ function structuralSignature(draft: DraftProgram) {
   );
 }
 
+function renderDraftSetDisplay(set: DraftSet) {
+  const parts: string[] = [];
+  if (set.loadType === "PERCENT") {
+    parts.push(`${set.loadValue}%`);
+  } else if (set.loadType === "KG") {
+    parts.push(`${set.loadValue}кг`);
+  } else if (set.loadType === "INDIVIDUAL") {
+    parts.push("🏋");
+  }
+  parts.push(set.reps);
+  if (Number(set.sets || 0) > 1) {
+    parts.push(set.sets);
+  }
+  return parts.join("×");
+}
+
+function toPreviewSetData(set: DraftSet, id: string, order = 1): ExerciseSetData {
+  return {
+    id,
+    order,
+    load_type: set.loadType,
+    load_value:
+      set.loadType === "PERCENT" || set.loadType === "KG"
+        ? Number(set.loadValue || 0)
+        : null,
+    reps: Number(set.reps || 0),
+    sets: Number(set.sets || 0),
+    display: renderDraftSetDisplay(set),
+  };
+}
+
+type ExerciseGroupItem =
+  | { type: "single"; exercise: DraftExercise; displayOrder: number }
+  | {
+      type: "superset";
+      group: string;
+      exercises: DraftExercise[];
+      displayOrder: number;
+    };
+
+function groupDraftExercises(exercises: DraftExercise[]) {
+  const items: ExerciseGroupItem[] = [];
+  let i = 0;
+  let displayOrder = 1;
+
+  while (i < exercises.length) {
+    const current = exercises[i];
+    if (current.supersetGroup) {
+      const grouped: DraftExercise[] = [];
+      const groupId = current.supersetGroup;
+      while (i < exercises.length && exercises[i].supersetGroup === groupId) {
+        grouped.push(exercises[i]);
+        i += 1;
+      }
+      items.push({ type: "superset", group: groupId, exercises: grouped, displayOrder });
+    } else {
+      items.push({ type: "single", exercise: current, displayOrder });
+      i += 1;
+    }
+    displayOrder += 1;
+  }
+
+  return items;
+}
+
 function isSetValid(set: DraftSet) {
   if (!set.reps || Number(set.reps) <= 0 || !set.sets || Number(set.sets) <= 0) {
     return false;
@@ -215,7 +298,7 @@ function isDraftValid(draft: DraftProgram) {
 export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const refreshProgram = useProgramStore((s) => s.fetchProgram);
   const refreshCompletions = useProgramStore((s) => s.fetchCompletions);
-  const resetCompletions = useProgramStore((s) => s.resetCompletions);
+  const oneRepMax = useProgramStore((s) => s.oneRepMax);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -228,12 +311,13 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const [selectedWeekUid, setSelectedWeekUid] = useState<string | null>(null);
   const [selectedDayUid, setSelectedDayUid] = useState<string | null>(null);
   const [newDayWeekday, setNewDayWeekday] = useState("MON");
+  const [addDayOpen, setAddDayOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [deleteWeekConfirmOpen, setDeleteWeekConfirmOpen] = useState(false);
   const [initialSignature, setInitialSignature] = useState("");
-  const [commitInputValue, setCommitInputValue] = useState("");
-  const [commitInputKey, setCommitInputKey] = useState(0);
-  const commitInputRef = useRef<HTMLInputElement | null>(null);
+  const [commitMessage, setCommitMessage] = useState("");
+  const [setEditor, setSetEditor] = useState<SetEditorState | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -255,8 +339,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         setInitialSignature(structuralSignature(nextDraft));
         setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
         setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
-        setCommitInputValue("");
-        setCommitInputKey((value) => value + 1);
+        setCommitMessage("");
         setError(null);
       } catch {
         if (!mounted) return;
@@ -308,17 +391,12 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const hasStructuralChanges = draft ? structuralSignature(draft) !== initialSignature : false;
   const canSave = draft != null && catalog.length > 0 && isDraftValid(draft) && !saving;
 
-  function getCommitMessage() {
-    return commitInputRef.current?.value.trim() ?? "";
-  }
-
   function resetEditorToProgram(program: ProgramData, commitMessage = "") {
     const nextDraft = draftFromProgram(program);
     setDraft(nextDraft);
     setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
     setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
-    setCommitInputValue(commitMessage);
-    setCommitInputKey((value) => value + 1);
+    setCommitMessage(commitMessage);
     setError(null);
   }
 
@@ -370,6 +448,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     };
     updateSelectedWeek((week) => ({ ...week, days: sortDays([...week.days, nextDay]) }));
     setSelectedDayUid(nextDay.uid);
+    setAddDayOpen(false);
   }
 
   function addWeek() {
@@ -432,21 +511,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     });
   }
 
-  function moveSet(exerciseUid: string, setUid: string, direction: -1 | 1) {
-    updateSelectedDay((day) => ({
-      ...day,
-      exercises: day.exercises.map((exercise) => {
-        if (exercise.uid !== exerciseUid) return exercise;
-        const index = exercise.sets.findIndex((set) => set.uid === setUid);
-        const target = index + direction;
-        if (index < 0 || target < 0 || target >= exercise.sets.length) return exercise;
-        const sets = [...exercise.sets];
-        [sets[index], sets[target]] = [sets[target], sets[index]];
-        return { ...exercise, sets };
-      }),
-    }));
-  }
-
   function updateExerciseField(
     exerciseUid: string,
     updater: (exercise: DraftExercise) => DraftExercise,
@@ -470,18 +534,216 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     }));
   }
 
+  function openSetEditor(exerciseUid: string, setUid: string | null, initial?: DraftSet) {
+    setSetEditor({
+      exerciseUid,
+      setUid,
+      draft: initial
+        ? { ...initial }
+        : {
+            uid: createUid(),
+            loadType: "INDIVIDUAL",
+            loadValue: "",
+            reps: "10",
+            sets: "3",
+          },
+    });
+  }
+
+  function saveSetEditor() {
+    if (!setEditor || !isSetValid(setEditor.draft)) {
+      return;
+    }
+
+    if (setEditor.setUid) {
+      updateSetField(setEditor.exerciseUid, setEditor.setUid, () => ({
+        ...setEditor.draft,
+        uid: setEditor.setUid!,
+      }));
+    } else {
+      updateExerciseField(setEditor.exerciseUid, (exercise) => ({
+        ...exercise,
+        sets: [...exercise.sets, { ...setEditor.draft }],
+      }));
+    }
+
+    setSetEditor(null);
+  }
+
+  function deleteEditedSet() {
+    if (!setEditor?.setUid) {
+      setSetEditor(null);
+      return;
+    }
+
+    updateExerciseField(setEditor.exerciseUid, (exercise) => ({
+      ...exercise,
+      sets: exercise.sets.filter((entry) => entry.uid !== setEditor.setUid),
+    }));
+    setSetEditor(null);
+  }
+
+  function getExerciseMeta(exerciseId: number) {
+    return catalog.find((entry) => entry.id === exerciseId) ?? null;
+  }
+
+  function getExerciseIndex(exerciseUid: string) {
+    return selectedDay?.exercises.findIndex((entry) => entry.uid === exerciseUid) ?? -1;
+  }
+
+  function renderSetPills(exercise: DraftExercise) {
+    const exerciseMeta = getExerciseMeta(exercise.exerciseId);
+
+    return (
+      <div className="flex flex-wrap gap-1.5">
+        {exercise.sets.map((set, index) => (
+          <button
+            key={set.uid}
+            type="button"
+            className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => openSetEditor(exercise.uid, set.uid, set)}
+          >
+            <SetDisplay
+              set={toPreviewSetData(set, `${exercise.uid}:${index}`, index + 1)}
+              category={exerciseMeta?.category}
+            />
+          </button>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon-xs"
+          className="h-7 w-7 shrink-0 rounded-md border-dashed"
+          onClick={() => openSetEditor(exercise.uid, null, emptySet())}
+        >
+          <Plus className="h-3 w-3" />
+        </Button>
+      </div>
+    );
+  }
+
+  function renderExerciseToolbar(exercise: DraftExercise) {
+    const exerciseIndex = getExerciseIndex(exercise.uid);
+    const isFirst = exerciseIndex <= 0;
+    const isLast = selectedDay == null || exerciseIndex === selectedDay.exercises.length - 1;
+
+    return (
+      <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
+        <Select
+          value={String(exercise.exerciseId)}
+          onValueChange={(value) =>
+            updateExerciseField(exercise.uid, (entry) => ({
+              ...entry,
+              exerciseId: Number(value),
+            }))
+          }
+        >
+          <SelectTrigger className="min-w-0 flex-1 sm:min-w-72">
+            <SelectValue placeholder="Выберите упражнение" />
+          </SelectTrigger>
+          <SelectContent>
+            {catalog.map((entry) => (
+              <SelectItem key={entry.id} value={String(entry.id)}>
+                {entry.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Input
+          key={`${exercise.uid}:superset:${exercise.supersetGroup}`}
+          type="number"
+          min="1"
+          placeholder="Суперсет"
+          className="w-28"
+          defaultValue={exercise.supersetGroup}
+          onBlur={(event) =>
+            updateExerciseField(exercise.uid, (entry) => ({
+              ...entry,
+              supersetGroup: event.target.value,
+            }))
+          }
+        />
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={() => moveExercise(exercise.uid, -1)}
+          disabled={isFirst}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon-sm"
+          onClick={() => moveExercise(exercise.uid, 1)}
+          disabled={isLast}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+        <Button
+          variant="destructive"
+          size="icon-sm"
+          onClick={() =>
+            updateSelectedDay((currentDay) => ({
+              ...currentDay,
+              exercises: currentDay.exercises.filter((entry) => entry.uid !== exercise.uid),
+            }))
+          }
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      </div>
+    );
+  }
+
+  function renderExercisePreview(
+    exercise: DraftExercise,
+    displayOrder?: number,
+  ) {
+    const exerciseMeta = getExerciseMeta(exercise.exerciseId);
+    const previewSets = exercise.sets.map((set, index) =>
+      toPreviewSetData(set, `${exercise.uid}:${index}`, index + 1),
+    );
+    const tonnage =
+      exerciseMeta && exerciseMeta.category !== "ACCESSORY"
+        ? calcTonnage(previewSets, exerciseMeta.category, oneRepMax)
+        : null;
+
+    return (
+      <>
+        <div className="mb-2 flex items-baseline gap-2">
+          {displayOrder != null ? (
+            <span className="text-muted-foreground text-sm font-medium">
+              {displayOrder}.
+            </span>
+          ) : null}
+          <span className="font-semibold">
+            {exerciseMeta?.name ?? "Упражнение"}
+          </span>
+          <Badge variant="secondary" className="ml-auto shrink-0 text-xs">
+            {exerciseMeta ? categoryLabels[exerciseMeta.category] : "Упражнение"}
+          </Badge>
+        </div>
+        {renderSetPills(exercise)}
+        {tonnage != null ? (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Тоннаж: {tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)}т` : `${tonnage}кг`}
+          </p>
+        ) : null}
+      </>
+    );
+  }
+
   async function performSave() {
     if (!draft || !canSave) return;
-    const commitMessage = getCommitMessage();
-    if (!commitMessage) {
+    const nextCommitMessage = commitMessage.trim();
+    if (!nextCommitMessage) {
       setError("Добавьте комментарий к сохранению.");
-      setConfirmOpen(false);
       return;
     }
     try {
       setSaving(true);
       setError(null);
-      const result = await saveProgramSnapshot(buildSavePayload(draft, commitMessage));
+      const result = await saveProgramSnapshot(buildSavePayload(draft, nextCommitMessage));
       const nextDraft = draftFromProgram(result);
       setSavedProgram(result);
       const items = await fetchProgramHistory().catch(() => history);
@@ -490,8 +752,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       setInitialSignature(structuralSignature(nextDraft));
       setSelectedWeekUid(nextDraft.weeks[0]?.uid ?? null);
       setSelectedDayUid(nextDraft.weeks[0]?.days[0]?.uid ?? null);
-      setCommitInputValue("");
-      setCommitInputKey((value) => value + 1);
+      setCommitMessage("");
       setNotice("Снапшот программы сохранен.");
       await refreshProgram();
       await refreshCompletions();
@@ -539,63 +800,38 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col bg-muted/20">
-      <div className="shrink-0 border-b bg-background px-4 py-4">
+      <div className="shrink-0 border-b bg-background px-4 py-3">
         <div className="flex items-center gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold">Редактор тренировки</p>
-            <p className="text-xs text-muted-foreground">
-              Сохраняет программу целиком как новый снапшот.
-            </p>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => setHistoryOpen(true)}>
+          <p className="min-w-0 flex-1 text-base font-semibold">Редактор</p>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="История"
+            onClick={() => setHistoryOpen(true)}
+          >
             <History className="h-4 w-4" />
-            История
           </Button>
-          <Button variant="outline" size="sm" onClick={cancelAllChanges}>
-            Отменить все
+          <Button
+            variant="outline"
+            size="icon-sm"
+            aria-label="Отменить все"
+            onClick={cancelAllChanges}
+          >
+            <RotateCcw className="h-4 w-4" />
           </Button>
-          <Button size="sm" onClick={() => (hasStructuralChanges ? setConfirmOpen(true) : performSave())} disabled={!canSave}>
+          <Button
+            size="icon-sm"
+            aria-label={saving ? "Сохранение" : "Сохранить"}
+            onClick={() => setConfirmOpen(true)}
+            disabled={!canSave}
+          >
             <Save className="h-4 w-4" />
-            {saving ? "Сохранение..." : "Сохранить"}
           </Button>
         </div>
       </div>
 
       <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
         <div className="space-y-4 px-4 py-4">
-          <Card className="border-amber-200 bg-amber-50/70">
-            <CardContent className="space-y-3 text-sm text-amber-950">
-              <p className="font-medium">
-                История выполнений привязана только к номеру недели и дню недели.
-              </p>
-              <p>
-                После структурных изменений отметки выполненных тренировок могут перестать
-                соответствовать новой программе. При необходимости сбросьте их вручную.
-              </p>
-              <Button variant="outline" size="sm" onClick={() => resetCompletions()}>
-                <RotateCcw className="h-4 w-4" />
-                Сбросить отметки выполнения
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm font-semibold">Комментарий к сохранению</p>
-                <p className="text-xs text-muted-foreground">
-                  Это обязательный коммит снапшота. Без него сохранить изменения нельзя.
-                </p>
-              </div>
-              <Input
-                key={commitInputKey}
-                ref={commitInputRef}
-                placeholder="Например: добавил субботу и обновил подсобку на 2 неделе"
-                defaultValue={commitInputValue}
-              />
-            </CardContent>
-          </Card>
-
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
 
@@ -607,6 +843,15 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 onSelect={selectWeekByNumber}
               />
             </div>
+            <Button
+              variant="destructive"
+              size="icon-sm"
+              aria-label="Удалить неделю"
+              onClick={() => setDeleteWeekConfirmOpen(true)}
+              disabled={!selectedWeek}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
             <Button variant="outline" size="sm" onClick={addWeek}>
               <Plus className="h-4 w-4" />
               Добавить неделю
@@ -621,47 +866,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </Card>
           ) : (
             <div className="space-y-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold">{selectedWeek.title}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Удаление недели сдвинет нумерацию следующих недель при сохранении.
-                  </p>
-                </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => removeWeek(selectedWeek.uid)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Удалить неделю
-                </Button>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed p-3">
-                <Select value={newDayWeekday} onValueChange={setNewDayWeekday}>
-                  <SelectTrigger className="w-full sm:w-52">
-                    <SelectValue placeholder="Добавить день" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {remainingWeekdays.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addDay}
-                  disabled={remainingWeekdays.length === 0}
-                >
-                  <Plus className="h-4 w-4" />
-                  Добавить день
-                </Button>
-              </div>
-
               {selectedWeek.days.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
                   В этой неделе пока нет тренировочных дней.
@@ -671,13 +875,28 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                   value={selectedDay?.uid}
                   onValueChange={(value) => setSelectedDayUid(value)}
                 >
-                  <TabsList className="w-full">
-                    {selectedWeek.days.map((day) => (
-                      <TabsTrigger key={day.uid} value={day.uid} className="flex-1">
-                        {WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
-                      </TabsTrigger>
-                    ))}
-                  </TabsList>
+                  <div className="flex items-center gap-2">
+                    <TabsList className="w-full">
+                      {selectedWeek.days.map((day) => (
+                        <TabsTrigger key={day.uid} value={day.uid} className="flex-1">
+                          {WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
+                        </TabsTrigger>
+                      ))}
+                    </TabsList>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      aria-label="Добавить день"
+                      onClick={() => {
+                        if (!remainingWeekdays.length) return;
+                        setNewDayWeekday(remainingWeekdays[0]?.value ?? "MON");
+                        setAddDayOpen(true);
+                      }}
+                      disabled={!selectedWeek || remainingWeekdays.length === 0}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
 
                     {selectedDay ? (
                       <TabsContent value={selectedDay.uid} className="space-y-3">
@@ -695,211 +914,47 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                           </Button>
                         </div>
 
-                        {selectedDay.exercises.map((exercise, exerciseIndex) => (
-                          <Card key={exercise.uid}>
-                            <CardContent className="space-y-4">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <div className="min-w-0 flex-1">
-                                  <p className="text-sm font-semibold">
-                                    Упражнение {exerciseIndex + 1}
-                                  </p>
+                        {groupDraftExercises(selectedDay.exercises).map((item) =>
+                          item.type === "single" ? (
+                            <Card key={item.exercise.uid} className="mb-3">
+                              <CardContent>
+                                {renderExercisePreview(item.exercise, item.displayOrder)}
+                                {renderExerciseToolbar(item.exercise)}
+                              </CardContent>
+                            </Card>
+                          ) : (
+                            <Card
+                              key={`superset-${item.group}`}
+                              className="mb-3 border-l-4 border-l-primary"
+                            >
+                              <CardContent>
+                                <div className="mb-3 flex items-baseline gap-2">
+                                  <span className="text-muted-foreground text-sm font-medium">
+                                    {item.displayOrder}.
+                                  </span>
+                                  <Badge variant="outline" className="text-xs">
+                                    Суперсет
+                                  </Badge>
                                 </div>
-                                <Button
-                                  variant="outline"
-                                  size="icon-sm"
-                                  onClick={() => moveExercise(exercise.uid, -1)}
-                                  disabled={exerciseIndex === 0}
-                                >
-                                  <ChevronUp className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="icon-sm"
-                                  onClick={() => moveExercise(exercise.uid, 1)}
-                                  disabled={exerciseIndex === selectedDay.exercises.length - 1}
-                                >
-                                  <ChevronDown className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  size="icon-sm"
-                                  onClick={() =>
-                                    updateSelectedDay((currentDay) => ({
-                                      ...currentDay,
-                                      exercises: currentDay.exercises.filter((item) => item.uid !== exercise.uid),
-                                    }))
-                                  }
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </div>
-
-                              <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_140px]">
-                                <Select
-                                  value={String(exercise.exerciseId)}
-                                  onValueChange={(value) =>
-                                    updateExerciseField(exercise.uid, (item) => ({
-                                      ...item,
-                                      exerciseId: Number(value),
-                                    }))
-                                  }
-                                >
-                                  <SelectTrigger className="w-full">
-                                    <SelectValue placeholder="Выберите упражнение" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {catalog.map((item) => (
-                                      <SelectItem key={item.id} value={String(item.id)}>
-                                        {item.name}
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <Input
-                                  key={`${exercise.uid}:superset:${exercise.supersetGroup}`}
-                                  type="number"
-                                  min="1"
-                                  placeholder="Суперсет"
-                                  defaultValue={exercise.supersetGroup}
-                                  onBlur={(event) =>
-                                    updateExerciseField(exercise.uid, (item) => ({
-                                      ...item,
-                                      supersetGroup: event.target.value,
-                                    }))
-                                  }
-                                />
-                              </div>
-
-                              <div className="space-y-3">
-                                {exercise.sets.map((set, setIndex) => (
-                                  <div key={set.uid} className="rounded-xl border bg-muted/30 p-3">
-                                    <div className="mb-3 flex items-center gap-2">
-                                      <p className="min-w-0 flex-1 text-sm font-medium">
-                                        Подход {setIndex + 1}
-                                      </p>
-                                      <Button
-                                        variant="outline"
-                                        size="icon-xs"
-                                        onClick={() => moveSet(exercise.uid, set.uid, -1)}
-                                        disabled={setIndex === 0}
-                                      >
-                                        <ChevronUp className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="outline"
-                                        size="icon-xs"
-                                        onClick={() => moveSet(exercise.uid, set.uid, 1)}
-                                        disabled={setIndex === exercise.sets.length - 1}
-                                      >
-                                        <ChevronDown className="h-3 w-3" />
-                                      </Button>
-                                      <Button
-                                        variant="destructive"
-                                        size="icon-xs"
-                                        onClick={() =>
-                                          updateSelectedDay((currentDay) => ({
-                                            ...currentDay,
-                                            exercises: currentDay.exercises.map((item) =>
-                                              item.uid === exercise.uid
-                                                ? {
-                                                    ...item,
-                                                    sets: item.sets.filter((entry) => entry.uid !== set.uid),
-                                                  }
-                                                : item,
-                                            ),
-                                          }))
-                                        }
-                                        disabled={exercise.sets.length === 1}
-                                      >
-                                        <Trash2 className="h-3 w-3" />
-                                      </Button>
+                                <div className="space-y-4">
+                                  {item.exercises.map((exercise, exerciseIndex) => (
+                                    <div
+                                      key={exercise.uid}
+                                      className={
+                                        exerciseIndex === 0
+                                          ? ""
+                                          : "border-border/60 border-t pt-4"
+                                      }
+                                    >
+                                      {renderExercisePreview(exercise)}
+                                      {renderExerciseToolbar(exercise)}
                                     </div>
-
-                                    <div className="grid gap-3 md:grid-cols-4">
-                                      <Select
-                                        value={set.loadType}
-                                        onValueChange={(value: LoadType) =>
-                                          updateSetField(exercise.uid, set.uid, (entry) => ({
-                                            ...entry,
-                                            loadType: value,
-                                            loadValue:
-                                              value === "PERCENT" || value === "KG"
-                                                ? entry.loadValue
-                                                : "",
-                                          }))
-                                        }
-                                      >
-                                        <SelectTrigger className="w-full">
-                                          <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          <SelectItem value="PERCENT">Процент</SelectItem>
-                                          <SelectItem value="KG">Килограммы</SelectItem>
-                                          <SelectItem value="INDIVIDUAL">Индивидуально</SelectItem>
-                                          <SelectItem value="BODYWEIGHT">Собственный вес</SelectItem>
-                                        </SelectContent>
-                                      </Select>
-                                      <Input
-                                        key={`${set.uid}:load:${set.loadType}:${set.loadValue}`}
-                                        type="number"
-                                        step="0.5"
-                                        placeholder="Вес / %"
-                                        disabled={set.loadType === "INDIVIDUAL" || set.loadType === "BODYWEIGHT"}
-                                        defaultValue={set.loadValue}
-                                        onBlur={(event) =>
-                                          updateSetField(exercise.uid, set.uid, (entry) => ({
-                                            ...entry,
-                                            loadValue: event.target.value,
-                                          }))
-                                        }
-                                      />
-                                      <Input
-                                        key={`${set.uid}:reps:${set.reps}`}
-                                        type="number"
-                                        min="1"
-                                        placeholder="Повторы"
-                                        defaultValue={set.reps}
-                                        onBlur={(event) =>
-                                          updateSetField(exercise.uid, set.uid, (entry) => ({
-                                            ...entry,
-                                            reps: event.target.value,
-                                          }))
-                                        }
-                                      />
-                                      <Input
-                                        key={`${set.uid}:sets:${set.sets}`}
-                                        type="number"
-                                        min="1"
-                                        placeholder="Подходы"
-                                        defaultValue={set.sets}
-                                        onBlur={(event) =>
-                                          updateSetField(exercise.uid, set.uid, (entry) => ({
-                                            ...entry,
-                                            sets: event.target.value,
-                                          }))
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  updateExerciseField(exercise.uid, (item) => ({
-                                    ...item,
-                                    sets: [...item.sets, emptySet()],
-                                  }))
-                                }
-                              >
-                                <Plus className="h-4 w-4" />
-                                Добавить подход
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        ))}
+                                  ))}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ),
+                        )}
 
                         <Button
                           variant="outline"
@@ -961,18 +1016,218 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Сохранить структурные изменения?</DialogTitle>
+            <DialogTitle>Сохранить изменения</DialogTitle>
             <DialogDescription>
-              После удаления недель или дней старые отметки выполнения могут больше не совпадать
-              с программой.
+              Добавьте обязательный комментарий к снапшоту перед сохранением.
             </DialogDescription>
           </DialogHeader>
+          <div className="space-y-4">
+            {hasStructuralChanges ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 text-sm text-amber-950">
+                После удаления недель или дней старые отметки выполнения могут больше не
+                совпадать с программой.
+              </div>
+            ) : null}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Комментарий к сохранению</p>
+              <Input
+                placeholder="Например: добавил субботу и обновил подсобку на 2 неделе"
+                value={commitMessage}
+                onChange={(event) => setCommitMessage(event.target.value)}
+              />
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmOpen(false)}>
               Отмена
             </Button>
-            <Button onClick={performSave} disabled={!canSave}>
-              Продолжить
+            <Button onClick={performSave} disabled={!canSave || !commitMessage.trim()}>
+              {saving ? "Сохранение..." : "Сохранить"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteWeekConfirmOpen} onOpenChange={setDeleteWeekConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Удалить неделю?</DialogTitle>
+            <DialogDescription>
+              Удаление недели сдвинет нумерацию следующих недель при сохранении.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteWeekConfirmOpen(false)}>
+              Отмена
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedWeek) {
+                  removeWeek(selectedWeek.uid);
+                }
+                setDeleteWeekConfirmOpen(false);
+              }}
+            >
+              Удалить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addDayOpen} onOpenChange={setAddDayOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить день</DialogTitle>
+            <DialogDescription>
+              Выберите день недели для новой тренировки.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">День недели</p>
+            <Select value={newDayWeekday} onValueChange={setNewDayWeekday}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Выберите день недели" />
+              </SelectTrigger>
+              <SelectContent>
+                {remainingWeekdays.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDayOpen(false)}>
+              Отмена
+            </Button>
+            <Button onClick={addDay} disabled={remainingWeekdays.length === 0}>
+              Добавить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={setEditor != null} onOpenChange={(open) => !open && setSetEditor(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Редактирование подхода</DialogTitle>
+            <DialogDescription>
+              Изменения сразу показываются в виде pill, как на главной странице.
+            </DialogDescription>
+          </DialogHeader>
+          {setEditor ? (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <div className="rounded-md">
+                  <SetDisplay
+                    set={toPreviewSetData(setEditor.draft, "editor-preview")}
+                    category={
+                      catalog.find((entry) =>
+                        selectedDay?.exercises.find((exercise) => exercise.uid === setEditor.exerciseUid)?.exerciseId === entry.id,
+                      )?.category
+                    }
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <Select
+                  value={setEditor.draft.loadType}
+                  onValueChange={(value: LoadType) =>
+                    setSetEditor((current) =>
+                      current
+                        ? {
+                            ...current,
+                            draft: {
+                              ...current.draft,
+                              loadType: value,
+                              loadValue:
+                                value === "PERCENT" || value === "KG"
+                                  ? current.draft.loadValue
+                                  : "",
+                            },
+                          }
+                        : current,
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PERCENT">Процент</SelectItem>
+                    <SelectItem value="KG">Килограммы</SelectItem>
+                    <SelectItem value="INDIVIDUAL">Индивидуально</SelectItem>
+                    <SelectItem value="BODYWEIGHT">Собственный вес</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  step="0.5"
+                  placeholder="Вес / %"
+                  disabled={setEditor.draft.loadType === "INDIVIDUAL" || setEditor.draft.loadType === "BODYWEIGHT"}
+                  value={setEditor.draft.loadValue}
+                  onChange={(event) =>
+                    setSetEditor((current) =>
+                      current
+                        ? {
+                            ...current,
+                            draft: { ...current.draft, loadValue: event.target.value },
+                          }
+                        : current,
+                    )
+                  }
+                />
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Повторы"
+                  value={setEditor.draft.reps}
+                  onChange={(event) =>
+                    setSetEditor((current) =>
+                      current
+                        ? {
+                            ...current,
+                            draft: { ...current.draft, reps: event.target.value },
+                          }
+                        : current,
+                    )
+                  }
+                />
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Подходы"
+                  value={setEditor.draft.sets}
+                  onChange={(event) =>
+                    setSetEditor((current) =>
+                      current
+                        ? {
+                            ...current,
+                            draft: { ...current.draft, sets: event.target.value },
+                          }
+                        : current,
+                    )
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter className="sm:justify-between">
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setSetEditor(null)}>
+                Отмена
+              </Button>
+              {setEditor?.setUid ? (
+                <Button variant="destructive" onClick={deleteEditedSet}>
+                  Удалить
+                </Button>
+              ) : null}
+            </div>
+            <Button onClick={saveSetEditor} disabled={!setEditor || !isSetValid(setEditor.draft)}>
+              <Pencil className="h-4 w-4" />
+              Сохранить
             </Button>
           </DialogFooter>
         </DialogContent>

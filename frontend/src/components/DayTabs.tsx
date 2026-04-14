@@ -1,4 +1,3 @@
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useCrossWeekPull } from '@/hooks/useCrossWeekPull'
 import type { DayData } from '@/lib/api'
@@ -140,13 +139,13 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 					>
 						{days.map(day => (
 							<SwiperSlide key={day.weekday} className='h-full'>
-								<ScrollArea className='h-full [&>[data-slot=scroll-area-scrollbar]]:hidden'>
+								<div className='hide-scrollbar h-full overflow-y-auto overscroll-y-contain'>
 									<ExerciseList
 										exercises={day.exercises}
 										weekNumber={weekNumber}
 										weekday={day.weekday}
 									/>
-								</ScrollArea>
+								</div>
 							</SwiperSlide>
 						))}
 					</Swiper>
