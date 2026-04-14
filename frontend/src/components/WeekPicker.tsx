@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -19,10 +20,17 @@ interface WeekPickerProps {
   items: WeekPickerItem[];
   selectedNumber: number | null;
   onSelect: (weekNumber: number) => void;
+  triggerButtonProps?: React.ComponentProps<"button">;
 }
 
-export function WeekPicker({ items, selectedNumber, onSelect }: WeekPickerProps) {
+export function WeekPicker({
+  items,
+  selectedNumber,
+  onSelect,
+  triggerButtonProps,
+}: WeekPickerProps) {
   const [open, setOpen] = useState(false);
+  const triggerClassName = triggerButtonProps?.className;
 
   if (items.length === 0) return null;
 
@@ -32,7 +40,11 @@ export function WeekPicker({ items, selectedNumber, onSelect }: WeekPickerProps)
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="ghost" className="h-auto justify-start px-0 text-lg font-semibold">
+        <Button
+          variant="ghost"
+          {...triggerButtonProps}
+          className={cn("h-auto justify-start px-0 text-lg font-semibold", triggerClassName)}
+        >
           {title}
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
         </Button>

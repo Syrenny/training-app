@@ -2,12 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ChevronDown,
   ChevronUp,
+  Link2,
   Pencil,
   History,
   Plus,
   RotateCcw,
   Save,
-  Trash2,
 } from "lucide-react";
 import type {
   ExerciseSetData,
@@ -34,6 +34,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WeekPicker } from "@/components/WeekPicker";
 import { SetDisplay } from "@/components/SetDisplay";
 import { calcTonnage } from "@/lib/calc";
+import { useLongPress } from "@/hooks/useLongPress";
 
 const WEEKDAY_OPTIONS = [
   { value: "MON", label: "Понедельник" },
@@ -106,6 +107,11 @@ interface SetEditorState {
   draft: DraftSet;
 }
 
+type DeleteTarget =
+  | { type: "week"; weekUid: string; title: string; description: string }
+  | { type: "day"; dayUid: string; title: string; description: string }
+  | { type: "exercise"; exerciseUid: string; title: string; description: string };
+
 interface ProgramEditPageProps {
   onClose?: () => void;
 }
@@ -155,10 +161,10 @@ function emptySet(): DraftSet {
   };
 }
 
-function emptyExercise(exercises: ExerciseData[]): DraftExercise {
+function createExercise(exerciseId: number): DraftExercise {
   return {
     uid: createUid(),
-    exerciseId: exercises[0]?.id ?? 0,
+    exerciseId,
     supersetGroup: "",
     sets: [emptySet()],
   };
@@ -238,40 +244,6 @@ function toPreviewSetData(set: DraftSet, id: string, order = 1): ExerciseSetData
   };
 }
 
-type ExerciseGroupItem =
-  | { type: "single"; exercise: DraftExercise; displayOrder: number }
-  | {
-      type: "superset";
-      group: string;
-      exercises: DraftExercise[];
-      displayOrder: number;
-    };
-
-function groupDraftExercises(exercises: DraftExercise[]) {
-  const items: ExerciseGroupItem[] = [];
-  let i = 0;
-  let displayOrder = 1;
-
-  while (i < exercises.length) {
-    const current = exercises[i];
-    if (current.supersetGroup) {
-      const grouped: DraftExercise[] = [];
-      const groupId = current.supersetGroup;
-      while (i < exercises.length && exercises[i].supersetGroup === groupId) {
-        grouped.push(exercises[i]);
-        i += 1;
-      }
-      items.push({ type: "superset", group: groupId, exercises: grouped, displayOrder });
-    } else {
-      items.push({ type: "single", exercise: current, displayOrder });
-      i += 1;
-    }
-    displayOrder += 1;
-  }
-
-  return items;
-}
-
 function isSetValid(set: DraftSet) {
   if (!set.reps || Number(set.reps) <= 0 || !set.sets || Number(set.sets) <= 0) {
     return false;
@@ -295,6 +267,142 @@ function isDraftValid(draft: DraftProgram) {
   );
 }
 
+function nextSupersetGroupId(exercises: DraftExercise[]) {
+  let maxGroup = 0;
+  for (const exercise of exercises) {
+    const value = Number(exercise.supersetGroup);
+    if (Number.isFinite(value)) {
+      maxGroup = Math.max(maxGroup, value);
+    }
+  }
+  return String(maxGroup + 1);
+}
+
+function getSupersetGroupId(exercises: DraftExercise[], exerciseIndex: number) {
+  const current = exercises[exerciseIndex];
+  if (!current?.supersetGroup) return "";
+  return (
+    exercises[exerciseIndex - 1]?.supersetGroup === current.supersetGroup
+    || exercises[exerciseIndex + 1]?.supersetGroup === current.supersetGroup
+  )
+    ? current.supersetGroup
+    : "";
+}
+
+type ExerciseGroupItem =
+  | { type: "single"; exercise: DraftExercise; displayOrder: number; startIndex: number }
+  | {
+      type: "superset";
+      group: string;
+      exercises: DraftExercise[];
+      displayOrder: number;
+      startIndex: number;
+    };
+
+function groupDraftExercises(exercises: DraftExercise[]) {
+  const items: ExerciseGroupItem[] = [];
+  let index = 0;
+  let displayOrder = 1;
+
+  while (index < exercises.length) {
+    const groupId = getSupersetGroupId(exercises, index);
+    if (!groupId) {
+      items.push({
+        type: "single",
+        exercise: exercises[index],
+        displayOrder,
+        startIndex: index,
+      });
+      index += 1;
+      displayOrder += 1;
+      continue;
+    }
+
+    const grouped: DraftExercise[] = [exercises[index]];
+    let cursor = index + 1;
+    while (cursor < exercises.length && exercises[cursor].supersetGroup === groupId) {
+      grouped.push(exercises[cursor]);
+      cursor += 1;
+    }
+
+    items.push({
+      type: "superset",
+      group: groupId,
+      exercises: grouped,
+      displayOrder,
+      startIndex: index,
+    });
+    index = cursor;
+    displayOrder += 1;
+  }
+
+  return items;
+}
+
+interface EditorDayTabTriggerProps {
+  label: string;
+  value: string;
+  onDelete: () => void;
+}
+
+function EditorDayTabTrigger({
+  label,
+  value,
+  onDelete,
+}: EditorDayTabTriggerProps) {
+  const longPressProps = useLongPress({ onLongPress: onDelete });
+
+  return (
+    <TabsTrigger
+      value={value}
+      className="flex-1"
+      {...longPressProps}
+    >
+      {label}
+    </TabsTrigger>
+  );
+}
+
+interface HoldableExerciseCardProps {
+  onDelete: () => void;
+  className?: string;
+  children: React.ReactNode;
+}
+
+function HoldableExerciseCard({
+  onDelete,
+  className,
+  children,
+}: HoldableExerciseCardProps) {
+  const longPressProps = useLongPress({ onLongPress: onDelete });
+
+  return (
+    <Card className={className} {...longPressProps}>
+      <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+interface HoldableExerciseSectionProps {
+  onDelete: () => void;
+  className?: string;
+  children: React.ReactNode;
+}
+
+function HoldableExerciseSection({
+  onDelete,
+  className,
+  children,
+}: HoldableExerciseSectionProps) {
+  const longPressProps = useLongPress({ onLongPress: onDelete });
+
+  return (
+    <div className={className} {...longPressProps}>
+      {children}
+    </div>
+  );
+}
+
 export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const refreshProgram = useProgramStore((s) => s.fetchProgram);
   const refreshCompletions = useProgramStore((s) => s.fetchCompletions);
@@ -312,9 +420,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const [selectedDayUid, setSelectedDayUid] = useState<string | null>(null);
   const [newDayWeekday, setNewDayWeekday] = useState("MON");
   const [addDayOpen, setAddDayOpen] = useState(false);
+  const [exercisePickerIndex, setExercisePickerIndex] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [deleteWeekConfirmOpen, setDeleteWeekConfirmOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [initialSignature, setInitialSignature] = useState("");
   const [commitMessage, setCommitMessage] = useState("");
   const [setEditor, setSetEditor] = useState<SetEditorState | null>(null);
@@ -390,6 +499,18 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 
   const hasStructuralChanges = draft ? structuralSignature(draft) !== initialSignature : false;
   const canSave = draft != null && catalog.length > 0 && isDraftValid(draft) && !saving;
+  const weekLongPressProps = useLongPress({
+    disabled: !selectedWeek,
+    onLongPress: () => {
+      if (!selectedWeek || selectedWeekNumber == null) return;
+      setDeleteTarget({
+        type: "week",
+        weekUid: selectedWeek.uid,
+        title: `Удалить ${selectedWeek.title || `${selectedWeekNumber} неделю`}?`,
+        description: "Удаление недели сдвинет нумерацию следующих недель при сохранении.",
+      });
+    },
+  });
 
   function resetEditorToProgram(program: ProgramData, commitMessage = "") {
     const nextDraft = draftFromProgram(program);
@@ -467,6 +588,19 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     });
   }
 
+  function openExercisePicker(insertIndex: number) {
+    setExercisePickerIndex(insertIndex);
+  }
+
+  function insertExerciseAt(insertIndex: number, exerciseId: number) {
+    updateSelectedDay((currentDay) => {
+      const exercises = [...currentDay.exercises];
+      exercises.splice(insertIndex, 0, createExercise(exerciseId));
+      return { ...currentDay, exercises };
+    });
+    setExercisePickerIndex(null);
+  }
+
   function selectWeekByNumber(weekNumber: number) {
     const nextWeek = draft?.weeks[weekNumber - 1];
     if (!nextWeek) return;
@@ -480,6 +614,8 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     setNotice("Несохраненные изменения отменены.");
     setHistoryOpen(false);
     setConfirmOpen(false);
+    setDeleteTarget(null);
+    setExercisePickerIndex(null);
   }
 
   function removeWeek(weekUid: string) {
@@ -509,6 +645,124 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       [exercises[index], exercises[target]] = [exercises[target], exercises[index]];
       return { ...day, exercises };
     });
+  }
+
+  function isBoundaryLinked(exercises: DraftExercise[], boundaryIndex: number) {
+    if (boundaryIndex < 0 || boundaryIndex >= exercises.length - 1) return false;
+    const left = exercises[boundaryIndex];
+    const right = exercises[boundaryIndex + 1];
+    return Boolean(left.supersetGroup && left.supersetGroup === right.supersetGroup);
+  }
+
+  function toggleSupersetAt(boundaryIndex: number) {
+    updateSelectedDay((currentDay) => {
+      if (boundaryIndex < 0 || boundaryIndex >= currentDay.exercises.length - 1) {
+        return currentDay;
+      }
+
+      let exercises = [...currentDay.exercises];
+      const left = exercises[boundaryIndex];
+      const right = exercises[boundaryIndex + 1];
+      const linked = isBoundaryLinked(exercises, boundaryIndex);
+
+      if (linked) {
+        const groupId = left.supersetGroup;
+        let leftStart = boundaryIndex;
+        while (leftStart > 0 && exercises[leftStart - 1].supersetGroup === groupId) {
+          leftStart -= 1;
+        }
+
+        let rightEnd = boundaryIndex + 1;
+        while (
+          rightEnd < exercises.length - 1
+          && exercises[rightEnd + 1].supersetGroup === groupId
+        ) {
+          rightEnd += 1;
+        }
+
+        const leftCount = boundaryIndex - leftStart + 1;
+        const rightCount = rightEnd - boundaryIndex;
+        const rightGroupId = rightCount > 1 ? nextSupersetGroupId(exercises) : "";
+
+        exercises = exercises.map((exercise, index) => {
+          if (index < leftStart || index > rightEnd) return exercise;
+          if (index <= boundaryIndex) {
+            return {
+              ...exercise,
+              supersetGroup: leftCount > 1 ? groupId : "",
+            };
+          }
+          return {
+            ...exercise,
+            supersetGroup: rightGroupId,
+          };
+        });
+      } else {
+        const leftGroupId = left.supersetGroup;
+        const rightGroupId = right.supersetGroup;
+        let leftStart = boundaryIndex;
+        if (leftGroupId) {
+          while (leftStart > 0 && exercises[leftStart - 1].supersetGroup === leftGroupId) {
+            leftStart -= 1;
+          }
+        }
+
+        let rightEnd = boundaryIndex + 1;
+        if (rightGroupId) {
+          while (
+            rightEnd < exercises.length - 1
+            && exercises[rightEnd + 1].supersetGroup === rightGroupId
+          ) {
+            rightEnd += 1;
+          }
+        }
+
+        const groupId = leftGroupId || rightGroupId || nextSupersetGroupId(exercises);
+        exercises = exercises.map((exercise, index) =>
+          index >= leftStart && index <= rightEnd
+            ? { ...exercise, supersetGroup: groupId }
+            : exercise,
+        );
+      }
+
+      return { ...currentDay, exercises };
+    });
+  }
+
+  function requestDeleteDay(day: DraftDay) {
+    const weekdayLabel =
+      WEEKDAY_OPTIONS.find((option) => option.value === day.weekday)?.label ?? day.weekday;
+    setDeleteTarget({
+      type: "day",
+      dayUid: day.uid,
+      title: `Удалить ${weekdayLabel}?`,
+      description: "Этот день исчезнет из выбранной недели.",
+    });
+  }
+
+  function requestDeleteExercise(exercise: DraftExercise) {
+    const exerciseName = getExerciseMeta(exercise.exerciseId)?.name ?? "это упражнение";
+    setDeleteTarget({
+      type: "exercise",
+      exerciseUid: exercise.uid,
+      title: `Удалить упражнение «${exerciseName}»?`,
+      description: "Упражнение и все его подходы будут удалены из текущего дня.",
+    });
+  }
+
+  function confirmDeleteTarget() {
+    if (!deleteTarget) return;
+    if (deleteTarget.type === "week") {
+      removeWeek(deleteTarget.weekUid);
+    } else if (deleteTarget.type === "day") {
+      removeDay(deleteTarget.dayUid);
+    } else {
+      updateSelectedDay((currentDay) => ({
+        ...currentDay,
+        exercises: currentDay.exercises.filter((entry) => entry.uid !== deleteTarget.exerciseUid),
+      }));
+    }
+    setDeleteTarget(null);
   }
 
   function updateExerciseField(
@@ -628,41 +882,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     const isLast = selectedDay == null || exerciseIndex === selectedDay.exercises.length - 1;
 
     return (
-      <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-4">
-        <Select
-          value={String(exercise.exerciseId)}
-          onValueChange={(value) =>
-            updateExerciseField(exercise.uid, (entry) => ({
-              ...entry,
-              exerciseId: Number(value),
-            }))
-          }
-        >
-          <SelectTrigger className="min-w-0 flex-1 sm:min-w-72">
-            <SelectValue placeholder="Выберите упражнение" />
-          </SelectTrigger>
-          <SelectContent>
-            {catalog.map((entry) => (
-              <SelectItem key={entry.id} value={String(entry.id)}>
-                {entry.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          key={`${exercise.uid}:superset:${exercise.supersetGroup}`}
-          type="number"
-          min="1"
-          placeholder="Суперсет"
-          className="w-28"
-          defaultValue={exercise.supersetGroup}
-          onBlur={(event) =>
-            updateExerciseField(exercise.uid, (entry) => ({
-              ...entry,
-              supersetGroup: event.target.value,
-            }))
-          }
-        />
+      <div className="mt-4 flex items-center justify-end gap-2 border-t pt-4">
         <Button
           variant="outline"
           size="icon-sm"
@@ -678,18 +898,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           disabled={isLast}
         >
           <ChevronDown className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="destructive"
-          size="icon-sm"
-          onClick={() =>
-            updateSelectedDay((currentDay) => ({
-              ...currentDay,
-              exercises: currentDay.exercises.filter((entry) => entry.uid !== exercise.uid),
-            }))
-          }
-        >
-          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
     );
@@ -730,6 +938,43 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           </p>
         ) : null}
       </>
+    );
+  }
+
+  function renderExerciseControls(insertIndex: number, compact = false) {
+    const canLink = selectedDay != null && insertIndex > 0 && insertIndex < selectedDay.exercises.length;
+    const linked = canLink ? isBoundaryLinked(selectedDay.exercises, insertIndex - 1) : false;
+
+    return (
+      <div
+        className={
+          compact
+            ? "my-4 flex items-center justify-center gap-2"
+            : "mb-3 flex items-center justify-center gap-2"
+        }
+      >
+        {linked ? <div className="h-px flex-1 bg-border" /> : null}
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className={`rounded-full border-dashed ${linked ? "border-primary/50" : ""}`}
+          onClick={() => openExercisePicker(insertIndex)}
+          disabled={catalog.length === 0}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        {canLink ? (
+          <Button
+            variant={linked ? "secondary" : "outline"}
+            size="icon-sm"
+            className={`rounded-full ${linked ? "bg-primary/10 text-primary" : ""}`}
+            onClick={() => toggleSupersetAt(insertIndex - 1)}
+          >
+            <Link2 className="h-4 w-4" />
+          </Button>
+        ) : null}
+        {linked ? <div className="h-px flex-1 bg-border" /> : null}
+      </div>
     );
   }
 
@@ -841,17 +1086,12 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 items={editorWeeks}
                 selectedNumber={selectedWeekNumber}
                 onSelect={selectWeekByNumber}
+                triggerButtonProps={{
+                  ...weekLongPressProps,
+                  className: "h-auto justify-start px-0 text-lg font-semibold",
+                }}
               />
             </div>
-            <Button
-              variant="destructive"
-              size="icon-sm"
-              aria-label="Удалить неделю"
-              onClick={() => setDeleteWeekConfirmOpen(true)}
-              disabled={!selectedWeek}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
             <Button variant="outline" size="sm" onClick={addWeek}>
               <Plus className="h-4 w-4" />
               Добавить неделю
@@ -878,9 +1118,12 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                   <div className="flex items-center gap-2">
                     <TabsList className="w-full">
                       {selectedWeek.days.map((day) => (
-                        <TabsTrigger key={day.uid} value={day.uid} className="flex-1">
-                          {WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
-                        </TabsTrigger>
+                        <EditorDayTabTrigger
+                          key={day.uid}
+                          value={day.uid}
+                          label={WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
+                          onDelete={() => requestDeleteDay(day)}
+                        />
                       ))}
                     </TabsList>
                     <Button
@@ -900,74 +1143,61 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 
                     {selectedDay ? (
                       <TabsContent value={selectedDay.uid} className="space-y-3">
-                        <div className="flex flex-wrap items-center gap-2 rounded-xl border p-3">
-                          <p className="min-w-0 flex-1 text-sm text-muted-foreground">
-                            {WEEKDAY_OPTIONS.find((option) => option.value === selectedDay.weekday)?.label ?? selectedDay.weekday}
-                          </p>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => removeDay(selectedDay.uid)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Удалить день
-                          </Button>
-                        </div>
-
+                        {renderExerciseControls(0)}
                         {groupDraftExercises(selectedDay.exercises).map((item) =>
                           item.type === "single" ? (
-                            <Card key={item.exercise.uid} className="mb-3">
-                              <CardContent>
+                            <div key={item.exercise.uid}>
+                              <HoldableExerciseCard
+                                className="mb-3"
+                                onDelete={() => requestDeleteExercise(item.exercise)}
+                              >
                                 {renderExercisePreview(item.exercise, item.displayOrder)}
                                 {renderExerciseToolbar(item.exercise)}
-                              </CardContent>
-                            </Card>
+                              </HoldableExerciseCard>
+                              {renderExerciseControls(item.startIndex + 1)}
+                            </div>
                           ) : (
-                            <Card
-                              key={`superset-${item.group}`}
-                              className="mb-3 border-l-4 border-l-primary"
-                            >
-                              <CardContent>
-                                <div className="mb-3 flex items-baseline gap-2">
-                                  <span className="text-muted-foreground text-sm font-medium">
-                                    {item.displayOrder}.
-                                  </span>
-                                  <Badge variant="outline" className="text-xs">
-                                    Суперсет
-                                  </Badge>
-                                </div>
-                                <div className="space-y-4">
-                                  {item.exercises.map((exercise, exerciseIndex) => (
-                                    <div
-                                      key={exercise.uid}
-                                      className={
-                                        exerciseIndex === 0
-                                          ? ""
-                                          : "border-border/60 border-t pt-4"
-                                      }
-                                    >
-                                      {renderExercisePreview(exercise)}
-                                      {renderExerciseToolbar(exercise)}
-                                    </div>
-                                  ))}
-                                </div>
-                              </CardContent>
-                            </Card>
+                            <div key={`superset-${item.group}`}>
+                              <Card className="mb-3 border-l-4 border-l-primary">
+                                <CardContent>
+                                  <div className="mb-3 flex items-baseline gap-2">
+                                    <span className="text-muted-foreground text-sm font-medium">
+                                      {item.displayOrder}.
+                                    </span>
+                                    <Badge variant="outline" className="text-xs">
+                                      Суперсет
+                                    </Badge>
+                                  </div>
+                                  <div className="space-y-4">
+                                    {item.exercises.map((exercise, exerciseIndex) => (
+                                      <HoldableExerciseSection
+                                        key={exercise.uid}
+                                        className={
+                                          exerciseIndex === 0
+                                            ? ""
+                                            : "border-border/60 border-t pt-4"
+                                        }
+                                        onDelete={() => requestDeleteExercise(exercise)}
+                                      >
+                                        {renderExercisePreview(exercise)}
+                                        {renderExerciseToolbar(exercise)}
+                                        {exerciseIndex < item.exercises.length - 1 ? (
+                                          <div className="mt-4">
+                                            {renderExerciseControls(
+                                              item.startIndex + exerciseIndex + 1,
+                                              true,
+                                            )}
+                                          </div>
+                                        ) : null}
+                                      </HoldableExerciseSection>
+                                    ))}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                              {renderExerciseControls(item.startIndex + item.exercises.length)}
+                            </div>
                           ),
                         )}
-
-                        <Button
-                          variant="outline"
-                          onClick={() =>
-                            updateSelectedDay((currentDay) => ({
-                              ...currentDay,
-                              exercises: [...currentDay.exercises, emptyExercise(catalog)],
-                            }))
-                          }
-                        >
-                          <Plus className="h-4 w-4" />
-                          Добавить упражнение
-                        </Button>
                       </TabsContent>
                   ) : null}
                 </Tabs>
@@ -1048,27 +1278,17 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteWeekConfirmOpen} onOpenChange={setDeleteWeekConfirmOpen}>
+      <Dialog open={deleteTarget != null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Удалить неделю?</DialogTitle>
-            <DialogDescription>
-              Удаление недели сдвинет нумерацию следующих недель при сохранении.
-            </DialogDescription>
+            <DialogTitle>{deleteTarget?.title ?? "Удалить?"}</DialogTitle>
+            <DialogDescription>{deleteTarget?.description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteWeekConfirmOpen(false)}>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
               Отмена
             </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (selectedWeek) {
-                  removeWeek(selectedWeek.uid);
-                }
-                setDeleteWeekConfirmOpen(false);
-              }}
-            >
+            <Button variant="destructive" onClick={confirmDeleteTarget}>
               Удалить
             </Button>
           </DialogFooter>
@@ -1104,6 +1324,43 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </Button>
             <Button onClick={addDay} disabled={remainingWeekdays.length === 0}>
               Добавить
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={exercisePickerIndex != null}
+        onOpenChange={(open) => !open && setExercisePickerIndex(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Добавить упражнение</DialogTitle>
+            <DialogDescription>
+              Выберите упражнение для вставки в программу.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[60dvh] space-y-2 overflow-y-auto pr-1">
+            {catalog.map((exercise) => (
+              <Button
+                key={exercise.id}
+                variant="outline"
+                className="h-auto w-full justify-start gap-3 py-3 text-left"
+                onClick={() => {
+                  if (exercisePickerIndex == null) return;
+                  insertExerciseAt(exercisePickerIndex, exercise.id);
+                }}
+              >
+                <span className="min-w-0 flex-1 truncate">{exercise.name}</span>
+                <Badge variant="secondary" className="text-xs">
+                  {categoryLabels[exercise.category] ?? exercise.category}
+                </Badge>
+              </Button>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExercisePickerIndex(null)}>
+              Отмена
             </Button>
           </DialogFooter>
         </DialogContent>
