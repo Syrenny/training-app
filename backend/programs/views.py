@@ -4,7 +4,7 @@ from urllib.parse import unquote
 
 from django.conf import settings
 from django.contrib.auth import login, logout
-from django.db.models import Max, Subquery, OuterRef
+from django.db.models import OuterRef, Q, Subquery
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from rest_framework import generics, status
@@ -19,10 +19,27 @@ from .auth_utils import (
     sync_telegram_user,
     validate_telegram_login_data,
 )
-from .models import AccessoryWeight, Day, Exercise, OneRepMax, Week, WorkoutCompletion
+from .models import (
+    AccessoryWeight,
+    Exercise,
+    OneRepMax,
+    ProgramSnapshot,
+    Week,
+    Weekday,
+    WorkoutCompletion,
+)
+from .program_snapshot import (
+    build_base_program_payload,
+    build_program_response,
+    count_program_entities,
+    get_latest_snapshot,
+    get_program_payload_for_user,
+)
 from .serializers import (
     AccessoryWeightSerializer,
+    ExerciseSerializer,
     OneRepMaxSerializer,
+    ProgramSnapshotInputSerializer,
     WeekDetailSerializer,
     WeekListSerializer,
     WorkoutCompletionSerializer,
@@ -180,48 +197,99 @@ class CompletionListView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        completions = WorkoutCompletion.objects.filter(telegram_id=telegram_id).values_list(
-            "day_id", "completed_at"
+        completions = (
+            WorkoutCompletion.objects.filter(telegram_id=telegram_id)
+            .select_related("day__week")
+            .order_by("completed_at")
         )
-        result = {day_id: completed_at.strftime("%Y-%m-%d") for day_id, completed_at in completions}
+        latest_by_day = {}
+        for item in completions:
+            week_number = item.week_number or (item.day.week.number if item.day_id else None)
+            weekday = item.weekday or (item.day.weekday if item.day_id else None)
+            if week_number is None or weekday is None:
+                continue
+            latest_by_day[(week_number, weekday)] = item.completed_at.strftime("%Y-%m-%d")
+
+        result = [
+            {
+                "week_number": week_number,
+                "weekday": weekday,
+                "completed_at": completed_at,
+            }
+            for (week_number, weekday), completed_at in sorted(latest_by_day.items())
+        ]
         return Response({"completions": result})
 
-
-class CompletionDetailView(APIView):
-    permission_classes = [AllowAny]
-
-    def post(self, request, day_id):
+    def delete(self, request):
         telegram_id = get_request_telegram_id(request)
         if not telegram_id:
             return Response(
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        try:
-            day = Day.objects.get(pk=day_id)
-        except Day.DoesNotExist:
+        WorkoutCompletion.objects.filter(telegram_id=telegram_id).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class CompletionDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, week_number, weekday):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        if weekday not in Weekday.values:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        completion, created = WorkoutCompletion.objects.get_or_create(
-            telegram_id=telegram_id, day=day
-        )
+        completion = WorkoutCompletion.objects.filter(telegram_id=telegram_id).filter(
+            Q(week_number=week_number, weekday=weekday)
+            | Q(day__week__number=week_number, day__weekday=weekday)
+        ).first()
+        created = completion is None
+        if completion is None:
+            completion = WorkoutCompletion.objects.create(
+                telegram_id=telegram_id,
+                week_number=week_number,
+                weekday=weekday,
+            )
+        else:
+            changed = False
+            if completion.week_number != week_number:
+                completion.week_number = week_number
+                changed = True
+            if completion.weekday != weekday:
+                completion.weekday = weekday
+                changed = True
+            if completion.day_id is not None:
+                completion.day = None
+                changed = True
+            if changed:
+                completion.save(update_fields=["week_number", "weekday", "day"])
         serializer = WorkoutCompletionSerializer(completion)
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
-    def delete(self, request, day_id):
+    def delete(self, request, week_number, weekday):
         telegram_id = get_request_telegram_id(request)
         if not telegram_id:
             return Response(
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        if not Day.objects.filter(pk=day_id).exists():
+        if weekday not in Weekday.values:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
-        WorkoutCompletion.objects.filter(telegram_id=telegram_id, day_id=day_id).delete()
+        WorkoutCompletion.objects.filter(
+            telegram_id=telegram_id,
+        ).filter(
+            Q(week_number=week_number, weekday=weekday)
+            | Q(day__week__number=week_number, day__weekday=weekday)
+        ).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -342,3 +410,116 @@ class WeekDetailView(generics.RetrieveAPIView):
     serializer_class = WeekDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = "number"
+
+
+class ExerciseCatalogView(generics.ListAPIView):
+    queryset = Exercise.objects.all()
+    serializer_class = ExerciseSerializer
+    permission_classes = [AllowAny]
+
+
+class ProgramCurrentView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(build_program_response(build_base_program_payload()))
+
+        snapshot, payload = get_program_payload_for_user(telegram_id)
+        if snapshot is None:
+            return Response(build_program_response(payload))
+
+        return Response(
+            build_program_response(
+                payload,
+                version=snapshot.version,
+                created_at=snapshot.created_at,
+            )
+        )
+
+
+class ProgramSnapshotCreateView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        serializer = ProgramSnapshotInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        latest = get_latest_snapshot(telegram_id)
+        next_version = (latest.version if latest else 0) + 1
+        payload = serializer.validated_data["normalized_payload"]
+
+        snapshot = ProgramSnapshot.objects.create(
+            telegram_id=telegram_id,
+            version=next_version,
+            payload=payload,
+            source_snapshot_version=serializer.validated_data.get("source_snapshot_version"),
+        )
+        return Response(
+            build_program_response(
+                snapshot.payload,
+                version=snapshot.version,
+                created_at=snapshot.created_at,
+            ),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProgramHistoryListView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        snapshots = ProgramSnapshot.objects.filter(telegram_id=telegram_id).order_by("-version")
+        result = []
+        for snapshot in snapshots:
+            result.append(
+                {
+                    "version": snapshot.version,
+                    "created_at": snapshot.created_at.isoformat(),
+                    "source_snapshot_version": snapshot.source_snapshot_version,
+                    **count_program_entities(snapshot.payload),
+                }
+            )
+        return Response(result)
+
+
+class ProgramHistoryDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, version):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        snapshot = ProgramSnapshot.objects.filter(
+            telegram_id=telegram_id,
+            version=version,
+        ).first()
+        if snapshot is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        return Response(
+            build_program_response(
+                snapshot.payload,
+                version=snapshot.version,
+                created_at=snapshot.created_at,
+            )
+        )

@@ -1,60 +1,50 @@
-.PHONY: install install-backend install-frontend migrate seed \
-       dev dev-backend dev-frontend bot build test lint clean \
-       compose-up compose-build compose-down compose-prod-up compose-prod-down
+.DEFAULT_GOAL := dev
 
-install: install-backend install-frontend
+.PHONY: dev con migrate mm mmm seed sh dbsh createsuperuser \
+	build test-backend lint clean 
 
-install-backend:
-	cd backend && uv sync
+ENV_FILE := .env
+COMPOSE_FILE_NAME := $(shell grep -E "^COMPOSE_FILE_NAME=" $(ENV_FILE) 2>/dev/null | cut -d '=' -f2 | tr -d ' ' | tr -d '"' | tr -d "'")
+COMPOSE_FILE := $(if $(COMPOSE_FILE_NAME),$(COMPOSE_FILE_NAME),compose.yaml)
+DC := docker compose --env-file $(ENV_FILE) -f $(COMPOSE_FILE)
+PM := $(DC) exec web
+ENV_INFO = @echo "Compose file: $(COMPOSE_FILE) | Service: web"
 
-install-frontend:
-	cd frontend && npm install
+con:
+	$(ENV_INFO)
+	$(PM) sh
 
-migrate:
-	cd backend && uv run python manage.py migrate
+m:
+	$(ENV_INFO)
+	$(PM) python manage.py migrate $(app)
+
+mm:
+	$(ENV_INFO)
+	$(PM) python manage.py makemigrations $(app)
+
+mmm:
+	$(ENV_INFO)
+	$(PM) python manage.py makemigrations $(app)
+	$(PM) python manage.py migrate $(app)
 
 seed:
-	cd backend && uv run python manage.py seeddata
+	$(ENV_INFO)
+	$(PM) python manage.py seeddata --dev-user
 
-dev-backend:
-	cd backend && uv run python manage.py runserver
+sh:
+	$(ENV_INFO)
+	$(PM) python manage.py shell
 
-dev-frontend:
-	cd frontend && npm run dev
+dbsh:
+	$(ENV_INFO)
+	$(PM) python manage.py dbshell
 
-dev:
-	$(MAKE) dev-backend & $(MAKE) dev-frontend & wait
-
-bot:
-	cd backend && uv run python manage.py runbot
-
-build:
-	cd frontend && npm run build
-	mkdir -p backend/templates
-	cp backend/static/frontend/index.html backend/templates/index.html
-
-compose-build:
-	docker compose build
-
-compose-up:
-	docker compose up --build -d
-
-compose-down:
-	docker compose down
-
-compose-prod-up:
-	docker compose -f compose.prod.yaml up --build -d
-
-compose-prod-down:
-	docker compose -f compose.prod.yaml down
-
-test: test-backend test-frontend
+createsuperuser:
+	$(ENV_INFO)
+	$(PM) python manage.py createsuperuser
 
 test-backend:
 	cd backend && uv run python manage.py test tests/ --verbosity=2
-
-test-frontend:
-	cd frontend && npm run test 2>/dev/null || echo "No frontend tests configured yet"
 
 lint:
 	cd frontend && npx tsc --noEmit
@@ -63,5 +53,8 @@ clean:
 	rm -rf backend/db.sqlite3 backend/staticfiles backend/static/frontend
 	rm -rf frontend/dist frontend/node_modules/.vite
 
-createsuperuser:
-	cd backend && uv run python manage.py createsuperuser
+dev:
+	$(DC) up -d
+
+down:
+	$(DC) down

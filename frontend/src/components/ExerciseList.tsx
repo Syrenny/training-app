@@ -3,7 +3,7 @@ import { SupersetCard } from "./SupersetCard";
 import { CompletionButton } from "./CompletionButton";
 import { WorkoutSummaryCard } from "./WorkoutSummaryCard";
 import type { DayExerciseData } from "@/lib/api";
-import { useProgramStore } from "@/lib/store";
+import { completionKey, useProgramStore } from "@/lib/store";
 
 type ExerciseItem =
   | { type: "single"; exercise: DayExerciseData; displayOrder: number }
@@ -39,14 +39,16 @@ function groupExercises(exercises: DayExerciseData[]): ExerciseItem[] {
 
 interface ExerciseListProps {
   exercises: DayExerciseData[];
-  dayId: number;
+  weekNumber: number;
+  weekday: string;
 }
 
-export function ExerciseList({ exercises, dayId }: ExerciseListProps) {
+export function ExerciseList({ exercises, weekNumber, weekday }: ExerciseListProps) {
   const completions = useProgramStore((s) => s.completions);
   const toggleCompletion = useProgramStore((s) => s.toggleCompletion);
 
-  const completionDate = completions.get(dayId);
+  const key = completionKey(weekNumber, weekday);
+  const completionDate = completions.get(key);
   const isCompleted = completionDate != null;
 
   return (
@@ -80,9 +82,8 @@ export function ExerciseList({ exercises, dayId }: ExerciseListProps) {
         )
       )}
       <CompletionButton
-        dayId={dayId}
         completed={isCompleted}
-        onToggle={() => toggleCompletion(dayId)}
+        onToggle={() => toggleCompletion(weekNumber, weekday)}
       />
     </div>
   );

@@ -56,8 +56,12 @@ class OneRepMax(models.Model):
 
 class Weekday(models.TextChoices):
     MON = "MON", "Понедельник"
+    TUE = "TUE", "Вторник"
     WED = "WED", "Среда"
+    THU = "THU", "Четверг"
     FRI = "FRI", "Пятница"
+    SAT = "SAT", "Суббота"
+    SUN = "SUN", "Воскресенье"
 
 
 class ExerciseCategory(models.TextChoices):
@@ -107,7 +111,15 @@ class Day(models.Model):
 
     @property
     def weekday_display(self):
-        short = {"MON": "Пн", "WED": "Ср", "FRI": "Пт"}
+        short = {
+            "MON": "Пн",
+            "TUE": "Вт",
+            "WED": "Ср",
+            "THU": "Чт",
+            "FRI": "Пт",
+            "SAT": "Сб",
+            "SUN": "Вс",
+        }
         return short.get(self.weekday, self.weekday)
 
 
@@ -150,17 +162,60 @@ class DayExercise(models.Model):
 class WorkoutCompletion(models.Model):
     telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
     day = models.ForeignKey(
-        Day, on_delete=models.CASCADE, related_name="completions", verbose_name="День"
+        Day,
+        on_delete=models.CASCADE,
+        related_name="completions",
+        verbose_name="День",
+        null=True,
+        blank=True,
+    )
+    week_number = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Номер недели",
+    )
+    weekday = models.CharField(
+        max_length=3,
+        choices=Weekday.choices,
+        null=True,
+        blank=True,
+        verbose_name="День недели",
     )
     completed_at = models.DateTimeField(auto_now_add=True, verbose_name="Завершено")
 
     class Meta:
-        unique_together = [("telegram_id", "day")]
+        unique_together = [("telegram_id", "week_number", "weekday")]
         verbose_name = "Завершение тренировки"
         verbose_name_plural = "Завершения тренировок"
 
     def __str__(self):
-        return f"tg:{self.telegram_id} — {self.day} — {self.completed_at:%Y-%m-%d}"
+        if self.day_id:
+            return f"tg:{self.telegram_id} — {self.day} — {self.completed_at:%Y-%m-%d}"
+        return (
+            f"tg:{self.telegram_id} — неделя {self.week_number} — "
+            f"{self.weekday} — {self.completed_at:%Y-%m-%d}"
+        )
+
+
+class ProgramSnapshot(models.Model):
+    telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    version = models.PositiveIntegerField(verbose_name="Версия")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+    payload = models.JSONField(default=dict, verbose_name="Снапшот программы")
+    source_snapshot_version = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Исходная версия",
+    )
+
+    class Meta:
+        ordering = ["-version"]
+        unique_together = [("telegram_id", "version")]
+        verbose_name = "Снапшот программы"
+        verbose_name_plural = "Снапшоты программы"
+
+    def __str__(self):
+        return f"tg:{self.telegram_id} — версия {self.version}"
 
 
 class AccessoryWeight(models.Model):

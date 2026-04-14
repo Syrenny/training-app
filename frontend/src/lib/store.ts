@@ -1,43 +1,67 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { AccessoryWeightLatest, OneRepMaxData, WeekDetailData, WeekListItem } from "./api";
+import type {
+  AccessoryWeightLatest,
+  OneRepMaxData,
+  ProgramData,
+  WeekDetailData,
+  WeekListItem,
+} from "./api";
 import {
   fetchAccessoryWeightsLatest as apiFetchAccessoryWeightsLatest,
   fetchCompletions as apiFetchCompletions,
   fetchOneRepMax as apiFetchOneRepMax,
-  fetchWeekDetail as apiFetchWeekDetail,
-  fetchWeeks as apiFetchWeeks,
+  fetchProgram as apiFetchProgram,
   markComplete as apiMarkComplete,
+  resetCompletions as apiResetCompletions,
   saveAccessoryWeight as apiSaveAccessoryWeight,
   saveOneRepMax as apiSaveOneRepMax,
   unmarkComplete as apiUnmarkComplete,
 } from "./api";
 import type { NavigationResult } from "./navigation";
-import { resolveNext, resolvePrev, getAdjacentWeekNumber } from "./navigation";
+import { resolveNext, resolvePrev } from "./navigation";
+
+export function completionKey(weekNumber: number, weekday: string) {
+  return `${weekNumber}:${weekday}`;
+}
+
+function buildWeekCache(program: ProgramData) {
+  return Object.fromEntries(program.weeks.map((week) => [week.number, week]));
+}
+
+function resolveSelectedDay(
+  selectedWeek: number | null,
+  selectedDay: string | null,
+  cache: Record<number, WeekDetailData>,
+) {
+  if (selectedWeek === null) return null;
+  const days = cache[selectedWeek]?.days ?? [];
+  if (days.length === 0) return null;
+  return days.some((day) => day.weekday === selectedDay) ? selectedDay : days[0].weekday;
+}
 
 interface ProgramState {
-  // Persisted
   selectedWeek: number | null;
   selectedDay: string | null;
 
-  // Transient
   weeks: WeekListItem[];
   weekDetailCache: Record<number, WeekDetailData>;
   loading: boolean;
   error: string | null;
+  programVersion: number | null;
+  programUpdatedAt: string | null;
   oneRepMax: OneRepMaxData | null;
-  completions: Map<number, string>;
+  completions: Map<string, string>;
   accessoryWeights: AccessoryWeightLatest;
 
-  // Actions
   setWeek: (week: number) => void;
   setDay: (day: string) => void;
-  fetchWeeks: () => Promise<void>;
-  fetchWeekDetail: (weekNumber: number) => Promise<void>;
+  fetchProgram: () => Promise<void>;
   fetchOneRepMax: () => Promise<void>;
   saveOneRepMax: (data: Partial<OneRepMaxData>) => Promise<void>;
   fetchCompletions: () => Promise<void>;
-  toggleCompletion: (dayId: number) => Promise<void>;
+  toggleCompletion: (weekNumber: number, weekday: string) => Promise<void>;
+  resetCompletions: () => Promise<void>;
   fetchAccessoryWeights: () => Promise<void>;
   saveAccessoryWeight: (exerciseId: number, weight: number, setsDisplay: string) => Promise<void>;
   navigateNext: () => Promise<NavigationResult>;
@@ -53,61 +77,53 @@ export const useProgramStore = create<ProgramState>()(
       weekDetailCache: {},
       loading: false,
       error: null,
+      programVersion: null,
+      programUpdatedAt: null,
       oneRepMax: null,
-      completions: new Map<number, string>(),
+      completions: new Map<string, string>(),
       accessoryWeights: {},
 
-      setWeek: (week) => set({ selectedWeek: week, selectedDay: null }),
+      setWeek: (week) =>
+        set((state) => ({
+          selectedWeek: week,
+          selectedDay: resolveSelectedDay(week, state.selectedDay, state.weekDetailCache),
+        })),
 
-      setDay: (day) => {
-        set({ selectedDay: day });
-        // Prefetch adjacent weeks if on first/last day
-        const { selectedWeek, weeks, weekDetailCache, fetchWeekDetail: fetch } = get();
-        if (selectedWeek === null) return;
-        const weekData = weekDetailCache[selectedWeek];
-        if (!weekData) return;
-        const days = weekData.days;
-        const dayIndex = days.findIndex((d) => d.weekday === day);
-        if (dayIndex === 0) {
-          const prev = getAdjacentWeekNumber(selectedWeek, weeks, "prev");
-          if (prev !== null && !weekDetailCache[prev]) fetch(prev);
-        }
-        if (dayIndex === days.length - 1) {
-          const next = getAdjacentWeekNumber(selectedWeek, weeks, "next");
-          if (next !== null && !weekDetailCache[next]) fetch(next);
-        }
-      },
+      setDay: (day) => set({ selectedDay: day }),
 
-      fetchWeeks: async () => {
-        try {
-          const weeks = await apiFetchWeeks();
-          const state = get();
-          const validWeek = weeks.find((w) => w.number === state.selectedWeek);
-          set({
-            weeks,
-            selectedWeek: validWeek ? state.selectedWeek : (weeks[0]?.number ?? null),
-          });
-        } catch {
-          set({ weeks: [] });
-        }
-      },
-
-      fetchWeekDetail: async (weekNumber) => {
-        const cached = get().weekDetailCache[weekNumber];
-        if (cached) {
-          set({ error: null });
-          return;
-        }
-
+      fetchProgram: async () => {
         set({ loading: true, error: null });
         try {
-          const data = await apiFetchWeekDetail(weekNumber);
-          set((state) => ({
-            weekDetailCache: { ...state.weekDetailCache, [weekNumber]: data },
-            loading: false,
+          const program = await apiFetchProgram();
+          const weeks = program.weeks.map((week) => ({
+            id: week.id,
+            number: week.number,
+            title: week.title,
           }));
+          const weekDetailCache = buildWeekCache(program);
+
+          set((state) => {
+            const nextSelectedWeek = weeks.some((week) => week.number === state.selectedWeek)
+              ? state.selectedWeek
+              : (weeks[0]?.number ?? null);
+            return {
+              weeks,
+              weekDetailCache,
+              programVersion: program.version,
+              programUpdatedAt: program.updated_at,
+              selectedWeek: nextSelectedWeek,
+              selectedDay: resolveSelectedDay(nextSelectedWeek, state.selectedDay, weekDetailCache),
+              loading: false,
+              error: null,
+            };
+          });
         } catch {
-          set({ loading: false, error: "Не удалось загрузить программу" });
+          set({
+            loading: false,
+            error: "Не удалось загрузить программу",
+            weeks: [],
+            weekDetailCache: {},
+          });
         }
       },
 
@@ -132,9 +148,9 @@ export const useProgramStore = create<ProgramState>()(
       fetchCompletions: async () => {
         try {
           const data = await apiFetchCompletions();
-          const map = new Map<number, string>();
-          for (const [id, date] of Object.entries(data.completions)) {
-            map.set(Number(id), date);
+          const map = new Map<string, string>();
+          for (const item of data.completions) {
+            map.set(completionKey(item.week_number, item.weekday), item.completed_at);
           }
           set({ completions: map });
         } catch {
@@ -142,28 +158,37 @@ export const useProgramStore = create<ProgramState>()(
         }
       },
 
-      toggleCompletion: async (dayId) => {
+      toggleCompletion: async (weekNumber, weekday) => {
+        const key = completionKey(weekNumber, weekday);
         const { completions } = get();
-        const isCompleted = completions.has(dayId);
-
-        // Optimistic update
+        const isCompleted = completions.has(key);
         const next = new Map(completions);
+
         if (isCompleted) {
-          next.delete(dayId);
+          next.delete(key);
         } else {
-          next.set(dayId, new Date().toISOString().split("T")[0]);
+          next.set(key, new Date().toISOString().split("T")[0]);
         }
         set({ completions: next });
 
         try {
           if (isCompleted) {
-            await apiUnmarkComplete(dayId);
+            await apiUnmarkComplete(weekNumber, weekday);
           } else {
-            await apiMarkComplete(dayId);
+            await apiMarkComplete(weekNumber, weekday);
           }
         } catch {
-          // Revert on error
           set({ completions });
+        }
+      },
+
+      resetCompletions: async () => {
+        const previous = get().completions;
+        set({ completions: new Map<string, string>() });
+        try {
+          await apiResetCompletions();
+        } catch {
+          set({ completions: previous });
         }
       },
 
@@ -180,7 +205,6 @@ export const useProgramStore = create<ProgramState>()(
         const { selectedWeek } = get();
         try {
           await apiSaveAccessoryWeight(exerciseId, weight, selectedWeek, setsDisplay);
-          // Update local state optimistically
           set((state) => ({
             accessoryWeights: {
               ...state.accessoryWeights,
@@ -196,44 +220,24 @@ export const useProgramStore = create<ProgramState>()(
       },
 
       navigateNext: async () => {
-        const { selectedWeek, selectedDay, weeks, weekDetailCache, fetchWeekDetail: fetch } = get();
+        const { selectedWeek, selectedDay, weeks, weekDetailCache } = get();
         if (selectedWeek === null || selectedDay === null) return { type: "boundary" };
 
         const target = resolveNext(selectedWeek, selectedDay, weeks, weekDetailCache);
         if (!target) return { type: "boundary" };
 
-        if (target.week !== selectedWeek) {
-          await fetch(target.week);
-        }
         set({ selectedWeek: target.week, selectedDay: target.day });
-
-        // Prefetch adjacent week for next potential swipe
-        const nextWeek = getAdjacentWeekNumber(target.week, weeks, "next");
-        if (nextWeek !== null && !get().weekDetailCache[nextWeek]) {
-          fetch(nextWeek);
-        }
-
         return { type: "navigated", week: target.week, day: target.day };
       },
 
       navigatePrev: async () => {
-        const { selectedWeek, selectedDay, weeks, weekDetailCache, fetchWeekDetail: fetch } = get();
+        const { selectedWeek, selectedDay, weeks, weekDetailCache } = get();
         if (selectedWeek === null || selectedDay === null) return { type: "boundary" };
 
         const target = resolvePrev(selectedWeek, selectedDay, weeks, weekDetailCache);
         if (!target) return { type: "boundary" };
 
-        if (target.week !== selectedWeek) {
-          await fetch(target.week);
-        }
         set({ selectedWeek: target.week, selectedDay: target.day });
-
-        // Prefetch adjacent week for next potential swipe
-        const prevWeek = getAdjacentWeekNumber(target.week, weeks, "prev");
-        if (prevWeek !== null && !get().weekDetailCache[prevWeek]) {
-          fetch(prevWeek);
-        }
-
         return { type: "navigated", week: target.week, day: target.day };
       },
     }),

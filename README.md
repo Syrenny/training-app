@@ -22,6 +22,7 @@ Production uses [compose.prod.yaml](/home/syrenny/Desktop/clones/training-app/co
 
 - `web`: Django + Gunicorn + migrations, also serves the built SPA and static files
 - `bot`: Telegram bot worker using the same prebuilt application image as `web`
+- production is built locally on the target host from `compose.prod.yaml`; no registry push is required
 
 Useful files:
 
@@ -58,7 +59,8 @@ uv run pytest tests -q
 Production compose startup:
 
 ```bash
-docker compose -f compose.prod.yaml --env-file .env.production up -d
+cp .env.prod.example .env.production
+docker compose -f compose.prod.yaml --env-file .env.production up -d --build --pull never
 ```
 
 If Caddy runs directly on the host, publish only `web` on loopback and proxy Caddy to it:

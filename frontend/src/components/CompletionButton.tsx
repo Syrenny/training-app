@@ -5,7 +5,6 @@ import { cn } from "@/lib/utils";
 const HOLD_DURATION_MS = 1500;
 
 interface CompletionButtonProps {
-  dayId: number;
   completed: boolean;
   onToggle: () => void;
 }

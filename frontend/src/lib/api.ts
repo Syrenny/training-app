@@ -73,22 +73,25 @@ function getRequestOptions(method?: string, data?: unknown): RequestInit {
 
 async function fetchApi<T>(path: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("GET"));
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  return response.json();
+}
 
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-
+async function postApi<T>(path: string, data: unknown): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("POST", data));
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
   return response.json();
 }
 
 async function putApi<T>(path: string, data: unknown): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("PUT", data));
-
-  if (!response.ok) {
-    throw new Error(`API error: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
   return response.json();
+}
+
+async function deleteApi(path: string): Promise<void> {
+  const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("DELETE"));
+  if (!response.ok) throw new Error(`API error: ${response.status}`);
 }
 
 export async function fetchSession(): Promise<AuthSessionData> {
@@ -122,7 +125,7 @@ export async function logoutSession(): Promise<void> {
 }
 
 export interface ExerciseSetData {
-  id: number;
+  id: string;
   order: number;
   load_type: "PERCENT" | "KG" | "INDIVIDUAL" | "BODYWEIGHT";
   load_value: number | null;
@@ -138,7 +141,7 @@ export interface ExerciseData {
 }
 
 export interface DayExerciseData {
-  id: number;
+  id: string;
   order: number;
   exercise: ExerciseData;
   sets: ExerciseSetData[];
@@ -146,7 +149,8 @@ export interface DayExerciseData {
 }
 
 export interface DayData {
-  id: number;
+  id: string;
+  order: number;
   weekday: string;
   weekday_display: string;
   exercises: DayExerciseData[];
@@ -162,12 +166,58 @@ export interface WeekDetailData extends WeekListItem {
   days: DayData[];
 }
 
-export function fetchWeeks(): Promise<WeekListItem[]> {
-  return fetchApi<WeekListItem[]>("/weeks/");
+export interface ProgramData {
+  version: number | null;
+  updated_at: string | null;
+  weeks: WeekDetailData[];
 }
 
-export function fetchWeekDetail(weekNumber: number): Promise<WeekDetailData> {
-  return fetchApi<WeekDetailData>(`/weeks/${weekNumber}/`);
+export interface ProgramSetInput {
+  load_type: "PERCENT" | "KG" | "INDIVIDUAL" | "BODYWEIGHT";
+  load_value: number | null;
+  reps: number;
+  sets: number;
+}
+
+export interface ProgramExerciseInput {
+  exercise: number;
+  superset_group: number | null;
+  sets: ProgramSetInput[];
+}
+
+export interface ProgramDayInput {
+  weekday: string;
+  exercises: ProgramExerciseInput[];
+}
+
+export interface ProgramWeekInput {
+  title?: string;
+  days: ProgramDayInput[];
+}
+
+export interface ProgramSnapshotInput {
+  source_snapshot_version?: number | null;
+  weeks: ProgramWeekInput[];
+}
+
+export interface ProgramHistoryItem {
+  version: number;
+  created_at: string;
+  source_snapshot_version: number | null;
+  week_count: number;
+  day_count: number;
+  exercise_count: number;
+  set_count: number;
+}
+
+export interface CompletionRecord {
+  week_number: number;
+  weekday: string;
+  completed_at: string;
+}
+
+export interface CompletionsData {
+  completions: CompletionRecord[];
 }
 
 export interface OneRepMaxData {
@@ -175,46 +225,6 @@ export interface OneRepMaxData {
   squat: number;
   deadlift: number;
 }
-
-export function fetchOneRepMax(): Promise<OneRepMaxData> {
-  return fetchApi<OneRepMaxData>("/one-rep-max/");
-}
-
-export function saveOneRepMax(data: Partial<OneRepMaxData>): Promise<OneRepMaxData> {
-  return putApi<OneRepMaxData>("/one-rep-max/", data);
-}
-
-export interface CompletionsData {
-  completions: Record<string, string>;
-}
-
-export interface CompletionRecord {
-  day_id: number;
-  completed_at: string;
-}
-
-export function fetchCompletions(): Promise<CompletionsData> {
-  return fetchApi<CompletionsData>("/completions/");
-}
-
-export async function markComplete(dayId: number): Promise<CompletionRecord> {
-  const response = await fetch(
-    `${BASE_URL}/completions/${dayId}/`,
-    getRequestOptions("POST"),
-  );
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
-  return response.json();
-}
-
-export async function unmarkComplete(dayId: number): Promise<void> {
-  const response = await fetch(
-    `${BASE_URL}/completions/${dayId}/`,
-    getRequestOptions("DELETE"),
-  );
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
-}
-
-// Accessory weights
 
 export interface AccessoryWeightLatest {
   [exerciseId: string]: {
@@ -228,6 +238,53 @@ export interface AccessoryWeightRecord {
   sets_display: string;
   recorded_date: string;
   week_number: number | null;
+}
+
+export function fetchProgram(): Promise<ProgramData> {
+  return fetchApi<ProgramData>("/program/");
+}
+
+export function saveProgramSnapshot(data: ProgramSnapshotInput): Promise<ProgramData> {
+  return postApi<ProgramData>("/program/snapshots/", data);
+}
+
+export function fetchProgramHistory(): Promise<ProgramHistoryItem[]> {
+  return fetchApi<ProgramHistoryItem[]>("/program/history/");
+}
+
+export function fetchProgramHistoryDetail(version: number): Promise<ProgramData> {
+  return fetchApi<ProgramData>(`/program/history/${version}/`);
+}
+
+export function fetchExercises(): Promise<ExerciseData[]> {
+  return fetchApi<ExerciseData[]>("/exercises/");
+}
+
+export function fetchOneRepMax(): Promise<OneRepMaxData> {
+  return fetchApi<OneRepMaxData>("/one-rep-max/");
+}
+
+export function saveOneRepMax(data: Partial<OneRepMaxData>): Promise<OneRepMaxData> {
+  return putApi<OneRepMaxData>("/one-rep-max/", data);
+}
+
+export function fetchCompletions(): Promise<CompletionsData> {
+  return fetchApi<CompletionsData>("/completions/");
+}
+
+export function markComplete(weekNumber: number, weekday: string): Promise<CompletionRecord> {
+  return postApi<CompletionRecord>(
+    `/completions/${weekNumber}/${encodeURIComponent(weekday)}/`,
+    {},
+  );
+}
+
+export function unmarkComplete(weekNumber: number, weekday: string): Promise<void> {
+  return deleteApi(`/completions/${weekNumber}/${encodeURIComponent(weekday)}/`);
+}
+
+export function resetCompletions(): Promise<void> {
+  return deleteApi("/completions/");
 }
 
 export function fetchAccessoryWeightsLatest(): Promise<AccessoryWeightLatest> {

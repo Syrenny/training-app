@@ -11,10 +11,11 @@ import { CrossWeekIndicator } from './CrossWeekIndicator'
 import { ExerciseList } from './ExerciseList'
 
 interface DayTabsProps {
+	weekNumber: number
 	days: DayData[]
 }
 
-export function DayTabs({ days }: DayTabsProps) {
+export function DayTabs({ weekNumber, days }: DayTabsProps) {
 	const selectedDay = useProgramStore(s => s.selectedDay)
 	const setDay = useProgramStore(s => s.setDay)
 	const completions = useProgramStore(s => s.completions)
@@ -111,7 +112,7 @@ export function DayTabs({ days }: DayTabsProps) {
 							className='flex-1 text-base relative'
 						>
 							{day.weekday_display}
-							{completions.has(day.id) && (
+							{completions.has(`${weekNumber}:${day.weekday}`) && (
 								<span className='absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500' />
 							)}
 						</TabsTrigger>
@@ -142,7 +143,8 @@ export function DayTabs({ days }: DayTabsProps) {
 								<ScrollArea className='h-full [&>[data-slot=scroll-area-scrollbar]]:hidden'>
 									<ExerciseList
 										exercises={day.exercises}
-										dayId={day.id}
+										weekNumber={weekNumber}
+										weekday={day.weekday}
 									/>
 								</ScrollArea>
 							</SwiperSlide>
