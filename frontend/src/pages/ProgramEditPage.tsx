@@ -8,6 +8,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  Trash2,
 } from "lucide-react";
 import type {
   ExerciseSetData,
@@ -363,21 +364,16 @@ function groupDraftExercises(exercises: DraftExercise[]) {
 interface EditorDayTabTriggerProps {
   label: string;
   value: string;
-  onDelete: () => void;
 }
 
 function EditorDayTabTrigger({
   label,
   value,
-  onDelete,
 }: EditorDayTabTriggerProps) {
-  const longPressProps = useLongPress({ onLongPress: onDelete });
-
   return (
     <TabsTrigger
       value={value}
       className="flex-1"
-      {...longPressProps}
     >
       {label}
     </TabsTrigger>
@@ -440,7 +436,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const [selectedWeekUid, setSelectedWeekUid] = useState<string | null>(null);
   const [selectedDayUid, setSelectedDayUid] = useState<string | null>(null);
   const [newDayWeekday, setNewDayWeekday] = useState("MON");
-  const [addDayOpen, setAddDayOpen] = useState(false);
+  const [dayEditorOpen, setDayEditorOpen] = useState(false);
   const [exercisePickerIndex, setExercisePickerIndex] = useState<number | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -526,6 +522,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const canSave = draft != null && catalog.length > 0 && isDraftValid(draft) && hasChanges && !saving;
   const weekLongPressProps = useLongPress({
     disabled: !selectedWeek,
+    preventDefault: false,
     onLongPress: () => {
       if (!selectedWeek || selectedWeekNumber == null) return;
       setDeleteTarget({
@@ -594,7 +591,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     };
     updateSelectedWeek((week) => ({ ...week, days: sortDays([...week.days, nextDay]) }));
     setSelectedDayUid(nextDay.uid);
-    setAddDayOpen(false);
   }
 
   function addWeek() {
@@ -752,17 +748,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       }
 
       return { ...currentDay, exercises };
-    });
-  }
-
-  function requestDeleteDay(day: DraftDay) {
-    const weekdayLabel =
-      WEEKDAY_OPTIONS.find((option) => option.value === day.weekday)?.label ?? day.weekday;
-    setDeleteTarget({
-      type: "day",
-      dayUid: day.uid,
-      title: `Удалить ${weekdayLabel}?`,
-      description: "Этот день исчезнет из выбранной недели.",
     });
   }
 
@@ -1072,42 +1057,12 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      <div className="shrink-0 px-4 pt-4 pb-4">
-        <div className="flex items-center gap-2 ">
-          <div className="flex-1" />
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="История"
-            onClick={() => setHistoryOpen(true)}
-          >
-            <History className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon-sm"
-            aria-label="Отменить все"
-            onClick={() => setResetConfirmOpen(true)}
-            disabled={!hasChanges}
-          >
-            <RotateCcw className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon-sm"
-            aria-label={saving ? "Сохранение" : "Сохранить"}
-            onClick={() => setConfirmOpen(true)}
-            disabled={!canSave}
-          >
-            <Save className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
-        <div className="space-y-4 px-4 py-4">
-          {error ? <p className="text-sm text-destructive">{error}</p> : null}
-          {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
-
+      <Tabs
+        value={selectedDay?.uid}
+        onValueChange={(value) => setSelectedDayUid(value)}
+        className="flex flex-1 min-h-0 flex-col"
+      >
+        <div className="shrink-0 px-4 pt-4 pb-4 space-y-4">
           <div className="flex items-center gap-2">
             <div className="flex-1">
               <WeekPicker
@@ -1121,116 +1076,139 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 }}
               />
             </div>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="История"
+              onClick={() => setHistoryOpen(true)}
+            >
+              <History className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Отменить все"
+              onClick={() => setResetConfirmOpen(true)}
+              disabled={!hasChanges}
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon-sm"
+              aria-label={saving ? "Сохранение" : "Сохранить"}
+              onClick={() => setConfirmOpen(true)}
+              disabled={!canSave}
+            >
+              <Save className="h-4 w-4" />
+            </Button>
           </div>
 
-          {!selectedWeek ? (
-            <Card>
-              <CardContent className="py-8 text-center text-sm text-muted-foreground">
-                В программе не осталось недель. Историю можно использовать для восстановления.
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
+          {selectedWeek ? (
+            <div className="flex items-center gap-2">
               {selectedWeek.days.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
+                <div className="flex-1 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
                   В этой неделе пока нет тренировочных дней.
-                </p>
+                </div>
               ) : (
-                <Tabs
-                  value={selectedDay?.uid}
-                  onValueChange={(value) => setSelectedDayUid(value)}
-                >
-                  <div className="flex items-center gap-2">
-                    <TabsList className="w-full">
-                      {selectedWeek.days.map((day) => (
-                        <EditorDayTabTrigger
-                          key={day.uid}
-                          value={day.uid}
-                          label={WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
-                          onDelete={() => requestDeleteDay(day)}
-                        />
-                      ))}
-                    </TabsList>
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      aria-label="Добавить день"
-                      onClick={() => {
-                        if (!remainingWeekdays.length) return;
-                        setNewDayWeekday(remainingWeekdays[0]?.value ?? "MON");
-                        setAddDayOpen(true);
-                      }}
-                      disabled={!selectedWeek || remainingWeekdays.length === 0}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                    {selectedDay ? (
-                      <TabsContent value={selectedDay.uid} className="space-y-3">
-                        {renderExerciseControls(0)}
-                        {groupDraftExercises(selectedDay.exercises).map((item) =>
-                          item.type === "single" ? (
-                            <div key={item.exercise.uid}>
-                              <HoldableExerciseCard
-                                className="mb-3"
-                                onDelete={() => requestDeleteExercise(item.exercise)}
-                              >
-                                {renderExercisePreview(item.exercise, item.displayOrder)}
-                                {renderExerciseToolbar(item.exercise)}
-                              </HoldableExerciseCard>
-                              {renderExerciseControls(item.startIndex + 1)}
-                            </div>
-                          ) : (
-                            <div key={`superset-${item.group}`}>
-                              <Card className="mb-3 border-l-4 border-l-primary">
-                                <CardContent>
-                                  <div className="mb-3 flex items-baseline gap-2">
-                                    <span className="text-muted-foreground text-sm font-medium">
-                                      {item.displayOrder}.
-                                    </span>
-                                    <Badge variant="outline" className="text-xs">
-                                      Суперсет
-                                    </Badge>
-                                  </div>
-                                  <div className="space-y-4">
-                                    {item.exercises.map((exercise, exerciseIndex) => (
-                                      <HoldableExerciseSection
-                                        key={exercise.uid}
-                                        className={
-                                          exerciseIndex === 0
-                                            ? ""
-                                            : "border-border/60 border-t pt-4"
-                                        }
-                                        onDelete={() => requestDeleteExercise(exercise)}
-                                      >
-                                        {renderExercisePreview(exercise)}
-                                        {renderExerciseToolbar(exercise)}
-                                        {exerciseIndex < item.exercises.length - 1 ? (
-                                          <div className="mt-4">
-                                            {renderExerciseControls(
-                                              item.startIndex + exerciseIndex + 1,
-                                              true,
-                                            )}
-                                          </div>
-                                        ) : null}
-                                      </HoldableExerciseSection>
-                                    ))}
-                                  </div>
-                                </CardContent>
-                              </Card>
-                              {renderExerciseControls(item.startIndex + item.exercises.length)}
-                            </div>
-                          ),
-                        )}
-                      </TabsContent>
-                  ) : null}
-                </Tabs>
+                <TabsList className="w-full">
+                  {selectedWeek.days.map((day) => (
+                    <EditorDayTabTrigger
+                      key={day.uid}
+                      value={day.uid}
+                      label={WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
+                    />
+                  ))}
+                </TabsList>
               )}
+              <Button
+                variant="outline"
+                size="icon-sm"
+                aria-label="Редактировать дни"
+                onClick={() => {
+                  setNewDayWeekday(remainingWeekdays[0]?.value ?? "MON");
+                  setDayEditorOpen(true);
+                }}
+                disabled={!selectedWeek}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
             </div>
-          )}
+          ) : null}
         </div>
-      </div>
+
+        <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
+          <div className="space-y-4 px-4 pb-4">
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
+
+            {!selectedWeek ? (
+              <Card>
+                <CardContent className="py-8 text-center text-sm text-muted-foreground">
+                  В программе не осталось недель. Историю можно использовать для восстановления.
+                </CardContent>
+              </Card>
+            ) : selectedWeek.days.length === 0 ? null : selectedDay ? (
+              <TabsContent value={selectedDay.uid} className="space-y-3">
+                {renderExerciseControls(0)}
+                {groupDraftExercises(selectedDay.exercises).map((item) =>
+                  item.type === "single" ? (
+                    <div key={item.exercise.uid}>
+                      <HoldableExerciseCard
+                        className="mb-3"
+                        onDelete={() => requestDeleteExercise(item.exercise)}
+                      >
+                        {renderExercisePreview(item.exercise, item.displayOrder)}
+                        {renderExerciseToolbar(item.exercise)}
+                      </HoldableExerciseCard>
+                      {renderExerciseControls(item.startIndex + 1)}
+                    </div>
+                  ) : (
+                    <div key={`superset-${item.group}`}>
+                      <Card className="mb-3 border-l-4 border-l-primary">
+                        <CardContent>
+                          <div className="mb-3 flex items-baseline gap-2">
+                            <span className="text-muted-foreground text-sm font-medium">
+                              {item.displayOrder}.
+                            </span>
+                            <Badge variant="outline" className="text-xs">
+                              Суперсет
+                            </Badge>
+                          </div>
+                          <div className="space-y-4">
+                            {item.exercises.map((exercise, exerciseIndex) => (
+                              <HoldableExerciseSection
+                                key={exercise.uid}
+                                className={
+                                  exerciseIndex === 0
+                                    ? ""
+                                    : "border-border/60 border-t pt-4"
+                                }
+                                onDelete={() => requestDeleteExercise(exercise)}
+                              >
+                                {renderExercisePreview(exercise)}
+                                {renderExerciseToolbar(exercise)}
+                                {exerciseIndex < item.exercises.length - 1 ? (
+                                  <div className="mt-4">
+                                    {renderExerciseControls(
+                                      item.startIndex + exerciseIndex + 1,
+                                      true,
+                                    )}
+                                  </div>
+                                ) : null}
+                              </HoldableExerciseSection>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                      {renderExerciseControls(item.startIndex + item.exercises.length)}
+                    </div>
+                  ),
+                )}
+              </TabsContent>
+            ) : null}
+          </div>
+        </div>
+      </Tabs>
 
       <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
         <DialogContent>
@@ -1339,35 +1317,91 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={addDayOpen} onOpenChange={setAddDayOpen}>
+      <Dialog open={dayEditorOpen} onOpenChange={setDayEditorOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Добавить день</DialogTitle>
+            <DialogTitle>Редактор дней</DialogTitle>
             <DialogDescription>
-              Выберите день недели для новой тренировки.
+              Управляйте набором тренировочных дней для выбранной недели.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            <p className="text-sm font-medium">День недели</p>
-            <Select value={newDayWeekday} onValueChange={setNewDayWeekday}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Выберите день недели" />
-              </SelectTrigger>
-              <SelectContent>
-                {remainingWeekdays.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Текущие дни</p>
+              {selectedWeek?.days.length ? (
+                <div className="space-y-2">
+                  {selectedWeek.days.map((day) => {
+                    const label =
+                      WEEKDAY_OPTIONS.find((option) => option.value === day.weekday)?.label ?? day.weekday;
+
+                    return (
+                      <div
+                        key={day.uid}
+                        className="flex items-center justify-between rounded-lg border px-3 py-2"
+                      >
+                        <button
+                          type="button"
+                          className="min-w-0 flex-1 text-left text-sm font-medium"
+                          onClick={() => {
+                            setSelectedDayUid(day.uid);
+                            setDayEditorOpen(false);
+                          }}
+                        >
+                          {label}
+                        </button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={`Удалить ${label}`}
+                          onClick={() => removeDay(day.uid)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  В этой неделе пока нет тренировочных дней.
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Добавить день</p>
+              <div className="flex items-center gap-2">
+                <Select value={newDayWeekday} onValueChange={setNewDayWeekday}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Выберите день недели" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {remainingWeekdays.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button
+                  type="button"
+                  onClick={addDay}
+                  disabled={remainingWeekdays.length === 0}
+                >
+                  Добавить
+                </Button>
+              </div>
+              {remainingWeekdays.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Все дни недели уже добавлены.
+                </p>
+              ) : null}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDayOpen(false)}>
-              Отмена
-            </Button>
-            <Button onClick={addDay} disabled={remainingWeekdays.length === 0}>
-              Добавить
+            <Button variant="outline" onClick={() => setDayEditorOpen(false)}>
+              Готово
             </Button>
           </DialogFooter>
         </DialogContent>

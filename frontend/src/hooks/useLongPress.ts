@@ -7,12 +7,14 @@ interface UseLongPressOptions {
   disabled?: boolean;
   onLongPress: () => void;
   holdMs?: number;
+  preventDefault?: boolean;
 }
 
 export function useLongPress({
   disabled = false,
   onLongPress,
   holdMs = DEFAULT_HOLD_MS,
+  preventDefault = true,
 }: UseLongPressOptions) {
   const timeoutRef = useRef<number | null>(null);
   const firedRef = useRef(false);
@@ -44,7 +46,9 @@ export function useLongPress({
       ) {
         return;
       }
-      event.preventDefault();
+      if (preventDefault) {
+        event.preventDefault();
+      }
       firedRef.current = false;
       startPointRef.current = { x: event.clientX, y: event.clientY };
       clearHold();
@@ -54,7 +58,7 @@ export function useLongPress({
         onLongPress();
       }, holdMs);
     },
-    [clearHold, disabled, holdMs, onLongPress],
+    [clearHold, disabled, holdMs, onLongPress, preventDefault],
   );
 
   const moveHold = useCallback(
