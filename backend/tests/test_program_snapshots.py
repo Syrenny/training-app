@@ -42,6 +42,46 @@ class ProgramSnapshotAPITest(TestCase):
         self.assertEqual(data["weeks"][0]["days"][0]["weekday"], "MON")
         self.assertEqual(data["weeks"][0]["days"][0]["exercises"][0]["exercise"]["name"], "Приседания")
 
+    def test_get_original_program_returns_base_program_even_with_snapshot(self):
+        self.authenticated.post(
+            "/api/program/snapshots/",
+            {
+                "commit_message": "Изменил базовую программу",
+                "weeks": [
+                    {
+                        "days": [
+                            {
+                                "weekday": "SUN",
+                                "exercises": [
+                                    {
+                                        "exercise": self.bench.id,
+                                        "sets": [
+                                            {
+                                                "load_type": "KG",
+                                                "load_value": 90,
+                                                "reps": 2,
+                                                "sets": 2,
+                                            }
+                                        ],
+                                    }
+                                ],
+                            }
+                        ]
+                    }
+                ],
+            },
+            format="json",
+        )
+
+        response = self.authenticated.get("/api/program/original/")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIsNone(data["version"])
+        self.assertIsNone(data["commit_message"])
+        self.assertEqual(len(data["weeks"]), 1)
+        self.assertEqual(data["weeks"][0]["days"][0]["weekday"], "MON")
+        self.assertEqual(data["weeks"][0]["days"][0]["exercises"][0]["exercise"]["name"], "Приседания")
+
     def test_post_snapshot_creates_new_version(self):
         payload = {
             "commit_message": "Добавил вторник",

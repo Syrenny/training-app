@@ -34,7 +34,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
             <CardHeader>
               <CardTitle>Сессия Telegram</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
               <div className="flex items-center gap-3">
                 <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent text-base font-semibold text-accent-foreground">
                   {user.telegram_photo_url ? (
@@ -47,7 +47,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                     getInitial(fullName, user.telegram_username || undefined)
                   )}
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">
                     {fullName || "Пользователь Telegram"}
                   </p>
@@ -57,12 +57,11 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                     </p>
                   ) : null}
                 </div>
+                <Button variant="ghost" size="sm" onClick={onLogout}>
+                  <LogOut className="h-4 w-4" />
+                  Выйти
+                </Button>
               </div>
-
-              <Button variant="outline" className="w-full" onClick={onLogout}>
-                <LogOut className="h-4 w-4" />
-                Выйти
-              </Button>
             </CardContent>
           </Card>
 
@@ -70,7 +69,13 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Отметки выполнения</CardTitle>
+              <div className="flex items-center gap-3">
+                <CardTitle className="flex-1">Отметки выполнения</CardTitle>
+                <Button variant="ghost" size="sm" onClick={handleResetCompletions}>
+                  <RotateCcw className="h-4 w-4" />
+                  Сбросить
+                </Button>
+              </div>
               <CardDescription>
                 Отметки привязаны только к номеру недели и дню недели. После сильных
                 изменений программы их можно обнулить здесь.
@@ -81,10 +86,6 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                 Если структура тренировок изменилась, старые отметки могут больше не
                 совпадать с текущей программой.
               </p>
-              <Button variant="outline" className="w-full" onClick={handleResetCompletions}>
-                <RotateCcw className="h-4 w-4" />
-                Сбросить отметки выполнения
-              </Button>
               {resetNotice ? (
                 <p className="text-sm text-muted-foreground">{resetNotice}</p>
               ) : null}

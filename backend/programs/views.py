@@ -440,6 +440,13 @@ class ProgramCurrentView(APIView):
         )
 
 
+class ProgramOriginalView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(build_program_response(build_base_program_payload()))
+
+
 class ProgramSnapshotCreateView(APIView):
     permission_classes = [AllowAny]
 

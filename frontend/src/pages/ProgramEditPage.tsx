@@ -19,6 +19,7 @@ import type {
 } from "@/lib/api";
 import {
   fetchExercises,
+  fetchOriginalProgram,
   fetchProgram,
   fetchProgramHistory,
   fetchProgramHistoryDetail,
@@ -157,6 +158,16 @@ function emptySet(): DraftSet {
   return {
     uid: createUid(),
     loadType: "INDIVIDUAL",
+    loadValue: "",
+    reps: "10",
+    sets: "3",
+  };
+}
+
+function createSetFromPrevious(previous?: DraftSet): DraftSet {
+  return {
+    uid: createUid(),
+    loadType: previous?.loadType ?? "INDIVIDUAL",
     loadValue: "",
     reps: "10",
     sets: "3",
@@ -821,7 +832,11 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           variant="ghost"
           size="icon-xs"
           className="h-7 w-7 shrink-0 rounded-md border-dashed"
-          onClick={() => openSetEditor(exercise.uid, null, emptySet())}
+          onClick={() => openSetEditor(
+            exercise.uid,
+            null,
+            createSetFromPrevious(exercise.sets[exercise.sets.length - 1]),
+          )}
         >
           <Plus className="h-3 w-3" />
         </Button>
@@ -985,6 +1000,17 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       setHistoryOpen(false);
     } catch {
       setError("Не удалось загрузить выбранную версию");
+    }
+  }
+
+  async function restoreOriginalProgram() {
+    try {
+      const program = await fetchOriginalProgram();
+      resetEditorToProgram(program, "Откат к оригинальной программе");
+      setNotice("В редактор загружена оригинальная программа. Сохраните ее как новый снапшот.");
+      setHistoryOpen(false);
+    } catch {
+      setError("Не удалось загрузить оригинальную программу");
     }
   }
 
@@ -1195,6 +1221,19 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 </div>
               ))
             )}
+            <div className="rounded-xl border border-primary/25 bg-primary/5 p-3">
+              <div className="flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">Оригинальная программа</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Загрузит исходную программу в редактор для нового сохранения.
+                  </p>
+                </div>
+                <Button size="sm" variant="ghost" onClick={restoreOriginalProgram}>
+                  Загрузить
+                </Button>
+              </div>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1274,9 +1313,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Редактор дней</DialogTitle>
-            <DialogDescription>
-              Управляйте набором тренировочных дней для выбранной недели.
-            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -1401,10 +1437,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       <Dialog open={setEditor != null} onOpenChange={(open) => !open && setSetEditor(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Редактирование подхода</DialogTitle>
-            <DialogDescription>
-              Изменения сразу показываются в виде pill, как на главной странице.
-            </DialogDescription>
           </DialogHeader>
           {setEditor ? (
             <div className="space-y-4">

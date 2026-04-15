@@ -247,6 +247,10 @@ export function fetchProgram(): Promise<ProgramData> {
   return fetchApi<ProgramData>("/program/");
 }
 
+export function fetchOriginalProgram(): Promise<ProgramData> {
+  return fetchApi<ProgramData>("/program/original/");
+}
+
 export function saveProgramSnapshot(data: ProgramSnapshotInput): Promise<ProgramData> {
   return postApi<ProgramData>("/program/snapshots/", data);
 }
