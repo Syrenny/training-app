@@ -31,9 +31,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { WeekPicker } from "@/components/WeekPicker";
 import { SetDisplay } from "@/components/SetDisplay";
+import { DayTabsBar } from "@/components/DayTabsBar";
 import { calcTonnage } from "@/lib/calc";
 import { useLongPress } from "@/hooks/useLongPress";
 
@@ -359,25 +360,6 @@ function groupDraftExercises(exercises: DraftExercise[]) {
   }
 
   return items;
-}
-
-interface EditorDayTabTriggerProps {
-  label: string;
-  value: string;
-}
-
-function EditorDayTabTrigger({
-  label,
-  value,
-}: EditorDayTabTriggerProps) {
-  return (
-    <TabsTrigger
-      value={value}
-      className="flex-1"
-    >
-      {label}
-    </TabsTrigger>
-  );
 }
 
 export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
@@ -1079,35 +1061,33 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       >
         {selectedWeek ? (
           <div className="shrink-0 pb-2">
-            <div className="flex items-center gap-2">
-              {selectedWeek.days.length === 0 ? (
-                <div className="flex-1 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
-                  В этой неделе пока нет тренировочных дней.
-                </div>
-              ) : (
-                <TabsList className="w-full">
-                  {selectedWeek.days.map((day) => (
-                    <EditorDayTabTrigger
-                      key={day.uid}
-                      value={day.uid}
-                      label={WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday}
-                    />
-                  ))}
-                </TabsList>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Редактировать дни"
-                onClick={() => {
-                  setNewDayWeekday(remainingWeekdays[0]?.value ?? "MON");
-                  setDayEditorOpen(true);
-                }}
-                disabled={!selectedWeek}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-            </div>
+            {selectedWeek.days.length === 0 ? (
+              <div className="rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
+                В этой неделе пока нет тренировочных дней.
+              </div>
+            ) : (
+              <DayTabsBar
+                items={selectedWeek.days.map((day) => ({
+                  key: day.uid,
+                  value: day.uid,
+                  label: WEEKDAY_SHORT_LABELS[day.weekday] ?? day.weekday,
+                }))}
+                action={(
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Редактировать дни"
+                    onClick={() => {
+                      setNewDayWeekday(remainingWeekdays[0]?.value ?? "MON");
+                      setDayEditorOpen(true);
+                    }}
+                    disabled={!selectedWeek}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+              />
+            )}
           </div>
         ) : null}
 

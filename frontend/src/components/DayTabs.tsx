@@ -1,4 +1,4 @@
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs } from '@/components/ui/tabs'
 import { useCrossWeekPull } from '@/hooks/useCrossWeekPull'
 import type { DayData } from '@/lib/api'
 import { useProgramStore } from '@/lib/store'
@@ -7,6 +7,7 @@ import type { Swiper as SwiperType } from 'swiper'
 import 'swiper/css'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { CrossWeekIndicator } from './CrossWeekIndicator'
+import { DayTabsBar } from './DayTabsBar'
 import { ExerciseList } from './ExerciseList'
 
 interface DayTabsProps {
@@ -103,20 +104,14 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 	return (
 		<div className='flex flex-col flex-1 min-h-0'>
 			<Tabs value={activeDay} onValueChange={handleTabClick}>
-				<TabsList className='w-full shrink-0'>
-					{days.map(day => (
-						<TabsTrigger
-							key={day.weekday}
-							value={day.weekday}
-							className='flex-1 text-base relative'
-						>
-							{day.weekday_display}
-							{completions.has(`${weekNumber}:${day.weekday}`) && (
-								<span className='absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-green-500' />
-							)}
-						</TabsTrigger>
-					))}
-				</TabsList>
+				<DayTabsBar
+					items={days.map(day => ({
+						key: day.weekday,
+						value: day.weekday,
+						label: day.weekday_display,
+						indicator: completions.has(`${weekNumber}:${day.weekday}`),
+					}))}
+				/>
 			</Tabs>
 
 			<CrossWeekIndicator ref={indicatorRef} />
