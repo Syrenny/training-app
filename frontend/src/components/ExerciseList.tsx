@@ -2,6 +2,7 @@ import { ExerciseCard } from "./ExerciseCard";
 import { SupersetCard } from "./SupersetCard";
 import { CompletionButton } from "./CompletionButton";
 import { WorkoutSummaryCard } from "./WorkoutSummaryCard";
+import { Card, CardContent } from "@/components/ui/card";
 import type { DayExerciseData } from "@/lib/api";
 import { completionKey, useProgramStore } from "@/lib/store";
 
@@ -53,38 +54,51 @@ export function ExerciseList({ exercises, weekNumber, weekday }: ExerciseListPro
 
   return (
     <div>
-      {exercises.length > 0 && (
-        <WorkoutSummaryCard
-          exercises={exercises}
-          isCompleted={isCompleted}
-          completionDate={completionDate}
-        />
-      )}
+      <Card className="mb-5 gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none">
+        <CardContent className="px-4 py-3">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+          {exercises.length > 0 ? (
+            <WorkoutSummaryCard
+              exercises={exercises}
+            />
+          ) : (
+            <p className="text-sm text-muted-foreground">
+                  В этой тренировке пока нет упражнений.
+                </p>
+              )}
+            </div>
+            <CompletionButton
+              completed={isCompleted}
+              completionDate={completionDate}
+              onToggle={() => toggleCompletion(weekNumber, weekday)}
+            />
+          </div>
+        </CardContent>
+      </Card>
       {exercises.length === 0 ? (
         <p className="text-muted-foreground text-center py-8">
           Нет упражнений
         </p>
       ) : (
-        groupExercises(exercises).map((item) =>
-          item.type === "single" ? (
-            <ExerciseCard
-              key={item.exercise.id}
-              dayExercise={item.exercise}
-              displayOrder={item.displayOrder}
-            />
-          ) : (
-            <SupersetCard
-              key={`ss-${item.group}`}
-              exercises={item.exercises}
-              displayOrder={item.displayOrder}
-            />
-          ),
-        )
+        <div className="divide-y divide-border/70 border-y border-border/70">
+          {groupExercises(exercises).map((item) =>
+            item.type === "single" ? (
+              <ExerciseCard
+                key={item.exercise.id}
+                dayExercise={item.exercise}
+                displayOrder={item.displayOrder}
+              />
+            ) : (
+              <SupersetCard
+                key={`ss-${item.group}`}
+                exercises={item.exercises}
+                displayOrder={item.displayOrder}
+              />
+            ),
+          )}
+        </div>
       )}
-      <CompletionButton
-        completed={isCompleted}
-        onToggle={() => toggleCompletion(weekNumber, weekday)}
-      />
     </div>
   );
 }

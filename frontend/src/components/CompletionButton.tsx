@@ -6,10 +6,20 @@ const HOLD_DURATION_MS = 1500;
 
 interface CompletionButtonProps {
   completed: boolean;
+  completionDate?: string;
   onToggle: () => void;
 }
 
-export function CompletionButton({ completed, onToggle }: CompletionButtonProps) {
+function formatCompletionDate(iso: string): string {
+  const d = new Date(iso + "T00:00:00");
+  return d.toLocaleDateString("ru-RU", { day: "numeric", month: "short" });
+}
+
+export function CompletionButton({
+  completed,
+  completionDate,
+  onToggle,
+}: CompletionButtonProps) {
   const [progress, setProgress] = useState(0);
   const rafRef = useRef<number | null>(null);
   const startRef = useRef<number | null>(null);
@@ -58,38 +68,33 @@ export function CompletionButton({ completed, onToggle }: CompletionButtonProps)
   }, []);
 
   return (
-    <div className="mt-6 mb-4 select-none">
-      <button
-        type="button"
+    <button
+      type="button"
+      aria-label={completed ? "Отменить завершение тренировки" : "Завершить тренировку"}
+      title={completed ? "Удерживайте, чтобы отменить завершение" : "Удерживайте, чтобы завершить тренировку"}
+      className={cn(
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors touch-none",
+        completed
+          ? "border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400"
+          : "border-border bg-secondary text-secondary-foreground",
+      )}
+      onPointerDown={startHold}
+      onPointerUp={cancelHold}
+      onPointerLeave={cancelHold}
+      onPointerCancel={cancelHold}
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      <span
         className={cn(
-          "relative w-full overflow-hidden rounded-xl h-14 border transition-colors touch-none",
-          completed
-            ? "border-green-500/40 bg-green-500/5 text-green-700 dark:text-green-400"
-            : "border-border bg-card text-foreground",
+          "absolute inset-0 origin-left",
+          completed ? "bg-red-500/15" : "bg-green-500/15",
         )}
-        onPointerDown={startHold}
-        onPointerUp={cancelHold}
-        onPointerLeave={cancelHold}
-        onContextMenu={(e) => e.preventDefault()}
-      >
-        <span
-          className={cn(
-            "absolute inset-0 origin-left",
-            completed ? "bg-red-500/20" : "bg-green-500/20",
-          )}
-          style={{ transform: `scaleX(${progress})` }}
-        />
-        <span className="relative z-10 flex items-center justify-center gap-2 text-sm font-medium pointer-events-none">
-          {completed ? (
-            <>
-              <Check className="h-4 w-4" />
-              <span>Завершено — удержи для отмены</span>
-            </>
-          ) : (
-            <span>Завершить тренировку</span>
-          )}
-        </span>
-      </button>
-    </div>
+        style={{ transform: `scaleX(${progress})` }}
+      />
+      <span className="pointer-events-none relative z-10 inline-flex items-center gap-1">
+        {completed && completionDate ? <Check className="h-3 w-3" /> : null}
+        {completed && completionDate ? formatCompletionDate(completionDate) : "Завершить"}
+      </span>
+    </button>
   );
 }
