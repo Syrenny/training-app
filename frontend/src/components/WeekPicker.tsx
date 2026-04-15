@@ -22,6 +22,8 @@ interface WeekPickerProps {
   onSelect: (weekNumber: number) => void;
   onAdd?: () => void;
   triggerButtonProps?: React.ComponentProps<"button">;
+  itemButtonVariant?: React.ComponentProps<typeof Button>["variant"];
+  addButtonVariant?: React.ComponentProps<typeof Button>["variant"];
 }
 
 export function WeekPicker({
@@ -30,6 +32,8 @@ export function WeekPicker({
   onSelect,
   onAdd,
   triggerButtonProps,
+  itemButtonVariant = "ghost",
+  addButtonVariant = "outline",
 }: WeekPickerProps) {
   const [open, setOpen] = useState(false);
   const triggerClassName = triggerButtonProps?.className;
@@ -62,7 +66,7 @@ export function WeekPicker({
             items.map((week) => (
               <Button
                 key={week.id}
-                variant={week.number === selectedNumber ? "default" : "ghost"}
+                variant={itemButtonVariant}
                 className="w-full justify-start"
                 onClick={() => {
                   onSelect(week.number);
@@ -75,7 +79,7 @@ export function WeekPicker({
           )}
           {onAdd ? (
             <Button
-              variant="outline"
+              variant={addButtonVariant}
               className="mt-2 w-full"
               onClick={() => {
                 onAdd();

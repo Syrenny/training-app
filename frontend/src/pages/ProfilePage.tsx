@@ -56,11 +56,6 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
                       @{user.telegram_username}
                     </p>
                   ) : null}
-                  {user.telegram_id ? (
-                    <p className="mt-1 truncate text-xs text-muted-foreground">
-                      ID: {user.telegram_id}
-                    </p>
-                  ) : null}
                 </div>
               </div>
 

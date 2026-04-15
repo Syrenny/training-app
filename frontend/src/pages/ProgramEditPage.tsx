@@ -380,46 +380,6 @@ function EditorDayTabTrigger({
   );
 }
 
-interface HoldableExerciseCardProps {
-  onDelete: () => void;
-  className?: string;
-  children: React.ReactNode;
-}
-
-function HoldableExerciseCard({
-  onDelete,
-  className,
-  children,
-}: HoldableExerciseCardProps) {
-  const longPressProps = useLongPress({ onLongPress: onDelete });
-
-  return (
-    <Card className={className} {...longPressProps}>
-      <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-interface HoldableExerciseSectionProps {
-  onDelete: () => void;
-  className?: string;
-  children: React.ReactNode;
-}
-
-function HoldableExerciseSection({
-  onDelete,
-  className,
-  children,
-}: HoldableExerciseSectionProps) {
-  const longPressProps = useLongPress({ onLongPress: onDelete });
-
-  return (
-    <div className={className} {...longPressProps}>
-      {children}
-    </div>
-  );
-}
-
 export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const refreshProgram = useProgramStore((s) => s.fetchProgram);
   const refreshCompletions = useProgramStore((s) => s.fetchCompletions);
@@ -876,7 +836,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         ))}
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="icon-xs"
           className="h-7 w-7 shrink-0 rounded-md border-dashed"
           onClick={() => openSetEditor(exercise.uid, null, emptySet())}
@@ -893,23 +853,33 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     const isLast = selectedDay == null || exerciseIndex === selectedDay.exercises.length - 1;
 
     return (
-      <div className="mt-4 flex items-center justify-end gap-2 border-t pt-4">
+      <div className="mt-4 flex items-center justify-between gap-2 border-t pt-4">
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon-sm"
-          onClick={() => moveExercise(exercise.uid, -1)}
-          disabled={isFirst}
+          aria-label="Удалить упражнение"
+          onClick={() => requestDeleteExercise(exercise)}
         >
-          <ChevronUp className="h-4 w-4" />
+          <Trash2 className="h-4 w-4" />
         </Button>
-        <Button
-          variant="outline"
-          size="icon-sm"
-          onClick={() => moveExercise(exercise.uid, 1)}
-          disabled={isLast}
-        >
-          <ChevronDown className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => moveExercise(exercise.uid, -1)}
+            disabled={isFirst}
+          >
+            <ChevronUp className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => moveExercise(exercise.uid, 1)}
+            disabled={isLast}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     );
   }
@@ -966,7 +936,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
       >
         {linked ? <div className="h-px flex-1 bg-border" /> : null}
         <Button
-          variant="outline"
+          variant="ghost"
           size="icon-sm"
           className={`rounded-full border-dashed ${linked ? "border-primary/50" : ""}`}
           onClick={() => openExercisePicker(insertIndex)}
@@ -976,7 +946,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
         </Button>
         {canLink ? (
           <Button
-            variant={linked ? "secondary" : "outline"}
+            variant="ghost"
             size="icon-sm"
             className={`rounded-full ${linked ? "bg-primary/10 text-primary" : ""}`}
             onClick={() => toggleSupersetAt(insertIndex - 1)}
@@ -1048,7 +1018,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     return (
       <div className="px-4 py-6">
         <p className="text-sm text-destructive">{error ?? "Редактор недоступен"}</p>
-        <Button className="mt-4" variant="outline" onClick={onClose}>
+        <Button className="mt-4" variant="ghost" onClick={onClose}>
           Вернуться
         </Button>
       </div>
@@ -1057,53 +1027,58 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
+      <div className="shrink-0 px-4 pt-4 pb-4">
+        <div className="flex items-center gap-2">
+          <div className="flex-1">
+            <WeekPicker
+              items={editorWeeks}
+              selectedNumber={selectedWeekNumber}
+              onSelect={selectWeekByNumber}
+              onAdd={addWeek}
+              itemButtonVariant="ghost"
+              addButtonVariant="ghost"
+              triggerButtonProps={{
+                ...weekLongPressProps,
+                className: "h-auto justify-start px-0 text-lg font-semibold",
+              }}
+            />
+          </div>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="История"
+            onClick={() => setHistoryOpen(true)}
+          >
+            <History className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Отменить все"
+            onClick={() => setResetConfirmOpen(true)}
+            disabled={!hasChanges}
+          >
+            <RotateCcw className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={saving ? "Сохранение" : "Сохранить"}
+            onClick={() => setConfirmOpen(true)}
+            disabled={!canSave}
+          >
+            <Save className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
       <Tabs
         value={selectedDay?.uid}
         onValueChange={(value) => setSelectedDayUid(value)}
-        className="flex flex-1 min-h-0 flex-col"
+        className="flex flex-1 min-h-0 flex-col px-4"
       >
-        <div className="shrink-0 px-4 pt-4 pb-4 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <WeekPicker
-                items={editorWeeks}
-                selectedNumber={selectedWeekNumber}
-                onSelect={selectWeekByNumber}
-                onAdd={addWeek}
-                triggerButtonProps={{
-                  ...weekLongPressProps,
-                  className: "h-auto justify-start px-0 text-lg font-semibold",
-                }}
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="История"
-              onClick={() => setHistoryOpen(true)}
-            >
-              <History className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon-sm"
-              aria-label="Отменить все"
-              onClick={() => setResetConfirmOpen(true)}
-              disabled={!hasChanges}
-            >
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-            <Button
-              size="icon-sm"
-              aria-label={saving ? "Сохранение" : "Сохранить"}
-              onClick={() => setConfirmOpen(true)}
-              disabled={!canSave}
-            >
-              <Save className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {selectedWeek ? (
+        {selectedWeek ? (
+          <div className="shrink-0 pb-2">
             <div className="flex items-center gap-2">
               {selectedWeek.days.length === 0 ? (
                 <div className="flex-1 rounded-lg border border-dashed px-3 py-2 text-sm text-muted-foreground">
@@ -1121,7 +1096,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 </TabsList>
               )}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="icon-sm"
                 aria-label="Редактировать дни"
                 onClick={() => {
@@ -1133,11 +1108,11 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 <Pencil className="h-4 w-4" />
               </Button>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : null}
 
         <div className="hide-scrollbar min-h-0 flex-1 overflow-y-auto">
-          <div className="space-y-4 px-4 pb-4">
+          <div className="space-y-4">
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             {notice ? <p className="text-sm text-muted-foreground">{notice}</p> : null}
 
@@ -1153,13 +1128,12 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 {groupDraftExercises(selectedDay.exercises).map((item) =>
                   item.type === "single" ? (
                     <div key={item.exercise.uid}>
-                      <HoldableExerciseCard
-                        className="mb-3"
-                        onDelete={() => requestDeleteExercise(item.exercise)}
-                      >
+                      <Card className="mb-3">
+                        <CardContent>
                         {renderExercisePreview(item.exercise, item.displayOrder)}
                         {renderExerciseToolbar(item.exercise)}
-                      </HoldableExerciseCard>
+                        </CardContent>
+                      </Card>
                       {renderExerciseControls(item.startIndex + 1)}
                     </div>
                   ) : (
@@ -1176,14 +1150,13 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                           </div>
                           <div className="space-y-4">
                             {item.exercises.map((exercise, exerciseIndex) => (
-                              <HoldableExerciseSection
+                              <div
                                 key={exercise.uid}
                                 className={
                                   exerciseIndex === 0
                                     ? ""
                                     : "border-border/60 border-t pt-4"
                                 }
-                                onDelete={() => requestDeleteExercise(exercise)}
                               >
                                 {renderExercisePreview(exercise)}
                                 {renderExerciseToolbar(exercise)}
@@ -1195,7 +1168,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                                     )}
                                   </div>
                                 ) : null}
-                              </HoldableExerciseSection>
+                              </div>
                             ))}
                           </div>
                         </CardContent>
@@ -1235,7 +1208,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                         Недель: {item.week_count}, дней: {item.day_count}, упражнений: {item.exercise_count}
                       </p>
                     </div>
-                    <Button size="sm" variant="outline" onClick={() => restoreVersion(item.version)}>
+                    <Button size="sm" variant="ghost" onClick={() => restoreVersion(item.version)}>
                       Загрузить
                     </Button>
                   </div>
@@ -1271,10 +1244,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
               Отмена
             </Button>
-            <Button onClick={performSave} disabled={!canSave || !commitMessage.trim()}>
+            <Button variant="ghost" onClick={performSave} disabled={!canSave || !commitMessage.trim()}>
               {saving ? "Сохранение..." : "Сохранить"}
             </Button>
           </DialogFooter>
@@ -1290,10 +1263,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setResetConfirmOpen(false)}>
+            <Button variant="ghost" onClick={() => setResetConfirmOpen(false)}>
               Назад
             </Button>
-            <Button variant="destructive" onClick={cancelAllChanges}>
+            <Button variant="ghost" onClick={cancelAllChanges}>
               Сбросить
             </Button>
           </DialogFooter>
@@ -1307,10 +1280,10 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             <DialogDescription>{deleteTarget?.description}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
               Отмена
             </Button>
-            <Button variant="destructive" onClick={confirmDeleteTarget}>
+            <Button variant="ghost" onClick={confirmDeleteTarget}>
               Удалить
             </Button>
           </DialogFooter>
@@ -1386,6 +1359,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 </Select>
                 <Button
                   type="button"
+                  variant="ghost"
                   onClick={addDay}
                   disabled={remainingWeekdays.length === 0}
                 >
@@ -1400,7 +1374,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDayEditorOpen(false)}>
+            <Button variant="ghost" onClick={() => setDayEditorOpen(false)}>
               Готово
             </Button>
           </DialogFooter>
@@ -1422,7 +1396,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             {catalog.map((exercise) => (
               <Button
                 key={exercise.id}
-                variant="outline"
+                variant="ghost"
                 className="h-auto w-full justify-start gap-3 py-3 text-left"
                 onClick={() => {
                   if (exercisePickerIndex == null) return;
@@ -1437,7 +1411,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setExercisePickerIndex(null)}>
+            <Button variant="ghost" onClick={() => setExercisePickerIndex(null)}>
               Отмена
             </Button>
           </DialogFooter>
@@ -1551,16 +1525,16 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           ) : null}
           <DialogFooter className="sm:justify-between">
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setSetEditor(null)}>
+              <Button variant="ghost" onClick={() => setSetEditor(null)}>
                 Отмена
               </Button>
               {setEditor?.setUid ? (
-                <Button variant="destructive" onClick={deleteEditedSet}>
+                <Button variant="ghost" onClick={deleteEditedSet}>
                   Удалить
                 </Button>
               ) : null}
             </div>
-            <Button onClick={saveSetEditor} disabled={!setEditor || !isSetValid(setEditor.draft)}>
+            <Button variant="ghost" onClick={saveSetEditor} disabled={!setEditor || !isSetValid(setEditor.draft)}>
               <Pencil className="h-4 w-4" />
               Сохранить
             </Button>
