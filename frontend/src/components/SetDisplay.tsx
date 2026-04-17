@@ -17,8 +17,15 @@ export function SetDisplay({ set, category }: SetDisplayProps) {
     if (field && oneRepMax) {
       const orm = oneRepMax[field];
       if (orm > 0) {
-        const w = calcWeight(orm, Number(set.load_value));
-        weightLabel = ` (${w % 1 === 0 ? w.toFixed(0) : w}кг)`;
+        const minWeight = calcWeight(orm, Number(set.load_value));
+        const maxWeight =
+          set.load_value_max != null
+            ? calcWeight(orm, Number(set.load_value_max))
+            : null;
+        const formatWeight = (value: number) => (value % 1 === 0 ? value.toFixed(0) : String(value));
+        weightLabel = maxWeight != null && maxWeight !== minWeight
+          ? ` (${formatWeight(minWeight)}-${formatWeight(maxWeight)}кг)`
+          : ` (${formatWeight(minWeight)}кг)`;
       }
     }
   }

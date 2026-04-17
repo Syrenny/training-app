@@ -4,10 +4,13 @@ from .models import (
     AccessoryWeight,
     Day,
     DayExercise,
+    DayTextBlock,
+    DayTextBlockKind,
     Exercise,
     ExerciseSet,
     LoadType,
     OneRepMax,
+    Program,
     Week,
     Weekday,
     WorkoutCompletion,
@@ -41,7 +44,17 @@ class ExerciseSetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ExerciseSet
-        fields = ["id", "order", "load_type", "load_value", "reps", "sets", "display"]
+        fields = [
+            "id",
+            "order",
+            "load_type",
+            "load_value",
+            "load_value_max",
+            "reps",
+            "reps_max",
+            "sets",
+            "display",
+        ]
 
 
 class ExerciseSerializer(serializers.ModelSerializer):
@@ -56,16 +69,23 @@ class DayExerciseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DayExercise
-        fields = ["id", "order", "exercise", "sets", "superset_group"]
+        fields = ["id", "order", "exercise", "sets", "superset_group", "notes"]
+
+
+class DayTextBlockSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DayTextBlock
+        fields = ["kind", "content", "order"]
 
 
 class DaySerializer(serializers.ModelSerializer):
     exercises = DayExerciseSerializer(many=True, read_only=True)
     weekday_display = serializers.CharField(read_only=True)
+    text_blocks = DayTextBlockSerializer(many=True, read_only=True)
 
     class Meta:
         model = Day
-        fields = ["id", "weekday", "weekday_display", "exercises"]
+        fields = ["id", "weekday", "weekday_display", "title", "exercises", "text_blocks"]
 
 
 class WeekListSerializer(serializers.ModelSerializer):
@@ -80,6 +100,12 @@ class WorkoutCompletionSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkoutCompletion
         fields = ["week_number", "weekday", "completed_at"]
+
+
+class ProgramSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Program
+        fields = ["id", "slug", "name", "description"]
 
 
 class AccessoryWeightSerializer(serializers.ModelSerializer):
@@ -106,28 +132,51 @@ class ProgramSetInputSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+    load_value_max = serializers.DecimalField(
+        max_digits=6,
+        decimal_places=1,
+        required=False,
+        allow_null=True,
+    )
     reps = serializers.IntegerField(min_value=1)
+    reps_max = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     sets = serializers.IntegerField(min_value=1)
 
     def validate(self, attrs):
         load_type = attrs["load_type"]
         load_value = attrs.get("load_value")
+        load_value_max = attrs.get("load_value_max")
+        reps_max = attrs.get("reps_max")
         if load_type in (LoadType.PERCENT, LoadType.KG) and load_value is None:
             raise serializers.ValidationError("Для этого типа нагрузки нужно значение.")
         if load_type in (LoadType.INDIVIDUAL, LoadType.BODYWEIGHT) and load_value is not None:
             raise serializers.ValidationError("Для этого типа нагрузки значение не используется.")
+        if load_type in (LoadType.INDIVIDUAL, LoadType.BODYWEIGHT) and load_value_max is not None:
+            raise serializers.ValidationError("Для этого типа нагрузки диапазон не используется.")
+        if load_value is not None and load_value_max is not None and load_value_max < load_value:
+            raise serializers.ValidationError("Максимальная нагрузка не может быть меньше минимальной.")
+        if reps_max is not None and reps_max < attrs["reps"]:
+            raise serializers.ValidationError("Максимум повторений не может быть меньше минимума.")
         return attrs
 
 
 class ProgramExerciseInputSerializer(serializers.Serializer):
     exercise = serializers.PrimaryKeyRelatedField(queryset=Exercise.objects.all())
     superset_group = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    notes = serializers.CharField(required=False, allow_blank=True)
     sets = ProgramSetInputSerializer(many=True, allow_empty=False)
+
+
+class ProgramTextBlockInputSerializer(serializers.Serializer):
+    kind = serializers.ChoiceField(choices=DayTextBlockKind.choices)
+    content = serializers.CharField(allow_blank=False)
 
 
 class ProgramDayInputSerializer(serializers.Serializer):
     weekday = serializers.ChoiceField(choices=Weekday.choices)
+    title = serializers.CharField(required=False, allow_blank=True, max_length=200)
     exercises = ProgramExerciseInputSerializer(many=True, required=False)
+    text_blocks = ProgramTextBlockInputSerializer(many=True, required=False)
 
 
 class ProgramWeekInputSerializer(serializers.Serializer):
@@ -160,15 +209,26 @@ class ProgramSnapshotInputSerializer(serializers.Serializer):
                     "days": [
                         {
                             "weekday": day["weekday"],
+                            "title": day.get("title", ""),
+                            "text_blocks": [
+                                {
+                                    "kind": item["kind"],
+                                    "content": item["content"],
+                                }
+                                for item in day.get("text_blocks", [])
+                            ],
                             "exercises": [
                                 {
                                     "exercise_id": exercise["exercise"].id,
                                     "superset_group": exercise.get("superset_group"),
+                                    "notes": exercise.get("notes", ""),
                                     "sets": [
                                         {
                                             "load_type": set_item["load_type"],
                                             "load_value": decimal_to_json(set_item.get("load_value")),
+                                            "load_value_max": decimal_to_json(set_item.get("load_value_max")),
                                             "reps": set_item["reps"],
+                                            "reps_max": set_item.get("reps_max"),
                                             "sets": set_item["sets"],
                                         }
                                         for set_item in exercise["sets"]

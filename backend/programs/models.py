@@ -25,6 +25,14 @@ class UserProfile(models.Model):
         default="",
         verbose_name="URL фото Telegram",
     )
+    selected_program = models.ForeignKey(
+        "Program",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="selected_by_users",
+        verbose_name="Выбранная программа",
+    )
 
     class Meta:
         verbose_name = "Профиль пользователя"
@@ -78,17 +86,35 @@ class LoadType(models.TextChoices):
     BODYWEIGHT = "BODYWEIGHT", "Собственный вес"
 
 
+class Program(models.Model):
+    slug = models.SlugField(max_length=100, unique=True, verbose_name="Slug")
+    name = models.CharField(max_length=200, unique=True, verbose_name="Название")
+    description = models.TextField(blank=True, default="", verbose_name="Описание")
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Программа"
+        verbose_name_plural = "Программы"
+
+    def __str__(self):
+        return self.name
+
+
 class Week(models.Model):
-    number = models.PositiveIntegerField(unique=True, verbose_name="Номер недели")
+    program = models.ForeignKey(
+        Program, on_delete=models.CASCADE, related_name="weeks", verbose_name="Программа"
+    )
+    number = models.PositiveIntegerField(verbose_name="Номер недели")
     title = models.CharField(max_length=100, blank=True, verbose_name="Название")
 
     class Meta:
         ordering = ["number"]
+        unique_together = [("program", "number")]
         verbose_name = "Неделя"
         verbose_name_plural = "Недели"
 
     def __str__(self):
-        return self.title or f"Неделя {self.number}"
+        return f"{self.program.name}: {self.title or f'Неделя {self.number}'}"
 
 
 class Day(models.Model):
@@ -99,6 +125,7 @@ class Day(models.Model):
         max_length=3, choices=Weekday.choices, verbose_name="День недели"
     )
     order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
+    title = models.CharField(max_length=200, blank=True, default="", verbose_name="Заголовок")
 
     class Meta:
         ordering = ["order"]
@@ -149,6 +176,7 @@ class DayExercise(models.Model):
     superset_group = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Группа суперсета"
     )
+    notes = models.TextField(blank=True, default="", verbose_name="Заметки")
 
     class Meta:
         ordering = ["order"]
@@ -161,6 +189,14 @@ class DayExercise(models.Model):
 
 class WorkoutCompletion(models.Model):
     telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="completions",
+        verbose_name="Программа",
+        null=True,
+        blank=True,
+    )
     day = models.ForeignKey(
         Day,
         on_delete=models.CASCADE,
@@ -184,7 +220,7 @@ class WorkoutCompletion(models.Model):
     completed_at = models.DateTimeField(auto_now_add=True, verbose_name="Завершено")
 
     class Meta:
-        unique_together = [("telegram_id", "week_number", "weekday")]
+        unique_together = [("telegram_id", "program", "week_number", "weekday")]
         verbose_name = "Завершение тренировки"
         verbose_name_plural = "Завершения тренировок"
 
@@ -199,6 +235,14 @@ class WorkoutCompletion(models.Model):
 
 class ProgramSnapshot(models.Model):
     telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="snapshots",
+        verbose_name="Программа",
+        null=True,
+        blank=True,
+    )
     version = models.PositiveIntegerField(verbose_name="Версия")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
     commit_message = models.CharField(
@@ -216,7 +260,7 @@ class ProgramSnapshot(models.Model):
 
     class Meta:
         ordering = ["-version"]
-        unique_together = [("telegram_id", "version")]
+        unique_together = [("telegram_id", "program", "version")]
         verbose_name = "Снапшот программы"
         verbose_name_plural = "Снапшоты программы"
 
@@ -276,7 +320,19 @@ class ExerciseSet(models.Model):
         blank=True,
         verbose_name="Значение нагрузки",
     )
+    load_value_max = models.DecimalField(
+        max_digits=6,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        verbose_name="Максимальное значение нагрузки",
+    )
     reps = models.PositiveIntegerField(verbose_name="Повторения")
+    reps_max = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Максимум повторений",
+    )
     sets = models.PositiveIntegerField(default=1, verbose_name="Подходы")
     order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
 
@@ -292,25 +348,57 @@ class ExerciseSet(models.Model):
     def display(self):
         parts = []
         if self.load_type == LoadType.PERCENT:
-            value = (
-                int(self.load_value)
-                if self.load_value == int(self.load_value)
-                else self.load_value
-            )
-            parts.append(f"{value}%")
+            value = self._format_load_value(self.load_value)
+            max_value = self._format_load_value(self.load_value_max)
+            parts.append(f"{value}-{max_value}%" if max_value is not None else f"{value}%")
         elif self.load_type == LoadType.KG:
-            value = (
-                int(self.load_value)
-                if self.load_value == int(self.load_value)
-                else self.load_value
-            )
-            parts.append(f"{value}кг")
+            value = self._format_load_value(self.load_value)
+            max_value = self._format_load_value(self.load_value_max)
+            parts.append(f"{value}-{max_value}кг" if max_value is not None else f"{value}кг")
         elif self.load_type == LoadType.INDIVIDUAL:
             parts.append("🏋")
 
-        parts.append(str(self.reps))
+        parts.append(
+            f"{self.reps}-{self.reps_max}" if self.reps_max and self.reps_max != self.reps else str(self.reps)
+        )
 
         if self.sets > 1:
             parts.append(str(self.sets))
 
         return "×".join(parts)
+
+    @staticmethod
+    def _format_load_value(value):
+        if value is None:
+            return None
+        return int(value) if value == int(value) else value
+
+
+class DayTextBlockKind(models.TextChoices):
+    REST = "REST", "День отдыха"
+    INFO = "INFO", "Информация"
+
+
+class DayTextBlock(models.Model):
+    day = models.ForeignKey(
+        Day,
+        on_delete=models.CASCADE,
+        related_name="text_blocks",
+        verbose_name="После дня",
+    )
+    kind = models.CharField(
+        max_length=10,
+        choices=DayTextBlockKind.choices,
+        default=DayTextBlockKind.INFO,
+        verbose_name="Тип",
+    )
+    content = models.TextField(verbose_name="Текст")
+    order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
+
+    class Meta:
+        ordering = ["order", "id"]
+        verbose_name = "Текстовый блок дня"
+        verbose_name_plural = "Текстовые блоки дня"
+
+    def __str__(self):
+        return f"{self.day}: {self.get_kind_display()}"

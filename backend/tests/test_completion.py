@@ -1,13 +1,17 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from programs.models import Week, Weekday, WorkoutCompletion
+from programs.models import Program, Week, Weekday, WorkoutCompletion
 
 
 class CompletionAPITest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.week = Week.objects.create(number=1, title="Неделя 1")
+        cls.program, _ = Program.objects.get_or_create(
+            slug="base-program",
+            defaults={"name": "Базовая программа"},
+        )
+        cls.week = Week.objects.create(program=cls.program, number=1, title="Неделя 1")
 
     def setUp(self):
         self.client = APIClient()
@@ -25,6 +29,7 @@ class CompletionAPITest(TestCase):
         """GET returns week/day coordinates for the current user."""
         WorkoutCompletion.objects.create(
             telegram_id=42,
+            program=self.program,
             week_number=1,
             weekday=Weekday.MON,
         )
@@ -46,6 +51,7 @@ class CompletionAPITest(TestCase):
         """GET does not return another user's completions."""
         WorkoutCompletion.objects.create(
             telegram_id=99,
+            program=self.program,
             week_number=1,
             weekday=Weekday.MON,
         )
@@ -65,6 +71,7 @@ class CompletionAPITest(TestCase):
         self.assertTrue(
             WorkoutCompletion.objects.filter(
                 telegram_id=42,
+                program=self.program,
                 week_number=1,
                 weekday=Weekday.MON,
             ).exists()
@@ -78,6 +85,7 @@ class CompletionAPITest(TestCase):
         self.assertEqual(
             WorkoutCompletion.objects.filter(
                 telegram_id=42,
+                program=self.program,
                 week_number=1,
                 weekday=Weekday.MON,
             ).count(),
@@ -95,6 +103,7 @@ class CompletionAPITest(TestCase):
         """DELETE removes an existing completion and returns 204."""
         WorkoutCompletion.objects.create(
             telegram_id=42,
+            program=self.program,
             week_number=1,
             weekday=Weekday.MON,
         )
@@ -103,6 +112,7 @@ class CompletionAPITest(TestCase):
         self.assertFalse(
             WorkoutCompletion.objects.filter(
                 telegram_id=42,
+                program=self.program,
                 week_number=1,
                 weekday=Weekday.MON,
             ).exists()
@@ -121,12 +131,19 @@ class CompletionAPITest(TestCase):
     def test_delete_all_resets_completions(self):
         WorkoutCompletion.objects.create(
             telegram_id=42,
+            program=self.program,
             week_number=1,
             weekday=Weekday.MON,
         )
         response = self.client.delete("/api/completions/")
         self.assertEqual(response.status_code, 204)
-        self.assertEqual(WorkoutCompletion.objects.filter(telegram_id=42).count(), 0)
+        self.assertEqual(
+            WorkoutCompletion.objects.filter(
+                telegram_id=42,
+                program=self.program,
+            ).count(),
+            0,
+        )
 
     # --- Auth ---
 

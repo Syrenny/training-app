@@ -136,7 +136,9 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 							<SwiperSlide key={day.weekday} className='h-full'>
 								<div className='hide-scrollbar h-full overflow-y-auto overscroll-y-contain'>
 									<ExerciseList
+										title={day.title}
 										exercises={day.exercises}
+										textBlocks={day.text_blocks}
 										weekNumber={weekNumber}
 										weekday={day.weekday}
 									/>

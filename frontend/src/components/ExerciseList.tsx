@@ -3,7 +3,7 @@ import { SupersetCard } from "./SupersetCard";
 import { CompletionButton } from "./CompletionButton";
 import { WorkoutSummaryCard } from "./WorkoutSummaryCard";
 import { Card, CardContent } from "@/components/ui/card";
-import type { DayExerciseData } from "@/lib/api";
+import type { DayExerciseData, DayTextBlockData } from "@/lib/api";
 import { completionKey, useProgramStore } from "@/lib/store";
 
 type ExerciseItem =
@@ -39,12 +39,14 @@ function groupExercises(exercises: DayExerciseData[]): ExerciseItem[] {
 }
 
 interface ExerciseListProps {
+  title: string;
   exercises: DayExerciseData[];
+  textBlocks: DayTextBlockData[];
   weekNumber: number;
   weekday: string;
 }
 
-export function ExerciseList({ exercises, weekNumber, weekday }: ExerciseListProps) {
+export function ExerciseList({ title, exercises, textBlocks, weekNumber, weekday }: ExerciseListProps) {
   const completions = useProgramStore((s) => s.completions);
   const toggleCompletion = useProgramStore((s) => s.toggleCompletion);
 
@@ -56,14 +58,17 @@ export function ExerciseList({ exercises, weekNumber, weekday }: ExerciseListPro
     <div>
       <Card className="mb-5 gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none">
         <CardContent className="px-4 py-3">
+          {title ? (
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {title}
+            </p>
+          ) : null}
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1">
-          {exercises.length > 0 ? (
-            <WorkoutSummaryCard
-              exercises={exercises}
-            />
-          ) : (
-            <p className="text-sm text-muted-foreground">
+              {exercises.length > 0 ? (
+                <WorkoutSummaryCard exercises={exercises} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
                   В этой тренировке пока нет упражнений.
                 </p>
               )}
@@ -99,6 +104,22 @@ export function ExerciseList({ exercises, weekNumber, weekday }: ExerciseListPro
           )}
         </div>
       )}
+      {textBlocks.length > 0 ? (
+        <div className="mt-4 space-y-3">
+          {textBlocks.map((block, index) => (
+            <div
+              key={`${block.kind}:${index}`}
+              className={
+                block.kind === "REST"
+                  ? "rounded-2xl bg-muted px-4 py-3 text-sm font-medium text-foreground"
+                  : "rounded-2xl bg-green-600/15 px-4 py-3 text-sm text-foreground"
+              }
+            >
+              {block.content}
+            </div>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

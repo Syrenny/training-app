@@ -71,6 +71,11 @@ export function SupersetCard({ exercises, displayOrder }: SupersetCardProps) {
                     : `${tonnage}кг`}
                 </p>
               )}
+              {dayExercise.notes ? (
+                <p className="mt-2 text-sm leading-5 text-muted-foreground">
+                  {dayExercise.notes}
+                </p>
+              ) : null}
               {dayExercise.exercise.category === "ACCESSORY" && (
                 <AccessoryWeightInput
                   exerciseId={dayExercise.exercise.id}

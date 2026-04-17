@@ -9,6 +9,7 @@ from programs.models import (
     ExerciseCategory,
     ExerciseSet,
     LoadType,
+    Program,
     Week,
     Weekday,
 )
@@ -17,7 +18,11 @@ from programs.models import (
 class ExerciseSetDisplayTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.week = Week.objects.create(number=1)
+        cls.program, _ = Program.objects.get_or_create(
+            slug="base-program",
+            defaults={"name": "Базовая программа"},
+        )
+        cls.week = Week.objects.create(program=cls.program, number=1)
         cls.day = Day.objects.create(week=cls.week, weekday=Weekday.MON, order=1)
         cls.exercise = Exercise.objects.create(
             name="Приседания", category=ExerciseCategory.SQUAT
@@ -112,3 +117,23 @@ class ExerciseSetDisplayTest(TestCase):
             load_type=LoadType.KG, load_value=Decimal("2.5"), reps=20, sets=4
         )
         self.assertEqual(s.display, "2.5кг×20×4")
+
+    def test_percent_range_display(self):
+        s = self._create_set(
+            load_type=LoadType.PERCENT,
+            load_value=Decimal("75"),
+            load_value_max=Decimal("80"),
+            reps=5,
+            sets=1,
+        )
+        self.assertEqual(s.display, "75-80%×5")
+
+    def test_rep_range_display(self):
+        s = self._create_set(
+            load_type=LoadType.INDIVIDUAL,
+            load_value=None,
+            reps=8,
+            reps_max=10,
+            sets=3,
+        )
+        self.assertEqual(s.display, "🏋×8-10×3")

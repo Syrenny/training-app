@@ -1,10 +1,11 @@
 import type { AuthUser } from "@/lib/api";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { LogOut, RotateCcw } from "lucide-react";
 import { OneRepMaxPage } from "@/components/OneRepMaxPage";
 import { useProgramStore } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ProfilePageProps {
   user: AuthUser;
@@ -18,12 +19,28 @@ function getInitial(userName?: string, username?: string) {
 
 export function ProfilePage({ user, onLogout }: ProfilePageProps) {
   const fullName = [user.first_name, user.last_name].filter(Boolean).join(" ").trim();
+  const programs = useProgramStore((s) => s.programs);
+  const selectedProgram = useProgramStore((s) => s.selectedProgram);
+  const fetchPrograms = useProgramStore((s) => s.fetchPrograms);
+  const fetchProgram = useProgramStore((s) => s.fetchProgram);
+  const selectProgram = useProgramStore((s) => s.selectProgram);
   const resetCompletions = useProgramStore((s) => s.resetCompletions);
   const [resetNotice, setResetNotice] = useState<string | null>(null);
+  const [programNotice, setProgramNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    void Promise.all([fetchPrograms(), fetchProgram()]);
+  }, [fetchPrograms, fetchProgram]);
 
   async function handleResetCompletions() {
     await resetCompletions();
     setResetNotice("Отметки выполнения сброшены.");
+  }
+
+  async function handleProgramChange(value: string) {
+    await selectProgram(Number(value));
+    setProgramNotice("Программа переключена.");
+    setResetNotice(null);
   }
 
   return (
@@ -66,6 +83,39 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
           </Card>
 
           <OneRepMaxPage />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Программа</CardTitle>
+              <CardDescription>
+                Выбранная программа используется на главном экране и для отметок выполнения.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Select
+                value={selectedProgram ? String(selectedProgram.id) : undefined}
+                onValueChange={handleProgramChange}
+                disabled={programs.length === 0}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Выберите программу" />
+                </SelectTrigger>
+                <SelectContent>
+                  {programs.map((program) => (
+                    <SelectItem key={program.id} value={String(program.id)}>
+                      {program.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedProgram?.description ? (
+                <p className="text-sm text-muted-foreground">{selectedProgram.description}</p>
+              ) : null}
+              {programNotice ? (
+                <p className="text-sm text-muted-foreground">{programNotice}</p>
+              ) : null}
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>

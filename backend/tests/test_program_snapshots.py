@@ -1,13 +1,17 @@
 from django.test import TestCase
 from rest_framework.test import APIClient
 
-from programs.models import Day, DayExercise, Exercise, ExerciseCategory, ExerciseSet, LoadType, ProgramSnapshot, Week, Weekday
+from programs.models import Day, DayExercise, Exercise, ExerciseCategory, ExerciseSet, LoadType, Program, ProgramSnapshot, Week, Weekday
 
 
 class ProgramSnapshotAPITest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.week = Week.objects.create(number=1, title="1 неделя")
+        cls.program, _ = Program.objects.get_or_create(
+            slug="base-program",
+            defaults={"name": "Базовая программа"},
+        )
+        cls.week = Week.objects.create(program=cls.program, number=1, title="1 неделя")
         cls.day = Day.objects.create(week=cls.week, weekday=Weekday.MON, order=1)
         cls.squat = Exercise.objects.create(
             name="Приседания",
@@ -38,6 +42,7 @@ class ProgramSnapshotAPITest(TestCase):
         data = response.json()
         self.assertIsNone(data["version"])
         self.assertIsNone(data["commit_message"])
+        self.assertEqual(data["program"]["name"], "Базовая программа")
         self.assertEqual(len(data["weeks"]), 1)
         self.assertEqual(data["weeks"][0]["days"][0]["weekday"], "MON")
         self.assertEqual(data["weeks"][0]["days"][0]["exercises"][0]["exercise"]["name"], "Приседания")
@@ -113,7 +118,7 @@ class ProgramSnapshotAPITest(TestCase):
         self.assertEqual(response.status_code, 201)
         self.assertEqual(response.json()["version"], 1)
         self.assertEqual(response.json()["commit_message"], "Добавил вторник")
-        snapshot = ProgramSnapshot.objects.get(telegram_id=42, version=1)
+        snapshot = ProgramSnapshot.objects.get(telegram_id=42, program=self.program, version=1)
         self.assertEqual(snapshot.commit_message, "Добавил вторник")
         self.assertEqual(snapshot.payload["weeks"][0]["days"][0]["weekday"], "TUE")
 

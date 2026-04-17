@@ -129,7 +129,9 @@ export interface ExerciseSetData {
   order: number;
   load_type: "PERCENT" | "KG" | "INDIVIDUAL" | "BODYWEIGHT";
   load_value: number | null;
+  load_value_max: number | null;
   reps: number;
+  reps_max: number | null;
   sets: number;
   display: string;
 }
@@ -146,6 +148,12 @@ export interface DayExerciseData {
   exercise: ExerciseData;
   sets: ExerciseSetData[];
   superset_group: number | null;
+  notes: string;
+}
+
+export interface DayTextBlockData {
+  kind: "REST" | "INFO";
+  content: string;
 }
 
 export interface DayData {
@@ -153,7 +161,9 @@ export interface DayData {
   order: number;
   weekday: string;
   weekday_display: string;
+  title: string;
   exercises: DayExerciseData[];
+  text_blocks: DayTextBlockData[];
 }
 
 export interface WeekListItem {
@@ -166,7 +176,15 @@ export interface WeekDetailData extends WeekListItem {
   days: DayData[];
 }
 
+export interface ProgramSummary {
+  id: number;
+  slug: string;
+  name: string;
+  description: string;
+}
+
 export interface ProgramData {
+  program: ProgramSummary | null;
   version: number | null;
   updated_at: string | null;
   commit_message: string | null;
@@ -176,19 +194,29 @@ export interface ProgramData {
 export interface ProgramSetInput {
   load_type: "PERCENT" | "KG" | "INDIVIDUAL" | "BODYWEIGHT";
   load_value: number | null;
+  load_value_max?: number | null;
   reps: number;
+  reps_max?: number | null;
   sets: number;
 }
 
 export interface ProgramExerciseInput {
   exercise: number;
   superset_group: number | null;
+  notes?: string;
   sets: ProgramSetInput[];
+}
+
+export interface ProgramTextBlockInput {
+  kind: "REST" | "INFO";
+  content: string;
 }
 
 export interface ProgramDayInput {
   weekday: string;
+  title?: string;
   exercises: ProgramExerciseInput[];
+  text_blocks?: ProgramTextBlockInput[];
 }
 
 export interface ProgramWeekInput {
@@ -245,6 +273,14 @@ export interface AccessoryWeightRecord {
 
 export function fetchProgram(): Promise<ProgramData> {
   return fetchApi<ProgramData>("/program/");
+}
+
+export function fetchPrograms(): Promise<ProgramSummary[]> {
+  return fetchApi<ProgramSummary[]>("/programs/");
+}
+
+export function updateSelectedProgram(programId: number): Promise<ProgramSummary> {
+  return putApi<ProgramSummary>("/programs/selected/", { program_id: programId });
 }
 
 export function fetchOriginalProgram(): Promise<ProgramData> {

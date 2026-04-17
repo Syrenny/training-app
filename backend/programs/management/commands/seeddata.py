@@ -3,11 +3,14 @@ from django.core.management.base import BaseCommand
 from programs.models import (
     Day,
     DayExercise,
+    DayTextBlock,
+    DayTextBlockKind,
     Exercise,
     ExerciseCategory,
     ExerciseSet,
     LoadType,
     OneRepMax,
+    Program,
     Week,
 )
 
@@ -19,6 +22,8 @@ S = ExerciseCategory.SQUAT
 B = ExerciseCategory.BENCH
 D = ExerciseCategory.DEADLIFT
 A = ExerciseCategory.ACCESSORY
+REST = DayTextBlockKind.REST
+INFO = DayTextBlockKind.INFO
 
 # fmt: off
 WEEK_1 = {
@@ -311,11 +316,312 @@ ALL_WEEKS = {
     10: ("10 неделя", WEEK_10),
 }
 
+
+def set_item(load_type, load_value, reps, sets, *, load_value_max=None, reps_max=None):
+    return {
+        "load_type": load_type,
+        "load_value": load_value,
+        "load_value_max": load_value_max,
+        "reps": reps,
+        "reps_max": reps_max,
+        "sets": sets,
+    }
+
+
+def build_notes(warmup_sets, note, *, rpe=None):
+    parts = [f"Разминочные подходы: {warmup_sets}."]
+    if rpe not in (None, "N/A"):
+        parts.append(f"RPE: {str(rpe).replace('.', ',')}.")
+    parts.append(note)
+    return " ".join(parts)
+
+
+POWERBUILDING_WEEK_1 = {
+    1: {
+        "title": "1 неделя",
+        "days": [
+            {
+                "weekday": "MON",
+                "title": "Фулбоди 1: присед, жим стоя",
+                "exercises": [
+                    {
+                        "name": "Приседания со штангой на спине",
+                        "category": S,
+                        "sets": [set_item(P, 75, 5, 1, load_value_max=80)],
+                        "notes": build_notes(
+                            4,
+                            "Сконцентрируйтесь на технике и взрывном усилии.",
+                            rpe=7.5,
+                        ),
+                    },
+                    {
+                        "name": "Приседания со штангой на спине",
+                        "category": S,
+                        "sets": [set_item(P, 70, 8, 2)],
+                        "notes": build_notes(
+                            0,
+                            "Сохраняйте одинаковый наклон корпуса и технику во всех повторениях.",
+                        ),
+                    },
+                    {
+                        "name": "Жим штанги стоя",
+                        "category": B,
+                        "sets": [set_item(P, 70, 8, 3)],
+                        "notes": build_notes(
+                            2,
+                            "Полностью перезапускайте каждое повторение, без touch-and-press.",
+                        ),
+                    },
+                    {
+                        "name": "Подъем корпуса в GHR",
+                        "category": A,
+                        "sets": [set_item(I, None, 8, 3, reps_max=10)],
+                        "notes": build_notes(
+                            1,
+                            "Держите таз ровно. Если нет тренажера GHR, замените на нордические сгибания.",
+                            rpe=7,
+                        ),
+                    },
+                    {
+                        "name": "Тяга Хелмса",
+                        "category": A,
+                        "sets": [set_item(I, None, 12, 3, reps_max=15)],
+                        "notes": build_notes(
+                            1,
+                            "Строгая техника. Ведите локти вверх и назад примерно под углом 45 градусов.",
+                            rpe=9,
+                        ),
+                    },
+                    {
+                        "name": "Молотковые сгибания на бицепс",
+                        "category": A,
+                        "sets": [set_item(I, None, 20, 3, reps_max=25)],
+                        "notes": build_notes(
+                            0,
+                            "Держите локти зафиксированными и сильно сжимайте рукоять гантели.",
+                            rpe=10,
+                        ),
+                    },
+                ],
+            },
+            {
+                "weekday": "TUE",
+                "title": "Фулбоди 2: тяга, жим лежа",
+                "exercises": [
+                    {
+                        "name": "Становая тяга",
+                        "category": D,
+                        "sets": [set_item(P, 80, 4, 3)],
+                        "notes": build_notes(
+                            4,
+                            "Тяните классикой или сумо, в зависимости от того, где вы сильнее.",
+                        ),
+                    },
+                    {
+                        "name": "Жим штанги лежа",
+                        "category": B,
+                        "sets": [set_item(P, 82.5, 3, 1, load_value_max=87.5)],
+                        "notes": build_notes(
+                            4,
+                            "Топ-сет. Оставляйте 1, максимум 2 повтора в запасе. Тяжелый подход.",
+                            rpe=8.5,
+                        ),
+                    },
+                    {
+                        "name": "Жим штанги лежа",
+                        "category": B,
+                        "sets": [set_item(P, 67.5, 10, 2)],
+                        "notes": build_notes(
+                            0,
+                            "На каждом повторении делайте быструю паузу на груди примерно в 1 секунду.",
+                        ),
+                    },
+                    {
+                        "name": "Отведение бедра",
+                        "category": A,
+                        "sets": [set_item(I, None, 15, 3, reps_max=20)],
+                        "notes": build_notes(
+                            0,
+                            "Можно делать в тренажере, с резинкой или с отягощением. Вверху удерживайте 1 секунду.",
+                            rpe=9,
+                        ),
+                    },
+                    {
+                        "name": "Подтягивания с весом",
+                        "category": A,
+                        "sets": [set_item(I, None, 5, 3, reps_max=8)],
+                        "notes": build_notes(
+                            1,
+                            "Хват примерно в полтора раза шире плеч, тянитесь грудью к перекладине.",
+                            rpe=8,
+                        ),
+                    },
+                    {
+                        "name": "Французский жим лежа на полу",
+                        "category": A,
+                        "sets": [set_item(I, None, 10, 3, reps_max=12)],
+                        "notes": build_notes(
+                            1,
+                            "Уводите штангу за голову, слегка касайтесь пола за собой в нижней точке.",
+                            rpe=8,
+                        ),
+                    },
+                    {
+                        "name": "Подъем на носки стоя",
+                        "category": A,
+                        "sets": [set_item(I, None, 8, 3, reps_max=10)],
+                        "notes": build_notes(
+                            1,
+                            "Внизу делайте паузу 1-2 секунды и работайте в полной амплитуде.",
+                            rpe=9,
+                        ),
+                    },
+                ],
+                "text_blocks": [
+                    {
+                        "kind": REST,
+                        "content": "Рекомендуемый день отдыха: 1-2 дня без тренировок, в зависимости от вашего расписания.",
+                    },
+                ],
+            },
+            {
+                "weekday": "THU",
+                "title": "Фулбоди 3: присед, брусья",
+                "exercises": [
+                    {
+                        "name": "Приседания со штангой на спине",
+                        "category": S,
+                        "sets": [set_item(P, 80, 4, 3)],
+                        "notes": build_notes(
+                            4,
+                            "Сохраняйте плотное давление верхом спины в штангу.",
+                        ),
+                    },
+                    {
+                        "name": "Отжимания на брусьях с весом",
+                        "category": A,
+                        "sets": [set_item(I, None, 8, 3)],
+                        "notes": build_notes(
+                            2,
+                            "Если нет доступа к брусьям, замените на жим гантелей лежа на полу.",
+                            rpe=8,
+                        ),
+                    },
+                    {
+                        "name": "Подъем ног в висе",
+                        "category": A,
+                        "sets": [set_item(BW, None, 10, 3, reps_max=12)],
+                        "notes": build_notes(
+                            0,
+                            "Подтягивайте колени к груди, двигайтесь подконтрольно. Для усложнения сильнее выпрямляйте ноги.",
+                            rpe=9,
+                        ),
+                    },
+                    {
+                        "name": "Пуловер на широчайшие",
+                        "category": A,
+                        "sets": [set_item(I, None, 12, 3, reps_max=15)],
+                        "notes": build_notes(
+                            1,
+                            "Можно делать с гантелью, на блоке с канатом или с резинкой. Растягивайте и прожимайте широчайшие.",
+                            rpe=8,
+                        ),
+                    },
+                    {
+                        "name": "Сгибание рук с гантелями на наклонной скамье",
+                        "category": A,
+                        "sets": [set_item(I, None, 12, 3, reps_max=15)],
+                        "notes": build_notes(
+                            1,
+                            "Делайте по одной руке, а не поочередно, и начинайте со слабой руки.",
+                            rpe=9,
+                        ),
+                    },
+                    {
+                        "name": "Тяга к лицу",
+                        "category": A,
+                        "sets": [set_item(I, None, 15, 4, reps_max=20)],
+                        "notes": build_notes(
+                            0,
+                            "Можно использовать блок с канатом или резинку. Ведя движение, сводите лопатки.",
+                            rpe=9,
+                        ),
+                    },
+                ],
+            },
+            {
+                "weekday": "FRI",
+                "title": "Фулбоди 4: тяга, жим лежа",
+                "exercises": [
+                    {
+                        "name": "Становая тяга с паузой",
+                        "category": D,
+                        "sets": [set_item(P, 75, 2, 4)],
+                        "notes": build_notes(
+                            4,
+                            "Делайте паузу на 3 секунды сразу после отрыва блинов от пола.",
+                        ),
+                    },
+                    {
+                        "name": "Жим штанги лежа с паузой",
+                        "category": B,
+                        "sets": [set_item(P, 75, 5, 3)],
+                        "notes": build_notes(
+                            3,
+                            "Фиксируйте штангу на груди на 2-3 секунды.",
+                        ),
+                    },
+                    {
+                        "name": "Тяга T-грифа с упором грудью или тяга Пендлея",
+                        "category": A,
+                        "sets": [set_item(I, None, 10, 3)],
+                        "notes": build_notes(
+                            1,
+                            "Следите, чтобы не перегружать поясницу. Работайте легко и минимизируйте читинг.",
+                            rpe=7,
+                        ),
+                    },
+                    {
+                        "name": "Нордические сгибания",
+                        "category": A,
+                        "sets": [set_item(BW, None, 6, 3, reps_max=8)],
+                        "notes": build_notes(
+                            0,
+                            "При необходимости замените на сгибания ног лежа.",
+                            rpe=8,
+                        ),
+                    },
+                    {
+                        "name": "Шраги с гантелями",
+                        "category": A,
+                        "sets": [set_item(I, None, 20, 3, reps_max=25)],
+                        "notes": build_notes(
+                            0,
+                            "Внизу почувствуйте растяжение трапеций, вверху сильно сократите их.",
+                            rpe=9,
+                        ),
+                    },
+                ],
+                "text_blocks": [
+                    {
+                        "kind": REST,
+                        "content": "Рекомендуемый день отдыха: 1-2 дня без тренировок, в зависимости от вашего расписания.",
+                    },
+                    {
+                        "kind": INFO,
+                        "content": "Если у вас есть возможность добавить пятый тренировочный день и вы хотите сделать акцент на гипертрофии рук, можно добавить отдельный день рук и гипертрофии.",
+                    },
+                ],
+            },
+        ],
+    }
+}
+
 WEEKDAY_ORDER = {"MON": 1, "WED": 2, "FRI": 3}
 
 
 class Command(BaseCommand):
-    help = "Seed the database with the full 10-week training program from PDF reference"
+    help = "Seed the database with all bundled training programs"
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -334,17 +640,52 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING("Deleting all existing program data...")
             )
-            Week.objects.all().delete()
+            Program.objects.all().delete()
 
+        base_program, _ = Program.objects.get_or_create(
+            slug="base-program",
+            defaults={"name": "Базовая программа"},
+        )
+        powerbuilding_program, _ = Program.objects.get_or_create(
+            slug="jeff-nippard-powerbuilding",
+            defaults={"name": "Jeff Nippard Powerbuilding"},
+        )
+
+        base_created, base_skipped = self.seed_legacy_program(base_program, ALL_WEEKS)
+        power_created, power_skipped = self.seed_structured_program(
+            powerbuilding_program,
+            POWERBUILDING_WEEK_1,
+        )
+
+        self.stdout.write(
+            self.style.SUCCESS(
+                "Done: "
+                f"базовая программа — {base_created} недель создано, {base_skipped} пропущено; "
+                f"Jeff Nippard Powerbuilding — {power_created} недель создано, {power_skipped} пропущено"
+            )
+        )
+
+        if options["dev_user"]:
+            OneRepMax.objects.update_or_create(
+                telegram_id=1,
+                defaults={"bench": 100, "squat": 120, "deadlift": 140},
+            )
+            self.stdout.write(self.style.SUCCESS("Dev user OneRepMax created/updated (telegram_id=1)"))
+
+    def seed_legacy_program(self, program, weeks_data):
         created_count = 0
         skipped_count = 0
 
-        for week_number, (title, days_data) in ALL_WEEKS.items():
+        for week_number, (title, days_data) in weeks_data.items():
             week, created = Week.objects.get_or_create(
-                number=week_number, defaults={"title": title}
+                program=program,
+                number=week_number,
+                defaults={"title": title},
             )
             if not created:
-                self.stdout.write(f"  Week {week_number} already exists, skipping")
+                self.stdout.write(
+                    f"  {program.name}: неделя {week_number} уже существует, пропускаю"
+                )
                 skipped_count += 1
                 continue
 
@@ -365,7 +706,9 @@ class Command(BaseCommand):
                         name=ex_name, defaults={"category": ex_category}
                     )
                     day_exercise = DayExercise.objects.create(
-                        day=day, exercise=exercise, order=ex_order,
+                        day=day,
+                        exercise=exercise,
+                        order=ex_order,
                         superset_group=superset_group,
                     )
 
@@ -382,17 +725,69 @@ class Command(BaseCommand):
                         )
 
             created_count += 1
-            self.stdout.write(f"  Week {week_number} created")
+            self.stdout.write(f"  {program.name}: неделя {week_number} создана")
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Done: {created_count} weeks created, {skipped_count} skipped"
-            )
-        )
+        return created_count, skipped_count
 
-        if options["dev_user"]:
-            OneRepMax.objects.update_or_create(
-                telegram_id=1,
-                defaults={"bench": 100, "squat": 120, "deadlift": 140},
+    def seed_structured_program(self, program, weeks_data):
+        created_count = 0
+        skipped_count = 0
+
+        for week_number, week_data in weeks_data.items():
+            week, created = Week.objects.get_or_create(
+                program=program,
+                number=week_number,
+                defaults={"title": week_data["title"]},
             )
-            self.stdout.write(self.style.SUCCESS("Dev user OneRepMax created/updated (telegram_id=1)"))
+            if not created:
+                self.stdout.write(
+                    f"  {program.name}: неделя {week_number} уже существует, пропускаю"
+                )
+                skipped_count += 1
+                continue
+
+            for day_order, day_data in enumerate(week_data["days"], start=1):
+                day = Day.objects.create(
+                    week=week,
+                    weekday=day_data["weekday"],
+                    order=day_order,
+                    title=day_data.get("title", ""),
+                )
+
+                for ex_order, exercise_data in enumerate(day_data.get("exercises", []), start=1):
+                    exercise, _ = Exercise.objects.get_or_create(
+                        name=exercise_data["name"],
+                        defaults={"category": exercise_data["category"]},
+                    )
+                    day_exercise = DayExercise.objects.create(
+                        day=day,
+                        exercise=exercise,
+                        order=ex_order,
+                        superset_group=exercise_data.get("superset_group"),
+                        notes=exercise_data.get("notes", ""),
+                    )
+
+                    for set_order, set_data in enumerate(exercise_data.get("sets", []), start=1):
+                        ExerciseSet.objects.create(
+                            day_exercise=day_exercise,
+                            load_type=set_data["load_type"],
+                            load_value=set_data.get("load_value"),
+                            load_value_max=set_data.get("load_value_max"),
+                            reps=set_data["reps"],
+                            reps_max=set_data.get("reps_max"),
+                            sets=set_data["sets"],
+                            order=set_order,
+                        )
+
+                for block_order, block_data in enumerate(day_data.get("text_blocks", []), start=1):
+                    DayTextBlock.objects.create(
+                        day=day,
+                        kind=block_data["kind"],
+                        content=block_data["content"],
+                        order=block_order,
+                    )
+
+            created_count += 1
+            self.stdout.write(f"  {program.name}: неделя {week_number} создана")
+
+        return created_count, skipped_count

@@ -10,6 +10,7 @@ from programs.models import (
     ExerciseCategory,
     ExerciseSet,
     LoadType,
+    Program,
     Week,
     Weekday,
 )
@@ -18,6 +19,10 @@ from programs.models import (
 class WeekListAPITest(TestCase):
     def setUp(self):
         self.client = APIClient()
+        self.program, _ = Program.objects.get_or_create(
+            slug="base-program",
+            defaults={"name": "Базовая программа"},
+        )
 
     def test_empty_program_returns_empty_list(self):
         """T015: GET /api/weeks/ returns [] when no weeks exist."""
@@ -27,9 +32,9 @@ class WeekListAPITest(TestCase):
 
     def test_returns_all_weeks_ordered(self):
         """T029: GET /api/weeks/ returns all weeks in order."""
-        Week.objects.create(number=2, title="2 неделя")
-        Week.objects.create(number=1, title="1 неделя")
-        Week.objects.create(number=3, title="3 неделя")
+        Week.objects.create(program=self.program, number=2, title="2 неделя")
+        Week.objects.create(program=self.program, number=1, title="1 неделя")
+        Week.objects.create(program=self.program, number=3, title="3 неделя")
 
         response = self.client.get("/api/weeks/")
         self.assertEqual(response.status_code, 200)
@@ -41,7 +46,11 @@ class WeekListAPITest(TestCase):
 class WeekDetailAPITest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.week = Week.objects.create(number=1, title="1 неделя")
+        cls.program, _ = Program.objects.get_or_create(
+            slug="base-program",
+            defaults={"name": "Базовая программа"},
+        )
+        cls.week = Week.objects.create(program=cls.program, number=1, title="1 неделя")
         cls.day = Day.objects.create(
             week=cls.week, weekday=Weekday.MON, order=1
         )

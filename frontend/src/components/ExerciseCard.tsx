@@ -46,6 +46,11 @@ export function ExerciseCard({ dayExercise, displayOrder }: ExerciseCardProps) {
           Тоннаж: {tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)}т` : `${tonnage}кг`}
         </p>
       )}
+      {dayExercise.notes ? (
+        <p className="mt-2 text-sm leading-5 text-muted-foreground">
+          {dayExercise.notes}
+        </p>
+      ) : null}
       {exercise.category === "ACCESSORY" && (
         <AccessoryWeightInput
           exerciseId={exercise.id}

@@ -23,6 +23,7 @@ from .models import (
     AccessoryWeight,
     Exercise,
     OneRepMax,
+    Program,
     ProgramSnapshot,
     Week,
     Weekday,
@@ -32,18 +33,39 @@ from .program_snapshot import (
     build_base_program_payload,
     build_program_response,
     count_program_entities,
+    get_default_program,
     get_latest_snapshot,
     get_program_payload_for_user,
+    merge_program_payload_metadata,
 )
 from .serializers import (
     AccessoryWeightSerializer,
     ExerciseSerializer,
     OneRepMaxSerializer,
+    ProgramSerializer,
     ProgramSnapshotInputSerializer,
     WeekDetailSerializer,
     WeekListSerializer,
     WorkoutCompletionSerializer,
 )
+
+
+def get_active_program(request):
+    default_program = get_default_program()
+    user = getattr(request, "user", None)
+    if not getattr(user, "is_authenticated", False):
+        return default_program
+
+    profile = getattr(user, "profile", None)
+    if profile is None:
+        return default_program
+
+    if profile.selected_program_id is None and default_program is not None:
+        profile.selected_program = default_program
+        profile.save(update_fields=["selected_program"])
+        return default_program
+
+    return profile.selected_program or default_program
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -197,8 +219,9 @@ class CompletionListView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        program = get_active_program(request)
         completions = (
-            WorkoutCompletion.objects.filter(telegram_id=telegram_id)
+            WorkoutCompletion.objects.filter(telegram_id=telegram_id, program=program)
             .select_related("day__week")
             .order_by("completed_at")
         )
@@ -227,7 +250,10 @@ class CompletionListView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        WorkoutCompletion.objects.filter(telegram_id=telegram_id).delete()
+        WorkoutCompletion.objects.filter(
+            telegram_id=telegram_id,
+            program=get_active_program(request),
+        ).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -243,15 +269,20 @@ class CompletionDetailView(APIView):
             )
         if weekday not in Weekday.values:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        program = get_active_program(request)
 
-        completion = WorkoutCompletion.objects.filter(telegram_id=telegram_id).filter(
+        completion = WorkoutCompletion.objects.filter(
+            telegram_id=telegram_id,
+            program=program,
+        ).filter(
             Q(week_number=week_number, weekday=weekday)
-            | Q(day__week__number=week_number, day__weekday=weekday)
+            | Q(day__week__program=program, day__week__number=week_number, day__weekday=weekday)
         ).first()
         created = completion is None
         if completion is None:
             completion = WorkoutCompletion.objects.create(
                 telegram_id=telegram_id,
+                program=program,
                 week_number=week_number,
                 weekday=weekday,
             )
@@ -283,12 +314,14 @@ class CompletionDetailView(APIView):
             )
         if weekday not in Weekday.values:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        program = get_active_program(request)
 
         WorkoutCompletion.objects.filter(
             telegram_id=telegram_id,
+            program=program,
         ).filter(
             Q(week_number=week_number, weekday=weekday)
-            | Q(day__week__number=week_number, day__weekday=weekday)
+            | Q(day__week__program=program, day__week__number=week_number, day__weekday=weekday)
         ).delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
@@ -319,11 +352,9 @@ class AccessoryWeightView(APIView):
 
         week_number = request.data.get("week_number")
         week = None
+        program = get_active_program(request)
         if week_number is not None:
-            try:
-                week = Week.objects.get(number=week_number)
-            except Week.DoesNotExist:
-                pass
+            week = Week.objects.filter(program=program, number=week_number).first()
 
         obj, _ = AccessoryWeight.objects.update_or_create(
             telegram_id=telegram_id,
@@ -397,19 +428,24 @@ class AccessoryWeightHistoryView(APIView):
 
 
 class WeekListView(generics.ListAPIView):
-    queryset = Week.objects.all()
     serializer_class = WeekListSerializer
     permission_classes = [AllowAny]
 
+    def get_queryset(self):
+        return Week.objects.filter(program=get_active_program(self.request))
+
 
 class WeekDetailView(generics.RetrieveAPIView):
-    queryset = Week.objects.prefetch_related(
-        "days__exercises__exercise",
-        "days__exercises__sets",
-    )
     serializer_class = WeekDetailSerializer
     permission_classes = [AllowAny]
     lookup_field = "number"
+
+    def get_queryset(self):
+        return Week.objects.filter(program=get_active_program(self.request)).prefetch_related(
+            "days__exercises__exercise",
+            "days__exercises__sets",
+            "days__text_blocks",
+        )
 
 
 class ExerciseCatalogView(generics.ListAPIView):
@@ -422,17 +458,21 @@ class ProgramCurrentView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
+        program = get_active_program(request)
         telegram_id = get_request_telegram_id(request)
         if not telegram_id:
-            return Response(build_program_response(build_base_program_payload()))
+            return Response(
+                build_program_response(build_base_program_payload(program), program=program)
+            )
 
-        snapshot, payload = get_program_payload_for_user(telegram_id)
+        snapshot, payload = get_program_payload_for_user(telegram_id, program)
         if snapshot is None:
-            return Response(build_program_response(payload))
+            return Response(build_program_response(payload, program=program))
 
         return Response(
             build_program_response(
                 payload,
+                program=program,
                 version=snapshot.version,
                 created_at=snapshot.created_at,
                 commit_message=snapshot.commit_message,
@@ -444,7 +484,10 @@ class ProgramOriginalView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        return Response(build_program_response(build_base_program_payload()))
+        program = get_active_program(request)
+        return Response(
+            build_program_response(build_base_program_payload(program), program=program)
+        )
 
 
 class ProgramSnapshotCreateView(APIView):
@@ -457,24 +500,35 @@ class ProgramSnapshotCreateView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        program = get_active_program(request)
 
         serializer = ProgramSnapshotInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        latest = get_latest_snapshot(telegram_id)
+        latest = ProgramSnapshot.objects.filter(
+            telegram_id=telegram_id,
+            program=program,
+        ).order_by("-version").first()
         next_version = (latest.version if latest else 0) + 1
-        payload = serializer.validated_data["normalized_payload"]
+        current_snapshot, current_payload = get_program_payload_for_user(telegram_id, program)
+        payload = merge_program_payload_metadata(
+            current_payload,
+            serializer.validated_data["normalized_payload"],
+        )
 
         snapshot = ProgramSnapshot.objects.create(
             telegram_id=telegram_id,
+            program=program,
             version=next_version,
             commit_message=serializer.validated_data["commit_message"],
             payload=payload,
-            source_snapshot_version=serializer.validated_data.get("source_snapshot_version"),
+            source_snapshot_version=serializer.validated_data.get("source_snapshot_version")
+            or (current_snapshot.version if current_snapshot else None),
         )
         return Response(
             build_program_response(
                 snapshot.payload,
+                program=program,
                 version=snapshot.version,
                 created_at=snapshot.created_at,
                 commit_message=snapshot.commit_message,
@@ -493,8 +547,12 @@ class ProgramHistoryListView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        program = get_active_program(request)
 
-        snapshots = ProgramSnapshot.objects.filter(telegram_id=telegram_id).order_by("-version")
+        snapshots = ProgramSnapshot.objects.filter(
+            telegram_id=telegram_id,
+            program=program,
+        ).order_by("-version")
         result = []
         for snapshot in snapshots:
             result.append(
@@ -519,9 +577,11 @@ class ProgramHistoryDetailView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        program = get_active_program(request)
 
         snapshot = ProgramSnapshot.objects.filter(
             telegram_id=telegram_id,
+            program=program,
             version=version,
         ).first()
         if snapshot is None:
@@ -530,8 +590,42 @@ class ProgramHistoryDetailView(APIView):
         return Response(
             build_program_response(
                 snapshot.payload,
+                program=program,
                 version=snapshot.version,
                 created_at=snapshot.created_at,
                 commit_message=snapshot.commit_message,
             )
         )
+
+
+class ProgramListView(generics.ListAPIView):
+    queryset = Program.objects.all()
+    serializer_class = ProgramSerializer
+    permission_classes = [AllowAny]
+
+
+class ProgramSelectionView(APIView):
+    permission_classes = [AllowAny]
+
+    def put(self, request):
+        if not request.user.is_authenticated:
+            return Response(
+                {"detail": "Authentication required."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        profile = getattr(request.user, "profile", None)
+        if profile is None:
+            return Response({"detail": "User profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        program_id = request.data.get("program_id")
+        if not program_id:
+            return Response({"detail": "program_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        program = Program.objects.filter(pk=program_id).first()
+        if program is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        profile.selected_program = program
+        profile.save(update_fields=["selected_program"])
+        return Response(ProgramSerializer(program).data)

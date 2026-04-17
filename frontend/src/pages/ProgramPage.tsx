@@ -11,6 +11,7 @@ interface ProgramPageProps {
 
 export function ProgramPage({ user: _user }: ProgramPageProps) {
   const selectedWeek = useProgramStore((s) => s.selectedWeek);
+  const selectedProgram = useProgramStore((s) => s.selectedProgram);
   const loading = useProgramStore((s) => s.loading);
   const error = useProgramStore((s) => s.error);
   const weekDetailCache = useProgramStore((s) => s.weekDetailCache);
@@ -47,6 +48,11 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
   return (
     <div className="flex flex-col flex-1 min-h-0">
       <div className="px-4 pt-4 pb-4 shrink-0">
+        {selectedProgram ? (
+          <p className="mb-2 text-sm font-medium text-muted-foreground">
+            {selectedProgram.name}
+          </p>
+        ) : null}
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <WeekSelector />

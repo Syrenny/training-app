@@ -4,6 +4,7 @@ import type {
   AccessoryWeightLatest,
   OneRepMaxData,
   ProgramData,
+  ProgramSummary,
   WeekDetailData,
   WeekListItem,
 } from "./api";
@@ -12,11 +13,13 @@ import {
   fetchCompletions as apiFetchCompletions,
   fetchOneRepMax as apiFetchOneRepMax,
   fetchProgram as apiFetchProgram,
+  fetchPrograms as apiFetchPrograms,
   markComplete as apiMarkComplete,
   resetCompletions as apiResetCompletions,
   saveAccessoryWeight as apiSaveAccessoryWeight,
   saveOneRepMax as apiSaveOneRepMax,
   unmarkComplete as apiUnmarkComplete,
+  updateSelectedProgram as apiUpdateSelectedProgram,
 } from "./api";
 import type { NavigationResult } from "./navigation";
 import { resolveNext, resolvePrev } from "./navigation";
@@ -44,6 +47,8 @@ interface ProgramState {
   selectedWeek: number | null;
   selectedDay: string | null;
 
+  programs: ProgramSummary[];
+  selectedProgram: ProgramSummary | null;
   weeks: WeekListItem[];
   weekDetailCache: Record<number, WeekDetailData>;
   loading: boolean;
@@ -56,6 +61,8 @@ interface ProgramState {
 
   setWeek: (week: number) => void;
   setDay: (day: string) => void;
+  fetchPrograms: () => Promise<void>;
+  selectProgram: (programId: number) => Promise<void>;
   fetchProgram: () => Promise<void>;
   fetchOneRepMax: () => Promise<void>;
   saveOneRepMax: (data: Partial<OneRepMaxData>) => Promise<void>;
@@ -73,6 +80,8 @@ export const useProgramStore = create<ProgramState>()(
     (set, get) => ({
       selectedWeek: null,
       selectedDay: null,
+      programs: [],
+      selectedProgram: null,
       weeks: [],
       weekDetailCache: {},
       loading: false,
@@ -90,6 +99,31 @@ export const useProgramStore = create<ProgramState>()(
         })),
 
       setDay: (day) => set({ selectedDay: day }),
+
+      fetchPrograms: async () => {
+        try {
+          const programs = await apiFetchPrograms();
+          set((state) => ({
+            programs,
+            selectedProgram:
+              programs.find((item) => item.id === state.selectedProgram?.id)
+              ?? state.selectedProgram
+              ?? programs[0]
+              ?? null,
+          }));
+        } catch {
+          // Silent fail
+        }
+      },
+
+      selectProgram: async (programId) => {
+        await apiUpdateSelectedProgram(programId);
+        await Promise.all([
+          get().fetchPrograms(),
+          get().fetchProgram(),
+          get().fetchCompletions(),
+        ]);
+      },
 
       fetchProgram: async () => {
         set({ loading: true, error: null });
@@ -109,6 +143,7 @@ export const useProgramStore = create<ProgramState>()(
             return {
               weeks,
               weekDetailCache,
+              selectedProgram: program.program,
               programVersion: program.version,
               programUpdatedAt: program.updated_at,
               selectedWeek: nextSelectedWeek,
@@ -121,6 +156,7 @@ export const useProgramStore = create<ProgramState>()(
           set({
             loading: false,
             error: "Не удалось загрузить программу",
+            selectedProgram: null,
             weeks: [],
             weekDetailCache: {},
           });
