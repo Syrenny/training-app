@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, RotateCcw, Save, Trash2 } from "lucide-react";
+import { RotateCcw, Save, Trash2 } from "lucide-react";
 import type {
   DayTextBlockData,
   DayExerciseData,
@@ -40,13 +40,6 @@ const WEEKDAY_SHORT_LABELS: Record<string, string> = {
   FRI: "Пт",
   SAT: "Сб",
   SUN: "Вс",
-};
-
-const categoryLabels: Record<string, string> = {
-  BENCH: "Жим",
-  SQUAT: "Присед",
-  DEADLIFT: "Тяга",
-  ACCESSORY: "Подсобка",
 };
 
 type LoadType = "PERCENT" | "KG" | "INDIVIDUAL" | "BODYWEIGHT";
@@ -186,28 +179,6 @@ function draftFromProgram(program: ProgramData): DraftProgram {
         textBlocks: day.text_blocks,
       })),
     })),
-  };
-}
-
-function emptySet(): DraftSet {
-  return {
-    uid: createUid(),
-    loadType: "INDIVIDUAL",
-    loadValue: "",
-    loadValueMax: "",
-    reps: "10",
-    repsMax: "",
-    sets: "3",
-  };
-}
-
-function createExercise(exerciseId: number): DraftExercise {
-  return {
-    uid: createUid(),
-    exerciseId,
-    supersetGroup: null,
-    sets: [emptySet()],
-    notes: "",
   };
 }
 
@@ -502,7 +473,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const [catalog, setCatalog] = useState<ExerciseData[]>([]);
   const [selectedWeekUid, setSelectedWeekUid] = useState<string | null>(null);
   const [selectedDayUid, setSelectedDayUid] = useState<string | null>(null);
-  const [exercisePickerOpen, setExercisePickerOpen] = useState(false);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [initialContentSignature, setInitialContentSignature] = useState("");
@@ -636,14 +606,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     if (!nextWeek) return;
     setSelectedWeekUid(nextWeek.uid);
     setSelectedDayUid(nextWeek.days[0]?.uid ?? null);
-  }
-
-  function addExercise(exerciseId: number) {
-    updateSelectedDay((currentDay) => ({
-      ...currentDay,
-      exercises: [...currentDay.exercises, createExercise(exerciseId)],
-    }));
-    setExercisePickerOpen(false);
   }
 
   function requestDeleteExercise(exercise: DraftExercise) {
@@ -782,9 +744,11 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                 </>
               ) : (
                 <>
-                  <p className="text-xs text-muted-foreground">
-                    {isCustom ? "Добавленное упражнение." : "Оригинальное упражнение."}
-                  </p>
+                  {isCustom ? (
+                    <p className="text-xs text-muted-foreground">
+                      Добавленное упражнение.
+                    </p>
+                  ) : <span />}
                   <Button
                     variant="ghost"
                     size="icon-sm"
@@ -877,7 +841,7 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           <div className="space-y-4 pb-4">
             <Card className="border-dashed">
               <CardContent className="py-3 text-sm text-muted-foreground">
-                Можно только добавлять и удалять упражнения. Объём, подходы, недели, дни,
+                Можно только удалять упражнения. Объём, подходы, недели, дни,
                 порядок упражнений и суперсеты в редакторе не меняются.
               </CardContent>
             </Card>
@@ -915,17 +879,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                   </div>
                 )}
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full justify-center gap-2 border-dashed"
-                  onClick={() => setExercisePickerOpen(true)}
-                  disabled={catalog.length === 0}
-                >
-                  <Plus className="h-4 w-4" />
-                  Добавить упражнение
-                </Button>
-
                 {selectedDay.textBlocks.length > 0 ? (
                   <div className="space-y-3 pt-1">
                     {selectedDay.textBlocks.map((block, index) => (
@@ -947,40 +900,6 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
           </div>
         </div>
       </Tabs>
-
-      <Dialog
-        open={exercisePickerOpen}
-        onOpenChange={(open) => !open && setExercisePickerOpen(false)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Добавить упражнение</DialogTitle>
-            <DialogDescription>
-              Новое упражнение добавится в конец выбранного дня.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="max-h-[60dvh] space-y-2 overflow-y-auto pr-1">
-            {catalog.map((exercise) => (
-              <Button
-                key={exercise.id}
-                variant="ghost"
-                className="h-auto w-full justify-start gap-3 py-3 text-left"
-                onClick={() => addExercise(exercise.id)}
-              >
-                <span className="min-w-0 flex-1 truncate">{exercise.name}</span>
-                <Badge variant="secondary" className="text-xs">
-                  {categoryLabels[exercise.category] ?? exercise.category}
-                </Badge>
-              </Button>
-            ))}
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setExercisePickerOpen(false)}>
-              Отмена
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
         <DialogContent>
