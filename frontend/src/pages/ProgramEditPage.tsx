@@ -55,7 +55,9 @@ interface DraftSet {
   uid: string;
   loadType: LoadType;
   loadValue: string;
+  loadValueMax: string;
   reps: string;
+  repsMax: string;
   sets: string;
 }
 
@@ -130,7 +132,9 @@ function draftSet(
     uid: createUid(),
     loadType: set.load_type,
     loadValue: set.load_value == null ? "" : String(set.load_value),
+    loadValueMax: set.load_value_max == null ? "" : String(set.load_value_max),
     reps: String(set.reps),
+    repsMax: set.reps_max == null ? "" : String(set.reps_max),
     sets: String(set.sets),
   };
 }
@@ -190,7 +194,9 @@ function emptySet(): DraftSet {
     uid: createUid(),
     loadType: "INDIVIDUAL",
     loadValue: "",
+    loadValueMax: "",
     reps: "10",
+    repsMax: "",
     sets: "3",
   };
 }
@@ -241,7 +247,12 @@ function buildSavePayload(draft: DraftProgram, commitMessage: string): ProgramSn
               set.loadType === "PERCENT" || set.loadType === "KG"
                 ? Number(set.loadValue || 0)
                 : null,
+            load_value_max:
+              (set.loadType === "PERCENT" || set.loadType === "KG") && set.loadValueMax
+                ? Number(set.loadValueMax)
+                : null,
             reps: Number(set.reps || 0),
+            reps_max: set.repsMax ? Number(set.repsMax) : null,
             sets: Number(set.sets || 0),
           })),
         })),
@@ -266,7 +277,9 @@ function contentSignature(draft: DraftProgram) {
           sets: exercise.sets.map((set) => ({
             loadType: set.loadType,
             loadValue: set.loadValue,
+            loadValueMax: set.loadValueMax,
             reps: set.reps,
+            repsMax: set.repsMax,
             sets: set.sets,
           })),
         })),
@@ -276,15 +289,22 @@ function contentSignature(draft: DraftProgram) {
 }
 
 function renderDraftSetDisplay(set: DraftSet) {
+  const repsLabel = set.repsMax && set.repsMax !== set.reps
+    ? `${set.reps}-${set.repsMax}`
+    : set.reps;
   const parts: string[] = [];
   if (set.loadType === "PERCENT") {
-    parts.push(`${set.loadValue}%`);
+    parts.push(
+      `${set.loadValueMax && set.loadValueMax !== set.loadValue ? `${set.loadValue}-${set.loadValueMax}` : set.loadValue}%`,
+    );
   } else if (set.loadType === "KG") {
-    parts.push(`${set.loadValue}кг`);
+    parts.push(
+      `${set.loadValueMax && set.loadValueMax !== set.loadValue ? `${set.loadValue}-${set.loadValueMax}` : set.loadValue}кг`,
+    );
   } else if (set.loadType === "INDIVIDUAL") {
     parts.push("🏋");
   }
-  parts.push(set.reps);
+  parts.push(repsLabel);
   if (Number(set.sets || 0) > 1) {
     parts.push(set.sets);
   }
@@ -300,9 +320,12 @@ function toPreviewSetData(set: DraftSet, id: string, order = 1): ExerciseSetData
       set.loadType === "PERCENT" || set.loadType === "KG"
         ? Number(set.loadValue || 0)
         : null,
-    load_value_max: null,
+    load_value_max:
+      (set.loadType === "PERCENT" || set.loadType === "KG") && set.loadValueMax
+        ? Number(set.loadValueMax)
+        : null,
     reps: Number(set.reps || 0),
-    reps_max: null,
+    reps_max: set.repsMax ? Number(set.repsMax) : null,
     sets: Number(set.sets || 0),
     display: renderDraftSetDisplay(set),
   };
