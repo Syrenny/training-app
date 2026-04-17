@@ -272,7 +272,9 @@ function toPreviewSetData(set: DraftSet, id: string, order = 1): ExerciseSetData
       set.loadType === "PERCENT" || set.loadType === "KG"
         ? Number(set.loadValue || 0)
         : null,
+    load_value_max: null,
     reps: Number(set.reps || 0),
+    reps_max: null,
     sets: Number(set.sets || 0),
     display: renderDraftSetDisplay(set),
   };
