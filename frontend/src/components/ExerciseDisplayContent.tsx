@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { SetDisplay } from "./SetDisplay";
-import { AccessoryWeightInput } from "./AccessoryWeightInput";
+import { AccessoryWeightHistoryButton, AccessoryWeightInput } from "./AccessoryWeightInput";
 import type { ExerciseSetData } from "@/lib/api";
 import { calcTonnage } from "@/lib/calc";
 import { useProgramStore } from "@/lib/store";
@@ -71,30 +71,47 @@ export function ExerciseDisplayContent({
         </div>
       ) : null}
 
-      <div className={cn("flex flex-wrap gap-1.5", setsClassName)}>
-        {sets.map((set) => (
-          <SetDisplay key={set.id} set={set} category={exercise.category} />
+      <div className={cn("mt-3 space-y-1.5", setsClassName)}>
+        {sets.map((set, index) => (
+          <SetDisplay
+            key={set.id}
+            set={set}
+            category={exercise.category}
+            weightEditor={
+              showAccessoryWeight && exercise.category === "ACCESSORY" && index === 0 ? (
+                <AccessoryWeightInput
+                  exerciseId={exercise.id}
+                  exerciseName={exercise.name}
+                  setsDisplay={sets.map((item) => item.display).join(", ")}
+                />
+              ) : undefined
+            }
+            rightAddon={
+              showAccessoryWeight && exercise.category === "ACCESSORY" && index === 0 ? (
+                <AccessoryWeightHistoryButton
+                  exerciseId={exercise.id}
+                  exerciseName={exercise.name}
+                />
+              ) : undefined
+            }
+          />
         ))}
       </div>
 
-      {tonnage != null ? (
-        <p className="text-muted-foreground mt-2 text-xs">
-          Тоннаж: {tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)}т` : `${tonnage}кг`}
-        </p>
-      ) : null}
-
       {notes ? (
-        <p className="mt-2 whitespace-pre-line text-sm leading-6 text-muted-foreground">
-          {notes}
-        </p>
+        <div className="mt-4">
+          <p className="whitespace-pre-line text-sm leading-6 text-muted-foreground">
+            {notes}
+          </p>
+        </div>
       ) : null}
 
-      {showAccessoryWeight && exercise.category === "ACCESSORY" ? (
-        <AccessoryWeightInput
-          exerciseId={exercise.id}
-          exerciseName={exercise.name}
-          setsDisplay={sets.map((set) => set.display).join(", ")}
-        />
+      {tonnage != null ? (
+        <div className="mt-4">
+          <p className="text-xs text-muted-foreground">
+            Тоннаж: {tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)}т` : `${tonnage}кг`}
+          </p>
+        </div>
       ) : null}
 
       {footer}

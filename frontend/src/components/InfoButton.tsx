@@ -7,7 +7,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { SetPill, DumbbellSetPill } from "./SetPill";
 
 function Section({
   title,
@@ -39,23 +38,39 @@ export function InfoButton() {
         <div className="px-4 space-y-6 text-sm">
           <Section title="Обозначения подходов">
             <p>
-              <SetPill>70%×4×2</SetPill>
+              <span className="font-mono tabular-nums">87,5 кг</span>
+              {" / "}
+              <span className="font-mono tabular-nums">×4×2</span>
+              {" / "}
+              <span className="font-mono tabular-nums">70%</span>
               <br />
-              % от максимума × повторения × подходы
+              Слева вес в кг, по центру повторы и подходы, справа процент.
             </p>
             <p>
-              <DumbbellSetPill>×20×4</DumbbellSetPill>
+              <span className="font-mono tabular-nums"> </span>
+              {" / "}
+              <span className="font-mono tabular-nums">×20×4</span>
+              {" / "}
+              <span className="font-mono tabular-nums"> </span>
               <br />
               Вес подбирается индивидуально. Не работайте в отказ, запас 1-2
               повторения.
             </p>
             <p>
-              <SetPill>50кг×6×3</SetPill>
+              <span className="font-mono tabular-nums">50 кг</span>
+              {" / "}
+              <span className="font-mono tabular-nums">×6×3</span>
+              {" / "}
+              <span className="font-mono tabular-nums"> </span>
               <br />
               Делаем с указанным весом в килограммах.
             </p>
             <p>
-              <SetPill>15×4</SetPill>
+              <span className="font-mono tabular-nums"> </span>
+              {" / "}
+              <span className="font-mono tabular-nums">×15×4</span>
+              {" / "}
+              <span className="font-mono tabular-nums"> </span>
               <br />
               Собственный вес или пустая штанга.
             </p>

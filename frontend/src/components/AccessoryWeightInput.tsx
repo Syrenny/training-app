@@ -12,7 +12,6 @@ interface AccessoryWeightInputProps {
 
 export function AccessoryWeightInput({
   exerciseId,
-  exerciseName,
   setsDisplay,
 }: AccessoryWeightInputProps) {
   const accessoryWeights = useProgramStore((s) => s.accessoryWeights);
@@ -20,7 +19,6 @@ export function AccessoryWeightInput({
 
   const latest = accessoryWeights[exerciseId];
   const [value, setValue] = useState(latest?.weight ?? "");
-  const [historyOpen, setHistoryOpen] = useState(false);
   const lastSaved = useRef(latest?.weight ?? "");
 
   // Sync when store updates from outside
@@ -43,30 +41,40 @@ export function AccessoryWeightInput({
   };
 
   return (
+    <div className="flex items-baseline gap-0">
+      <Input
+        type="number"
+        inputMode="decimal"
+        step="0.5"
+        min="0"
+        placeholder=""
+        className="h-6 w-14 rounded-none border-0 border-b border-border bg-transparent px-0 text-left text-sm font-medium shadow-none ring-0 [appearance:textfield] focus-visible:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onFocus={(e) => e.target.select()}
+        onBlur={handleBlur}
+      />
+      <span className="text-muted-foreground text-sm">кг</span>
+    </div>
+  );
+}
+
+export function AccessoryWeightHistoryButton({
+  exerciseId,
+  exerciseName,
+}: Pick<AccessoryWeightInputProps, "exerciseId" | "exerciseName">) {
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  return (
     <>
-      <div className="flex items-center gap-1.5 mt-2">
-        <Input
-          type="number"
-          inputMode="decimal"
-          step="0.5"
-          min="0"
-          placeholder="—"
-          className="w-14 h-7 px-1 text-sm text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onFocus={(e) => e.target.select()}
-          onBlur={handleBlur}
-        />
-        <span className="text-muted-foreground text-xs">кг</span>
-        <button
-          type="button"
-          className="ml-auto p-1 text-muted-foreground"
-          onClick={() => setHistoryOpen(true)}
-          aria-label="История весов"
-        >
-          <History className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      <button
+        type="button"
+        className="p-1 text-muted-foreground"
+        onClick={() => setHistoryOpen(true)}
+        aria-label="История весов"
+      >
+        <History className="h-3.5 w-3.5" />
+      </button>
       <AccessoryWeightHistory
         exerciseId={exerciseId}
         exerciseName={exerciseName}
