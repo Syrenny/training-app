@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Save } from "lucide-react";
 import { useProgramStore } from "@/lib/store";
 import type { OneRepMaxData } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,20 @@ export function OneRepMaxPage() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Разовые максимумы</CardTitle>
+        <CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <p>Разовые максимумы</p>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSave}
+              disabled={!hasDraftChanges || status === "saving"}
+            >
+              <Save className="h-4 w-4" />
+              {status === "saving" ? "Сохранение..." : "Сохранить"}
+            </Button>
+          </div>
+        </CardTitle>
         <CardDescription>Используются для расчета процентов в программе.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -69,14 +83,6 @@ export function OneRepMaxPage() {
             />
           </div>
         ))}
-
-        <Button
-          className="w-full"
-          onClick={handleSave}
-          disabled={!hasDraftChanges || status === "saving"}
-        >
-          {status === "saving" ? "Сохранение..." : "Сохранить"}
-        </Button>
 
         {status === "saved" && (
           <p className="text-center text-sm text-green-600">Сохранено</p>
