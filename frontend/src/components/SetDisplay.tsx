@@ -52,7 +52,7 @@ export function SetDisplay({ set, category, weightEditor, rightAddon }: SetDispl
   const repsLabel = set.reps_max != null && set.reps_max !== set.reps
     ? `${set.reps}–${set.reps_max}`
     : String(set.reps);
-  const volumeLabel = `×${repsLabel}${set.sets > 1 ? `×${set.sets}` : ""}`;
+  const volumeLabel = `${repsLabel}${set.sets > 1 ? `×${set.sets}` : ""}`;
   const leftLabel = weightLabel ? `${weightLabel} ${volumeLabel}` : volumeLabel;
 
   return (

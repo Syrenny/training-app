@@ -73,9 +73,9 @@ export function CompletionButton({
       aria-label={completed ? "Отменить завершение тренировки" : "Завершить тренировку"}
       title={completed ? "Удерживайте, чтобы отменить завершение" : "Удерживайте, чтобы завершить тренировку"}
       className={cn(
-        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full border px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-colors touch-none",
+        "relative inline-flex shrink-0 items-center justify-center overflow-hidden rounded-full px-3 py-0.5 text-xs font-medium whitespace-nowrap transition-colors touch-none w-24",
         completed
-          ? "border-green-500/30 bg-green-500/15 text-green-600 dark:text-green-400"
+          ? " bg-green-500/15 text-green-600 dark:text-green-400"
           : "border-border bg-secondary text-secondary-foreground",
       )}
       onPointerDown={startHold}

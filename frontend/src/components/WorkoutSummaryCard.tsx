@@ -55,10 +55,7 @@ export function WorkoutSummaryCard({
 
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-      <span>{exerciseCount} упр</span>
-      <span aria-hidden="true">•</span>
       <span>{totalSets} подх</span>
-      <span aria-hidden="true">•</span>
       <span>~{avgTime} мин</span>
     </div>
   );

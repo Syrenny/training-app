@@ -52,11 +52,6 @@ export function ExerciseDisplayContent({
   return (
     <div className={className}>
       <div className="mb-2 flex items-baseline gap-2">
-        {displayOrder != null ? (
-          <span className="text-muted-foreground text-sm font-medium">
-            {displayOrder}.
-          </span>
-        ) : null}
         <span className={cn("font-semibold", nameClassName)}>
           {exercise.name}
         </span>

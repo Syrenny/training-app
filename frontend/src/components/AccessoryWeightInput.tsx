@@ -48,7 +48,7 @@ export function AccessoryWeightInput({
         step="0.5"
         min="0"
         placeholder=""
-        className="h-6 w-14 rounded-none border-0 border-b border-border bg-transparent px-0 text-left text-sm font-medium shadow-none ring-0 [appearance:textfield] focus-visible:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        className="h-5 w-13 rounded-none border-0 border-b border-border bg-transparent px-0 text-left text-sm font-medium shadow-none ring-0 [appearance:textfield] focus-visible:ring-0 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-none text-center"
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onFocus={(e) => e.target.select()}

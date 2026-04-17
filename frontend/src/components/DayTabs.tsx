@@ -116,7 +116,7 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 
 			<CrossWeekIndicator ref={indicatorRef} />
 
-			<div className='flex-1 min-h-0 mt-4'>
+			<div className='flex-1 min-h-0 mt-3'>
 				<div ref={containerRef} className='h-full'>
 					<Swiper
 						className='h-full'

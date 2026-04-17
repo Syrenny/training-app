@@ -47,12 +47,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="px-4 pt-4 pb-4 shrink-0">
-        {selectedProgram ? (
-          <p className="mb-2 text-sm font-medium text-muted-foreground">
-            {selectedProgram.name}
-          </p>
-        ) : null}
+      <div className="pl-1 pr-2 pt-1 pb-1 shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <WeekSelector />
@@ -61,7 +56,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
         </div>
       </div>
 
-      <div className="flex flex-col flex-1 min-h-0 px-4 pb-4">
+      <div className="flex flex-col flex-1 min-h-0 px-4 pb-8">
         {weekData && <DayTabs weekNumber={weekData.number} days={weekData.days} />}
       </div>
     </div>
