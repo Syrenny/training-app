@@ -11,23 +11,6 @@ function countTotalSets(exercises: DayExerciseData[]): number {
   );
 }
 
-function countExercises(exercises: DayExerciseData[]): number {
-  const seen = new Set<number>();
-  let count = 0;
-  for (const ex of exercises) {
-    const key = ex.superset_group;
-    if (key != null) {
-      if (!seen.has(key)) {
-        seen.add(key);
-        count++;
-      }
-    } else {
-      count++;
-    }
-  }
-  return count;
-}
-
 function estimateAvgTime(exercises: DayExerciseData[]): number {
   const WORK_TIME_PER_SET = 1;
 
@@ -50,7 +33,6 @@ export function WorkoutSummaryCard({
   exercises,
 }: WorkoutSummaryCardProps) {
   const totalSets = countTotalSets(exercises);
-  const exerciseCount = countExercises(exercises);
   const avgTime = estimateAvgTime(exercises);
 
   return (

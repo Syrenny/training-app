@@ -31,7 +31,6 @@ interface ExerciseDisplayContentProps {
 }
 
 export function ExerciseDisplayContent({
-  displayOrder,
   exercise,
   sets,
   notes,

@@ -11,7 +11,6 @@ interface ProgramPageProps {
 
 export function ProgramPage({ user: _user }: ProgramPageProps) {
   const selectedWeek = useProgramStore((s) => s.selectedWeek);
-  const selectedProgram = useProgramStore((s) => s.selectedProgram);
   const loading = useProgramStore((s) => s.loading);
   const error = useProgramStore((s) => s.error);
   const weekDetailCache = useProgramStore((s) => s.weekDetailCache);
