@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
 from programs.models import (
     Day,
@@ -333,7 +334,7 @@ def build_notes(warmup_sets, note, *, rpe=None):
     if rpe not in (None, "N/A"):
         parts.append(f"RPE: {str(rpe).replace('.', ',')}.")
     parts.append(note)
-    return " ".join(parts)
+    return "\n".join(parts)
 
 
 POWERBUILDING_WEEK_1 = {
@@ -627,7 +628,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--force",
             action="store_true",
-            help="Delete existing data and re-seed all weeks",
+            help="Rebuild bundled source programs from scratch",
         )
         parser.add_argument(
             "--dev-user",
@@ -638,30 +639,35 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         if options["force"]:
             self.stdout.write(
-                self.style.WARNING("Deleting all existing program data...")
+                self.style.WARNING(
+                    "Rebuilding bundled source programs only. User snapshots will be preserved..."
+                )
             )
-            Program.objects.all().delete()
 
-        base_program, _ = Program.objects.get_or_create(
-            slug="base-program",
-            defaults={"name": "Базовая программа"},
-        )
-        powerbuilding_program, _ = Program.objects.get_or_create(
-            slug="jeff-nippard-powerbuilding",
-            defaults={"name": "Jeff Nippard Powerbuilding"},
-        )
+        with transaction.atomic():
+            base_program, _ = Program.objects.update_or_create(
+                slug="base-program",
+                defaults={"name": "Базовая программа"},
+            )
+            powerbuilding_program, _ = Program.objects.update_or_create(
+                slug="jeff-nippard-powerbuilding",
+                defaults={"name": "Jeff Nippard Powerbuilding"},
+            )
 
-        base_created, base_skipped = self.seed_legacy_program(base_program, ALL_WEEKS)
-        power_created, power_skipped = self.seed_structured_program(
-            powerbuilding_program,
-            POWERBUILDING_WEEK_1,
-        )
+            self.reset_program_structure(base_program)
+            self.reset_program_structure(powerbuilding_program)
+
+            base_created = self.seed_legacy_program(base_program, ALL_WEEKS)
+            power_created = self.seed_structured_program(
+                powerbuilding_program,
+                POWERBUILDING_WEEK_1,
+            )
 
         self.stdout.write(
             self.style.SUCCESS(
                 "Done: "
-                f"базовая программа — {base_created} недель создано, {base_skipped} пропущено; "
-                f"Jeff Nippard Powerbuilding — {power_created} недель создано, {power_skipped} пропущено"
+                f"базовая программа — {base_created} недель пересобрано; "
+                f"Jeff Nippard Powerbuilding — {power_created} недель пересобрано"
             )
         )
 
@@ -672,22 +678,29 @@ class Command(BaseCommand):
             )
             self.stdout.write(self.style.SUCCESS("Dev user OneRepMax created/updated (telegram_id=1)"))
 
+    def reset_program_structure(self, program):
+        self.stdout.write(f"  {program.name}: удаляю старую исходную структуру")
+        program.weeks.all().delete()
+
+    def get_or_update_exercise(self, name, category):
+        exercise, created = Exercise.objects.get_or_create(
+            name=name,
+            defaults={"category": category},
+        )
+        if not created and exercise.category != category:
+            exercise.category = category
+            exercise.save(update_fields=["category"])
+        return exercise
+
     def seed_legacy_program(self, program, weeks_data):
         created_count = 0
-        skipped_count = 0
 
         for week_number, (title, days_data) in weeks_data.items():
-            week, created = Week.objects.get_or_create(
+            week = Week.objects.create(
                 program=program,
                 number=week_number,
-                defaults={"title": title},
+                title=title,
             )
-            if not created:
-                self.stdout.write(
-                    f"  {program.name}: неделя {week_number} уже существует, пропускаю"
-                )
-                skipped_count += 1
-                continue
 
             for weekday_code, exercises_data in days_data.items():
                 day = Day.objects.create(
@@ -702,9 +715,7 @@ class Command(BaseCommand):
                     sets_data = ex_tuple[2]
                     superset_group = ex_tuple[3] if len(ex_tuple) > 3 else None
 
-                    exercise, _ = Exercise.objects.get_or_create(
-                        name=ex_name, defaults={"category": ex_category}
-                    )
+                    exercise = self.get_or_update_exercise(ex_name, ex_category)
                     day_exercise = DayExercise.objects.create(
                         day=day,
                         exercise=exercise,
@@ -727,24 +738,17 @@ class Command(BaseCommand):
             created_count += 1
             self.stdout.write(f"  {program.name}: неделя {week_number} создана")
 
-        return created_count, skipped_count
+        return created_count
 
     def seed_structured_program(self, program, weeks_data):
         created_count = 0
-        skipped_count = 0
 
         for week_number, week_data in weeks_data.items():
-            week, created = Week.objects.get_or_create(
+            week = Week.objects.create(
                 program=program,
                 number=week_number,
-                defaults={"title": week_data["title"]},
+                title=week_data["title"],
             )
-            if not created:
-                self.stdout.write(
-                    f"  {program.name}: неделя {week_number} уже существует, пропускаю"
-                )
-                skipped_count += 1
-                continue
 
             for day_order, day_data in enumerate(week_data["days"], start=1):
                 day = Day.objects.create(
@@ -755,9 +759,9 @@ class Command(BaseCommand):
                 )
 
                 for ex_order, exercise_data in enumerate(day_data.get("exercises", []), start=1):
-                    exercise, _ = Exercise.objects.get_or_create(
-                        name=exercise_data["name"],
-                        defaults={"category": exercise_data["category"]},
+                    exercise = self.get_or_update_exercise(
+                        exercise_data["name"],
+                        exercise_data["category"],
                     )
                     day_exercise = DayExercise.objects.create(
                         day=day,
@@ -790,4 +794,4 @@ class Command(BaseCommand):
             created_count += 1
             self.stdout.write(f"  {program.name}: неделя {week_number} создана")
 
-        return created_count, skipped_count
+        return created_count

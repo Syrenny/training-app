@@ -28,9 +28,9 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { WeekPicker } from "@/components/WeekPicker";
-import { SetDisplay } from "@/components/SetDisplay";
 import { DayTabsBar } from "@/components/DayTabsBar";
-import { calcTonnage } from "@/lib/calc";
+import { ExerciseDisplayContent } from "@/components/ExerciseDisplayContent";
+import { cn } from "@/lib/utils";
 
 const WEEKDAY_SHORT_LABELS: Record<string, string> = {
   MON: "Пн",
@@ -469,7 +469,6 @@ function getOriginalDayExercises(
 export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
   const refreshProgram = useProgramStore((s) => s.fetchProgram);
   const refreshCompletions = useProgramStore((s) => s.fetchCompletions);
-  const oneRepMax = useProgramStore((s) => s.oneRepMax);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -694,120 +693,89 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
     setResetConfirmOpen(false);
   }
 
-  function renderSetPills(exercise: DraftExercise | OriginalExerciseRef) {
-    const exerciseMeta = getExerciseMeta(exercise.exerciseId);
-
-    return (
-      <div className="flex flex-wrap gap-1.5">
-        {exercise.sets.map((set, index) => (
-          <SetDisplay
-            key={set.uid}
-            set={toPreviewSetData(set, `${exercise.exerciseId}:${index}`, index + 1)}
-            category={exerciseMeta?.category}
-          />
-        ))}
-      </div>
-    );
-  }
-
   function renderExerciseCard(item: DisplayExerciseItem, itemIndex: number) {
     const exercise = item.exercise;
     const exerciseMeta = getExerciseMeta(exercise.exerciseId);
     const previewSets = exercise.sets.map((set, index) =>
       toPreviewSetData(set, `${item.key}:${index}`, index + 1),
     );
-    const tonnage =
-      exerciseMeta && exerciseMeta.category !== "ACCESSORY"
-        ? calcTonnage(previewSets, exerciseMeta.category, oneRepMax)
-        : null;
     const isRemoved = item.kind === "removed";
     const isCustom = item.kind === "current" && item.source === "custom";
     const hasSuperset = exercise.supersetGroup != null;
 
     return (
-      <Card
+      <div
         key={item.key}
-        className={isRemoved ? "border-dashed border-destructive/40 bg-muted/30" : undefined}
+        className={cn(
+          isRemoved && "bg-muted/30",
+        )}
       >
-        <CardContent>
-          <div className="mb-2 flex items-baseline gap-2">
-            <span className="text-muted-foreground text-sm font-medium">
-              {item.displayOrder}.
-            </span>
-            <span className={isRemoved ? "font-semibold line-through opacity-70" : "font-semibold"}>
-              {exerciseMeta?.name ?? "Упражнение"}
-            </span>
-          </div>
-
-          <div className="mb-3 flex flex-wrap gap-2">
-            <Badge variant="secondary" className="text-xs">
-              {exerciseMeta ? categoryLabels[exerciseMeta.category] : "Упражнение"}
-            </Badge>
-            {hasSuperset ? (
-              <Badge variant="outline" className="text-xs">
-                Суперсет
-              </Badge>
-            ) : null}
-            {isCustom ? (
-              <Badge variant="outline" className="text-xs">
-                Своё
-              </Badge>
-            ) : null}
-            {isRemoved ? (
-              <Badge variant="outline" className="text-xs text-destructive">
-                Удалено
-              </Badge>
-            ) : null}
-          </div>
-
-          <div className={isRemoved ? "opacity-60" : undefined}>
-            {renderSetPills(exercise)}
-          </div>
-
-          {tonnage != null ? (
-            <p className="mt-2 text-xs text-muted-foreground">
-              Тоннаж: {tonnage >= 1000 ? `${(tonnage / 1000).toFixed(1)}т` : `${tonnage}кг`}
-            </p>
-          ) : null}
-
-          {exercise.notes ? (
-            <p className="mt-2 text-sm leading-5 text-muted-foreground">
-              {exercise.notes}
-            </p>
-          ) : null}
-
-          <div className="mt-4 flex items-center justify-between gap-2 border-t pt-4">
-            {isRemoved ? (
-              <>
-                <p className="text-xs text-muted-foreground">
-                  Упражнение останется вне программы, пока вы не вернёте его.
-                </p>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => restoreRemovedExercise(itemIndex, item.exercise)}
-                >
-                  Вернуть
-                </Button>
-              </>
-            ) : (
-              <>
-                <p className="text-xs text-muted-foreground">
-                  {isCustom ? "Добавленное упражнение." : "Оригинальное упражнение."}
-                </p>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label="Удалить упражнение"
-                  onClick={() => requestDeleteExercise(item.exercise)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        <ExerciseDisplayContent
+          className="py-4"
+          displayOrder={item.displayOrder}
+          exercise={{
+            id: exerciseMeta?.id ?? exercise.exerciseId,
+            name: exerciseMeta?.name ?? "Упражнение",
+            category: exerciseMeta?.category ?? "",
+          }}
+          sets={previewSets}
+          notes={exercise.notes}
+          showAccessoryWeight={false}
+          nameClassName={isRemoved ? "line-through opacity-70" : undefined}
+          setsClassName={isRemoved ? "opacity-60" : undefined}
+          badges={(
+            <>
+              {hasSuperset ? (
+                <Badge variant="outline" className="text-xs">
+                  Суперсет
+                </Badge>
+              ) : null}
+              {isCustom ? (
+                <Badge variant="outline" className="text-xs">
+                  Своё
+                </Badge>
+              ) : null}
+              {isRemoved ? (
+                <Badge variant="outline" className="text-xs text-destructive">
+                  Удалено
+                </Badge>
+              ) : null}
+            </>
+          )}
+          footer={(
+            <div className="mt-4 flex items-center justify-between gap-2 border-t pt-4">
+              {isRemoved ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Упражнение останется вне программы, пока вы не вернёте его.
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => restoreRemovedExercise(itemIndex, item.exercise)}
+                  >
+                    Вернуть
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    {isCustom ? "Добавленное упражнение." : "Оригинальное упражнение."}
+                  </p>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Удалить упражнение"
+                    onClick={() => requestDeleteExercise(item.exercise)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+        />
+      </div>
     );
   }
 
@@ -919,7 +887,9 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
                     </CardContent>
                   </Card>
                 ) : (
-                  displayItems.map((item, index) => renderExerciseCard(item, index))
+                  <div className="divide-y divide-border/70 border-y border-border/70">
+                    {displayItems.map((item, index) => renderExerciseCard(item, index))}
+                  </div>
                 )}
 
                 <Button
