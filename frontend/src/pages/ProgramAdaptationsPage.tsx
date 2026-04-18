@@ -425,6 +425,30 @@ export function ProgramAdaptationsPage() {
 			? SCOPE_LABELS[item.effectiveAdaptation.scope]
 			: null
 
+		const badges = [
+			item.kind === 'removed' ? (
+				<Badge
+					key='removed'
+					variant='outline'
+					className='text-xs text-destructive'
+				>
+					Удалено
+				</Badge>
+			) : null,
+
+			item.kind === 'replaced' ? (
+				<Badge key='replaced' variant='outline' className='text-xs'>
+					Заменено
+				</Badge>
+			) : null,
+
+			effectiveScopeLabel ? (
+				<Badge key='scope' variant='secondary' className='text-xs'>
+					{effectiveScopeLabel}
+				</Badge>
+			) : null,
+		].filter(Boolean)
+
 		return (
 			<div
 				key={item.original.slot_key}
@@ -444,28 +468,7 @@ export function ProgramAdaptationsPage() {
 					setsClassName={
 						item.kind === 'removed' ? 'opacity-60' : undefined
 					}
-					badges={
-						<>
-							{item.kind === 'removed' ? (
-								<Badge
-									variant='outline'
-									className='text-xs text-destructive'
-								>
-									Удалено
-								</Badge>
-							) : null}
-							{item.kind === 'replaced' ? (
-								<Badge variant='outline' className='text-xs'>
-									Заменено
-								</Badge>
-							) : null}
-							{effectiveScopeLabel ? (
-								<Badge variant='secondary' className='text-xs'>
-									{effectiveScopeLabel}
-								</Badge>
-							) : null}
-						</>
-					}
+					badges={badges}
 					footer={
 						<div className='mt-4 border-t pt-4'>
 							{item.kind === 'replaced' ? (
@@ -592,7 +595,7 @@ export function ProgramAdaptationsPage() {
 							</Card>
 						) : (
 							<>
-								<Card className='gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none'>
+								<Card className='gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none mb-5'>
 									<CardContent className='px-0 py-3'>
 										{day.title ? (
 											<p className='mb-2 text-md font-semibold text-muted-foreground'>
