@@ -98,6 +98,28 @@ class OneRepMaxAPITest(TestCase):
         values = {item["exercise_id"]: item["value"] for item in get_response.data["items"]}
         self.assertEqual(values, {item["exercise_id"]: item["value"] for item in items})
 
+    def test_finished_cycle_prefills_pending_one_rep_max(self):
+        items = build_start_items(self.program)
+        start_response = self.client.post(
+            "/api/training-cycle/start/",
+            {"program_id": self.program.id, "items": items},
+            format="json",
+        )
+        self.assertEqual(start_response.status_code, 201)
+
+        finish_response = self.client.post(
+            "/api/training-cycle/finish/",
+            {"reason": "Готово", "feeling": "Нормально"},
+            format="json",
+        )
+        self.assertEqual(finish_response.status_code, 200)
+
+        pending_response = self.client.get("/api/one-rep-max/")
+        self.assertEqual(pending_response.status_code, 200)
+        self.assertIsNone(pending_response.data["cycle_id"])
+        values = {item["exercise_id"]: item["value"] for item in pending_response.data["items"]}
+        self.assertEqual(values, {item["exercise_id"]: item["value"] for item in items})
+
     def test_put_is_locked_for_active_cycle(self):
         items = build_start_items(self.program)
         self.client.post(

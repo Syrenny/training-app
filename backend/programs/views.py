@@ -27,6 +27,7 @@ from .models import (
     AdaptationScope,
     CycleOneRepMax,
     Exercise,
+    OneRepMax,
     Program,
     ProgramAdaptation,
     ProgramOneRepMaxExercise,
@@ -209,7 +210,7 @@ def rebuild_cycle_payload(cycle, *, exclude_adaptation_ids=None):
     return apply_adaptations_to_payload(baseline_payload, remaining_adaptations)
 
 
-def build_pending_one_rep_max_response(program):
+def build_pending_one_rep_max_response(program, telegram_id=None):
     if program is None:
         return {"cycle_id": None, "program_id": None, "items": []}
 
@@ -218,6 +219,31 @@ def build_pending_one_rep_max_response(program):
         .select_related("exercise")
         .order_by("order", "id")
     )
+    saved_values = {}
+    if telegram_id:
+        saved_values = {
+            item.exercise_id: item.value
+            for item in OneRepMax.objects.filter(
+                telegram_id=telegram_id,
+                program=program,
+            )
+        }
+        if not saved_values:
+            latest_cycle = (
+                TrainingCycle.objects.filter(
+                    telegram_id=telegram_id,
+                    program=program,
+                    completed_at__isnull=False,
+                )
+                .order_by("-completed_at", "-id")
+                .first()
+            )
+            if latest_cycle is not None:
+                saved_values = {
+                    item.exercise_id: item.value
+                    for item in CycleOneRepMax.objects.filter(cycle=latest_cycle)
+                }
+
     return {
         "cycle_id": None,
         "program_id": program.id,
@@ -227,7 +253,7 @@ def build_pending_one_rep_max_response(program):
                 "exercise_name": item.exercise.name,
                 "category": item.exercise.category,
                 "label": item.label or item.exercise.name,
-                "value": 0,
+                "value": saved_values.get(item.exercise_id, 0),
             }
             for item in configs
         ],
@@ -383,7 +409,10 @@ class OneRepMaxView(APIView):
 
         active_cycle = get_active_cycle(request)
         if active_cycle is None:
-            data = build_pending_one_rep_max_response(get_selected_program(request))
+            data = build_pending_one_rep_max_response(
+                get_selected_program(request),
+                telegram_id=telegram_id,
+            )
         else:
             data = build_cycle_one_rep_max_response(active_cycle)
         return Response(OneRepMaxResponseSerializer(data).data)
@@ -864,6 +893,14 @@ class TrainingCycleStartView(APIView):
                 program=program,
                 program_payload=payload,
             )
+            existing_one_rep_max = {
+                item.exercise_id: item
+                for item in OneRepMax.objects.select_for_update().filter(
+                    telegram_id=telegram_id,
+                    program=program,
+                    exercise_id__in=allowed_ids,
+                )
+            }
             CycleOneRepMax.objects.bulk_create(
                 [
                     CycleOneRepMax(
@@ -875,6 +912,27 @@ class TrainingCycleStartView(APIView):
                     for item in configs
                 ]
             )
+            one_rep_max_to_create = []
+            one_rep_max_to_update = []
+            for item in configs:
+                value = provided[item.exercise_id]
+                existing = existing_one_rep_max.get(item.exercise_id)
+                if existing is None:
+                    one_rep_max_to_create.append(
+                        OneRepMax(
+                            telegram_id=telegram_id,
+                            program=program,
+                            exercise=item.exercise,
+                            value=value,
+                        )
+                    )
+                else:
+                    existing.value = value
+                    one_rep_max_to_update.append(existing)
+            if one_rep_max_to_create:
+                OneRepMax.objects.bulk_create(one_rep_max_to_create)
+            if one_rep_max_to_update:
+                OneRepMax.objects.bulk_update(one_rep_max_to_update, ["value"])
 
             if getattr(request.user, "is_authenticated", False):
                 profile = getattr(request.user, "profile", None)
