@@ -42,6 +42,7 @@ from .program_snapshot import (
     build_program_payload_with_future_adaptations,
     build_program_response,
     count_program_entities,
+    iter_payload_slots,
     find_slot_index,
     get_default_program,
     get_latest_snapshot_for_program,
@@ -122,11 +123,23 @@ def is_slot_replaced(current_payload, base_payload, week_number, weekday, slot_k
 
 
 def adaptation_has_completed_workouts(adaptation):
-    filters = {
+    common_filters = {
         "telegram_id": adaptation.telegram_id,
-        "week_number": adaptation.week_number,
-        "weekday": adaptation.weekday,
         "completed_at__gte": adaptation.created_at,
+    }
+
+    if adaptation.scope == AdaptationScope.ONLY_HERE:
+        if adaptation.cycle_id is None:
+            return False
+        return WorkoutCompletion.objects.filter(
+            **common_filters,
+            week_number=adaptation.week_number,
+            weekday=adaptation.weekday,
+            cycle=adaptation.cycle,
+        ).exists()
+
+    filters = {
+        **common_filters,
     }
 
     if adaptation.scope == AdaptationScope.FUTURE_CYCLES:
@@ -145,21 +158,54 @@ def adaptation_has_completed_workouts(adaptation):
     ).exists()
 
 
+def any_matching_slot_replaced(current_payload, base_payload, original_exercise_id):
+    for week_number, weekday, _, _, item in iter_payload_slots(base_payload):
+        if item.get("exercise_id") != original_exercise_id:
+            continue
+
+        current_slot = get_slot_payload(
+            current_payload,
+            week_number,
+            weekday,
+            item.get("slot_key"),
+        )
+        if current_slot is None or current_slot.get("exercise_id") != original_exercise_id:
+            return True
+
+    return False
+
+
+def build_cycle_baseline_payload(cycle):
+    payload = build_base_program_payload(cycle.program)
+    future_adaptations = list(
+        ProgramAdaptation.objects.filter(
+            telegram_id=cycle.telegram_id,
+            program=cycle.program,
+            scope=AdaptationScope.FUTURE_CYCLES,
+            created_at__lte=cycle.started_at,
+        )
+        .filter(Q(canceled_at__isnull=True) | Q(canceled_at__gt=cycle.started_at))
+        .order_by("created_at", "id")
+    )
+    if not future_adaptations:
+        return payload
+    return apply_adaptations_to_payload(payload, future_adaptations)
+
+
 def rebuild_cycle_payload(cycle, *, exclude_adaptation_ids=None):
     excluded_ids = set(exclude_adaptation_ids or [])
-    active_adaptations = list(
-        ProgramAdaptation.objects.filter(cycle=cycle, canceled_at__isnull=True).order_by("created_at", "id")
-    )
-    if not active_adaptations:
-        return cycle.program_payload
-
-    baseline_payload = json.loads(json.dumps(cycle.program_payload))
-    for adaptation in reversed(active_adaptations):
-        revert_cycle_adaptation(baseline_payload, adaptation)
-
     remaining_adaptations = [
-        adaptation for adaptation in active_adaptations if adaptation.id not in excluded_ids
+        adaptation
+        for adaptation in ProgramAdaptation.objects.filter(
+            cycle=cycle,
+            canceled_at__isnull=True,
+        ).order_by("created_at", "id")
+        if adaptation.id not in excluded_ids
     ]
+    baseline_payload = build_cycle_baseline_payload(cycle)
+    if not remaining_adaptations:
+        return baseline_payload
+
     return apply_adaptations_to_payload(baseline_payload, remaining_adaptations)
 
 
@@ -890,6 +936,31 @@ class TrainingCycleHistoryView(APIView):
         return Response(TrainingCycleSummarySerializer(cycles, many=True).data)
 
 
+class TrainingCycleHistoryDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def delete(self, request, cycle_id):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        cycle = TrainingCycle.objects.filter(id=cycle_id, telegram_id=telegram_id).first()
+        if cycle is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if cycle.completed_at is None:
+            return Response(
+                {"detail": "Нельзя удалить активный тренировочный цикл."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        cycle.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 class ProgramAdaptationListCreateView(APIView):
     permission_classes = [AllowAny]
 
@@ -948,6 +1019,7 @@ class ProgramAdaptationListCreateView(APIView):
         week_number = serializer.validated_data["week_number"]
         weekday = serializer.validated_data["weekday"]
         slot_key = serializer.validated_data["slot_key"]
+        original_exercise_id = serializer.validated_data.get("original_exercise_id")
         current_slot_payload = get_slot_payload(current_payload, week_number, weekday, slot_key)
         if current_slot_payload is None:
             return Response(
@@ -960,7 +1032,14 @@ class ProgramAdaptationListCreateView(APIView):
             and scope != AdaptationScope.ONLY_HERE
         ):
             base_payload = build_base_program_payload(program)
-            if is_slot_replaced(current_payload, base_payload, week_number, weekday, slot_key):
+            if (
+                is_slot_replaced(current_payload, base_payload, week_number, weekday, slot_key)
+                or any_matching_slot_replaced(
+                    current_payload,
+                    base_payload,
+                    original_exercise_id,
+                )
+            ):
                 return Response(
                     {
                         "detail": (

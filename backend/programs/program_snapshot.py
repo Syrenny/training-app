@@ -421,6 +421,38 @@ def find_slot_index(payload, week_number, weekday, slot_key):
     return day_exercises, exercise_index
 
 
+def iter_payload_slots(payload):
+    for week_index, week in enumerate(payload.get("weeks", []), start=1):
+        week_number = int(week.get("number") or week_index)
+        for day in week.get("days", []):
+            weekday = day.get("weekday")
+            day_exercises = day.get("exercises", [])
+            for exercise_index, item in enumerate(day_exercises):
+                yield week_number, weekday, day_exercises, exercise_index, item
+
+
+def find_matching_slot_indexes(
+    payload,
+    *,
+    scope,
+    week_number,
+    weekday,
+    slot_key,
+    original_exercise_id=None,
+):
+    if scope == AdaptationScope.ONLY_HERE or original_exercise_id is None:
+        day_exercises, exercise_index = find_slot_index(payload, week_number, weekday, slot_key)
+        if day_exercises is None or exercise_index is None:
+            return []
+        return [(week_number, weekday, day_exercises, exercise_index)]
+
+    matches = []
+    for current_week_number, current_weekday, day_exercises, exercise_index, item in iter_payload_slots(payload):
+        if item.get("exercise_id") == original_exercise_id:
+            matches.append((current_week_number, current_weekday, day_exercises, exercise_index))
+    return matches
+
+
 def sort_adaptations_for_application(adaptations):
     return sorted(
         [item for item in adaptations if getattr(item, "canceled_at", None) is None],
@@ -498,29 +530,36 @@ def apply_adaptations_to_payload(payload, adaptations):
     )
 
     for adaptation in ordered_adaptations:
-        day_exercises, exercise_index = find_slot_index(
+        matches = find_matching_slot_indexes(
             next_payload,
-            adaptation.week_number,
-            adaptation.weekday,
-            adaptation.slot_key,
+            scope=adaptation.scope,
+            week_number=adaptation.week_number,
+            weekday=adaptation.weekday,
+            slot_key=adaptation.slot_key,
+            original_exercise_id=adaptation.original_exercise_id,
         )
-        if day_exercises is None:
-            continue
-        if exercise_index is None:
+        if not matches:
             continue
 
         if adaptation.action == AdaptationAction.DELETE:
-            day_exercises.pop(exercise_index)
+            matches_by_day = {}
+            for _, _, day_exercises, exercise_index in matches:
+                _, indices = matches_by_day.setdefault(id(day_exercises), (day_exercises, []))
+                indices.append(exercise_index)
+            for day_exercises, indices in matches_by_day.values():
+                for exercise_index in sorted(indices, reverse=True):
+                    day_exercises.pop(exercise_index)
             continue
 
         replacement_exercise = exercises.get(adaptation.replacement_exercise_id)
         if replacement_exercise is None:
             continue
 
-        target = day_exercises[exercise_index]
-        target["exercise_id"] = replacement_exercise.id
-        if replacement_exercise.category == "ACCESSORY":
-            target["one_rep_max_exercise_id"] = None
+        for _, _, day_exercises, exercise_index in matches:
+            target = day_exercises[exercise_index]
+            target["exercise_id"] = replacement_exercise.id
+            if replacement_exercise.category == "ACCESSORY":
+                target["one_rep_max_exercise_id"] = None
 
     return next_payload
 

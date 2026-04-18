@@ -3,6 +3,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from programs.models import (
+    CycleOneRepMax,
     Day,
     DayExercise,
     Exercise,
@@ -38,6 +39,14 @@ def get_slot_payload(payload, week_number, weekday, slot_key):
     if day_exercises is None or exercise_index is None:
         return None
     return day_exercises[exercise_index]
+
+
+def count_exercise_occurrences(payload, exercise_id):
+    total = 0
+    for week in payload["weeks"]:
+        for day in week["days"]:
+            total += sum(1 for item in day["exercises"] if item["exercise_id"] == exercise_id)
+    return total
 
 
 class TrainingCycleFlowTest(TestCase):
@@ -86,6 +95,49 @@ class TrainingCycleFlowTest(TestCase):
         self.client.post("/api/training-cycle/start/", payload, format="json")
         second = self.client.post("/api/training-cycle/start/", payload, format="json")
         self.assertEqual(second.status_code, 409)
+
+    def test_finished_cycle_can_be_deleted_from_history(self):
+        start = self.client.post(
+            "/api/training-cycle/start/",
+            {"program_id": self.program.id, "items": build_start_items(self.program)},
+            format="json",
+        )
+        self.assertEqual(start.status_code, 201)
+        cycle_id = start.json()["cycle"]["id"]
+        cycle = TrainingCycle.objects.get(pk=cycle_id)
+        WorkoutCompletion.objects.create(
+            telegram_id=77,
+            cycle=cycle,
+            program=self.program,
+            week_number=1,
+            weekday=Weekday.MON,
+        )
+
+        finish = self.client.post(
+            "/api/training-cycle/finish/",
+            {"reason": "Цикл выполнен", "feeling": "Нормально зашел"},
+            format="json",
+        )
+        self.assertEqual(finish.status_code, 200)
+
+        delete_response = self.client.delete(f"/api/training-cycle/history/{cycle_id}/")
+        self.assertEqual(delete_response.status_code, 204)
+        self.assertFalse(TrainingCycle.objects.filter(pk=cycle_id).exists())
+        self.assertFalse(CycleOneRepMax.objects.filter(cycle_id=cycle_id).exists())
+        self.assertFalse(WorkoutCompletion.objects.filter(cycle_id=cycle_id).exists())
+
+    def test_active_cycle_cannot_be_deleted_from_history(self):
+        start = self.client.post(
+            "/api/training-cycle/start/",
+            {"program_id": self.program.id, "items": build_start_items(self.program)},
+            format="json",
+        )
+        self.assertEqual(start.status_code, 201)
+        cycle_id = start.json()["cycle"]["id"]
+
+        delete_response = self.client.delete(f"/api/training-cycle/history/{cycle_id}/")
+        self.assertEqual(delete_response.status_code, 409)
+        self.assertTrue(TrainingCycle.objects.filter(pk=cycle_id).exists())
 
 
 class TrainingCycleSelectionGuardTest(TestCase):
@@ -145,6 +197,21 @@ class ProgramAdaptationTest(TestCase):
             sets=4,
             order=1,
         )
+        second_day = Day.objects.create(week=week, weekday=Weekday.WED, order=2)
+        second_day_exercise = DayExercise.objects.create(
+            day=second_day,
+            exercise=exercise,
+            one_rep_max_exercise=exercise,
+            order=1,
+        )
+        ExerciseSet.objects.create(
+            day_exercise=second_day_exercise,
+            load_type=LoadType.PERCENT,
+            load_value=70,
+            reps=5,
+            sets=3,
+            order=1,
+        )
         start = self.client.post(
             "/api/training-cycle/start/",
             {"program_id": self.program.id, "items": build_start_items(self.program)},
@@ -197,11 +264,43 @@ class ProgramAdaptationTest(TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.cycle.refresh_from_db()
-        slot_keys = []
-        for week in self.cycle.program_payload["weeks"]:
-            for day in week["days"]:
-                slot_keys.extend(item["slot_key"] for item in day["exercises"])
-        self.assertNotIn(self.exercise["slot_key"], slot_keys)
+        self.assertEqual(
+            count_exercise_occurrences(
+                self.cycle.program_payload,
+                self.exercise["exercise_id"],
+            ),
+            0,
+        )
+
+    def test_future_cycle_adaptation_applies_to_all_matching_days(self):
+        response = self.create_adaptation(
+            scope="FUTURE_CYCLES",
+            reason="Убираю во всех будущих циклах",
+        )
+        self.assertEqual(response.status_code, 201)
+
+        finish = self.client.post(
+            "/api/training-cycle/finish/",
+            {"reason": "Заканчиваю", "feeling": "Ок"},
+            format="json",
+        )
+        self.assertEqual(finish.status_code, 200)
+
+        restart = self.client.post(
+            "/api/training-cycle/start/",
+            {"program_id": self.program.id, "items": build_start_items(self.program)},
+            format="json",
+        )
+        self.assertEqual(restart.status_code, 201)
+
+        next_cycle = TrainingCycle.objects.get(telegram_id=99, completed_at__isnull=True)
+        self.assertEqual(
+            count_exercise_occurrences(
+                next_cycle.program_payload,
+                self.exercise["exercise_id"],
+            ),
+            0,
+        )
 
     def test_cancel_unused_current_cycle_adaptation_restores_payload(self):
         response = self.create_adaptation(reason="Удаляю по ошибке")
