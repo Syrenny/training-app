@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+from copy import deepcopy
 import re
 from decimal import Decimal
 
-from .models import Exercise, Program, ProgramSnapshot, Week, Weekday
+from .models import (
+    AdaptationAction,
+    AdaptationScope,
+    Exercise,
+    Program,
+    ProgramAdaptation,
+    ProgramSnapshot,
+    Week,
+    Weekday,
+)
 
 WEEKDAY_SHORT_LABELS = {
     Weekday.MON: "Пн",
@@ -71,6 +81,19 @@ def serialize_program_summary(program):
         "slug": program.slug,
         "name": program.name,
         "description": program.description,
+        "one_rep_max_exercises": [
+            {
+                "exercise_id": item.exercise_id,
+                "label": item.label,
+                "order": item.order,
+                "exercise": {
+                    "id": item.exercise.id,
+                    "name": item.exercise.name,
+                    "category": item.exercise.category,
+                },
+            }
+            for item in program.one_rep_max_exercises.select_related("exercise").all().order_by("order", "id")
+        ],
     }
 
 
@@ -97,6 +120,7 @@ def build_base_program_payload(program=None):
             for exercise in day.exercises.all():
                 exercises.append(
                     {
+                        "slot_key": f"{week_index}:{day.weekday}:{exercise.order}",
                         "exercise_id": exercise.exercise_id,
                         "one_rep_max_exercise_id": exercise.one_rep_max_exercise_id,
                         "superset_group": exercise.superset_group,
@@ -218,6 +242,7 @@ def build_program_response(payload, *, program=None, version=None, created_at=No
                     {
                         "id": f"{day_id}:{exercise_index}",
                         "order": exercise_index,
+                        "slot_key": exercise_item.get("slot_key", f"{week_number}:{weekday}:{exercise_index}"),
                         "exercise": {
                             "id": exercise.id,
                             "name": exercise.name,
@@ -351,3 +376,76 @@ def merge_program_payload_metadata(base_payload, next_payload):
         )
 
     return {"weeks": merged_weeks}
+
+
+def apply_adaptations_to_payload(payload, adaptations):
+    next_payload = deepcopy(payload)
+    exercises = Exercise.objects.in_bulk(
+        {
+            adaptation.replacement_exercise_id
+            for adaptation in adaptations
+            if adaptation.replacement_exercise_id
+        }
+    )
+
+    for adaptation in adaptations:
+        week = next(
+            (
+                item
+                for item in next_payload.get("weeks", [])
+                if int(item.get("number") or 0) == adaptation.week_number
+            ),
+            None,
+        )
+        if week is None:
+            continue
+
+        day = next(
+            (item for item in week.get("days", []) if item.get("weekday") == adaptation.weekday),
+            None,
+        )
+        if day is None:
+            continue
+
+        day_exercises = day.get("exercises", [])
+        exercise_index = next(
+            (
+                index
+                for index, item in enumerate(day_exercises)
+                if item.get("slot_key") == adaptation.slot_key
+            ),
+            None,
+        )
+        if exercise_index is None:
+            continue
+
+        if adaptation.action == AdaptationAction.DELETE:
+            day_exercises.pop(exercise_index)
+            continue
+
+        replacement_exercise = exercises.get(adaptation.replacement_exercise_id)
+        if replacement_exercise is None:
+            continue
+
+        target = day_exercises[exercise_index]
+        target["exercise_id"] = replacement_exercise.id
+        if replacement_exercise.category == "ACCESSORY":
+            target["one_rep_max_exercise_id"] = None
+
+    return next_payload
+
+
+def build_program_payload_with_future_adaptations(telegram_id, program):
+    payload = build_base_program_payload(program)
+    adaptations = list(
+        ProgramAdaptation.objects.filter(
+            telegram_id=telegram_id,
+            program=program,
+            scope=AdaptationScope.FUTURE_CYCLES,
+        )
+        .select_related("replacement_exercise")
+        .order_by("created_at", "id")
+    )
+    if not adaptations:
+        return payload
+    return apply_adaptations_to_payload(payload, adaptations)

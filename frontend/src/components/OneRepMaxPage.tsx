@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { RotateCcw, Save } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { LockKeyhole, Play, Square } from "lucide-react";
 import { useProgramStore } from "@/lib/store";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,28 +12,56 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type SaveStatus = "idle" | "saving" | "saved" | "error";
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 export function OneRepMaxPage() {
   const programs = useProgramStore((s) => s.programs);
   const selectedProgram = useProgramStore((s) => s.selectedProgram);
+  const activeCycle = useProgramStore((s) => s.activeCycle);
+  const cycleHistory = useProgramStore((s) => s.cycleHistory);
+  const oneRepMax = useProgramStore((s) => s.oneRepMax);
   const fetchPrograms = useProgramStore((s) => s.fetchPrograms);
+  const fetchActiveCycle = useProgramStore((s) => s.fetchActiveCycle);
+  const fetchCycleHistory = useProgramStore((s) => s.fetchCycleHistory);
   const fetchProgram = useProgramStore((s) => s.fetchProgram);
   const fetchOneRepMax = useProgramStore((s) => s.fetchOneRepMax);
   const selectProgram = useProgramStore((s) => s.selectProgram);
-  const resetCompletions = useProgramStore((s) => s.resetCompletions);
-  const oneRepMax = useProgramStore((s) => s.oneRepMax);
-  const saveOneRepMax = useProgramStore((s) => s.saveOneRepMax);
-  const [draft, setDraft] = useState<Record<number, number>>({});
-  const [status, setStatus] = useState<SaveStatus>("idle");
-  const [programNotice, setProgramNotice] = useState<string | null>(null);
+  const startCycle = useProgramStore((s) => s.startCycle);
+  const finishCycle = useProgramStore((s) => s.finishCycle);
+
+  const [draft, setDraft] = useState<Record<number, string>>({});
+  const [startError, setStartError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+  const [finishError, setFinishError] = useState<string | null>(null);
+  const [finishing, setFinishing] = useState(false);
+  const [finishReason, setFinishReason] = useState("");
+  const [finishFeeling, setFinishFeeling] = useState("");
 
   useEffect(() => {
-    void Promise.all([fetchPrograms(), fetchProgram(), fetchOneRepMax()]);
-  }, [fetchPrograms, fetchProgram, fetchOneRepMax]);
+    void Promise.all([
+      fetchPrograms(),
+      fetchActiveCycle(),
+      fetchCycleHistory(),
+      fetchProgram(),
+      fetchOneRepMax(),
+    ]);
+  }, [fetchPrograms, fetchActiveCycle, fetchCycleHistory, fetchProgram, fetchOneRepMax]);
+
+  useEffect(() => {
+    setDraft({});
+    setStartError(null);
+  }, [selectedProgram?.id, activeCycle?.id]);
 
   const items = useMemo(() => {
-    if (oneRepMax && oneRepMax.program_id === selectedProgram?.id) {
+    if (activeCycle && oneRepMax?.cycle_id === activeCycle.id) {
       return oneRepMax.items;
     }
     return (
@@ -45,155 +73,213 @@ export function OneRepMaxPage() {
         value: 0,
       })) ?? []
     );
-  }, [oneRepMax, selectedProgram]);
+  }, [activeCycle, oneRepMax, selectedProgram]);
 
-  const getValue = (exerciseId: number) => draft[exerciseId] ?? items.find(
-    (item) => item.exercise_id === exerciseId,
-  )?.value ?? "";
+  async function handleProgramChange(value: string) {
+    setStartError(null);
+    await selectProgram(Number(value));
+  }
 
-  const handleChange = useCallback(
-    (exerciseId: number, raw: string) => {
-      const digits = raw.replace(/\D/g, "").slice(0, 3);
-      const value = digits === "" ? 0 : parseInt(digits, 10);
-      setDraft((prev) => ({ ...prev, [exerciseId]: value }));
-      setStatus("idle");
-    },
-    [],
-  );
+  function getDraftValue(exerciseId: number, fallback: number) {
+    return draft[exerciseId] ?? String(fallback || "");
+  }
 
-  const handleProgramChange = useCallback(
-    async (value: string) => {
-      await selectProgram(Number(value));
-      setDraft({});
-      setStatus("idle");
-      setProgramNotice("Программа переключена.");
-    },
-    [selectProgram],
-  );
+  function handleDraftChange(exerciseId: number, raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 3);
+    setDraft((prev) => ({ ...prev, [exerciseId]: digits }));
+  }
 
-  const handleResetCompletions = useCallback(async () => {
-    await resetCompletions();
-  }, [resetCompletions]);
-
-  const handleSave = useCallback(async () => {
-    if (Object.keys(draft).length === 0) return;
-    setStatus("saving");
+  async function handleStart() {
+    if (!selectedProgram) return;
+    setStarting(true);
+    setStartError(null);
     try {
-      await saveOneRepMax({
-        items: Object.entries(draft).map(([exerciseId, value]) => ({
-          exercise_id: Number(exerciseId),
-          value,
+      await startCycle({
+        program_id: selectedProgram.id,
+        items: items.map((item) => ({
+          exercise_id: item.exercise_id,
+          value: Number(draft[item.exercise_id] ?? item.value ?? 0),
         })),
       });
       setDraft({});
-      setStatus("saved");
-    } catch {
-      setStatus("error");
+    } catch (error) {
+      setStartError(error instanceof Error ? error.message : "Не удалось начать цикл");
+    } finally {
+      setStarting(false);
     }
-  }, [draft, saveOneRepMax]);
+  }
 
-  const hasDraftChanges = Object.keys(draft).length > 0;
+  async function handleFinish() {
+    if (!finishReason.trim() || !finishFeeling.trim()) {
+      setFinishError("Нужно указать причину завершения и ощущения от программы.");
+      return;
+    }
+    setFinishing(true);
+    setFinishError(null);
+    try {
+      await finishCycle(finishReason.trim(), finishFeeling.trim());
+      setFinishReason("");
+      setFinishFeeling("");
+    } catch (error) {
+      setFinishError(error instanceof Error ? error.message : "Не удалось завершить цикл");
+    } finally {
+      setFinishing(false);
+    }
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>
-          <div className="flex items-center justify-between gap-3">
-            <p>Программа и 1ПМ</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleResetCompletions}
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Тренировочный цикл</CardTitle>
+          <CardDescription>
+            Цикл запускается пошагово: выбор программы, ввод 1ПМ, явный старт.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Шаг 1. Программа</p>
+            <Select
+              value={selectedProgram ? String(selectedProgram.id) : undefined}
+              onValueChange={handleProgramChange}
+              disabled={activeCycle != null || programs.length === 0}
             >
-              <RotateCcw className="h-4 w-4" />
-              Сбросить отметки
-            </Button>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Выберите программу" />
+              </SelectTrigger>
+              <SelectContent>
+                {programs.map((program) => (
+                  <SelectItem key={program.id} value={String(program.id)}>
+                    {program.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedProgram?.description ? (
+              <p className="text-sm text-muted-foreground">{selectedProgram.description}</p>
+            ) : null}
           </div>
-        </CardTitle>
-        <CardDescription>
-          Сначала выберите программу. Ниже показываются только те разовые максимумы,
-          которые нужны именно ей.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="space-y-3">
-          <label className="block text-sm text-muted-foreground">Программа</label>
-          <Select
-            value={selectedProgram ? String(selectedProgram.id) : undefined}
-            onValueChange={handleProgramChange}
-            disabled={programs.length === 0}
-          >
-            <SelectTrigger className="w-full">
-              <SelectValue placeholder="Выберите программу" />
-            </SelectTrigger>
-            <SelectContent>
-              {programs.map((program) => (
-                <SelectItem key={program.id} value={String(program.id)}>
-                  {program.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {selectedProgram?.description ? (
-            <p className="text-sm text-muted-foreground">{selectedProgram.description}</p>
-          ) : null}
-          {programNotice ? (
-            <p className="text-sm text-muted-foreground">{programNotice}</p>
-          ) : null}
-        </div>
 
-        <div className="border-t pt-5">
-          <div className="mb-4 flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium">Разовые максимумы</p>
-              <p className="text-sm text-muted-foreground">
-                Используются для расчета процентов в выбранной программе.
-              </p>
+          <div className="space-y-3 border-t pt-5">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium">Шаг 2. 1ПМ</p>
+              {activeCycle ? <LockKeyhole className="h-4 w-4 text-muted-foreground" /> : null}
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleSave}
-              disabled={!hasDraftChanges || status === "saving"}
-            >
-              <Save className="h-4 w-4" />
-              {status === "saving" ? "Сохранение..." : "Сохранить"}
-            </Button>
+            {items.map((item) => (
+              <div key={item.exercise_id} className="space-y-1">
+                <label className="block text-sm text-muted-foreground">{item.label}, кг</label>
+                <Input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={3}
+                  disabled={activeCycle != null}
+                  value={getDraftValue(item.exercise_id, item.value)}
+                  onChange={(event) => handleDraftChange(item.exercise_id, event.target.value)}
+                  placeholder="0"
+                />
+              </div>
+            ))}
+            {items.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                У выбранной программы нет настроенных упражнений 1ПМ.
+              </p>
+            ) : null}
           </div>
 
-          {items.map((item) => (
-            <div key={item.exercise_id} className="mb-4">
-              <label className="mb-1 block text-sm text-muted-foreground">
-                {item.label}, кг
-              </label>
+          <div className="space-y-3 border-t pt-5">
+            <p className="text-sm font-medium">Шаг 3. Старт</p>
+            {activeCycle ? (
+              <div className="rounded-2xl border border-border bg-muted/40 p-4 text-sm">
+                <p className="font-medium">{activeCycle.program_name}</p>
+                <p className="mt-1 text-muted-foreground">
+                  Цикл начат {formatDateTime(activeCycle.started_at)}. Программу и 1ПМ менять нельзя до завершения.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Button
+                  className="w-full"
+                  onClick={handleStart}
+                  disabled={starting || !selectedProgram}
+                >
+                  <Play className="h-4 w-4" />
+                  {starting ? "Запуск..." : "Начать цикл"}
+                </Button>
+                {startError ? (
+                  <p className="text-sm text-destructive">{startError}</p>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {activeCycle ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Завершение цикла</CardTitle>
+            <CardDescription>
+              После завершения цикл уйдет в историю вместе с фиксированным временем старта.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-1">
+              <label className="block text-sm text-muted-foreground">Почему завершаете</label>
               <Input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                maxLength={3}
-                value={getValue(item.exercise_id) || ""}
-                onChange={(e) => handleChange(item.exercise_id, e.target.value)}
-                placeholder="0"
+                value={finishReason}
+                onChange={(event) => setFinishReason(event.target.value)}
+                placeholder="Например: цикл выполнен полностью"
               />
             </div>
-          ))}
+            <div className="space-y-1">
+              <label className="block text-sm text-muted-foreground">Как ощущения от программы</label>
+              <textarea
+                className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm outline-none"
+                value={finishFeeling}
+                onChange={(event) => setFinishFeeling(event.target.value)}
+                placeholder="Коротко: что зашло, что не зашло, что хотите поменять"
+              />
+            </div>
+            <Button className="w-full" variant="destructive" onClick={handleFinish} disabled={finishing}>
+              <Square className="h-4 w-4" />
+              {finishing ? "Завершение..." : "Завершить цикл"}
+            </Button>
+            {finishError ? <p className="text-sm text-destructive">{finishError}</p> : null}
+          </CardContent>
+        </Card>
+      ) : null}
 
-          {items.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Для этой программы пока не настроены упражнения 1ПМ.
-            </p>
-          ) : null}
-
-          {status === "saved" && (
-            <p className="text-center text-sm text-green-600">Сохранено</p>
+      <Card>
+        <CardHeader>
+          <CardTitle>История циклов</CardTitle>
+          <CardDescription>
+            В историю попадают только явно завершенные циклы.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {cycleHistory.filter((item) => !item.is_active).length === 0 ? (
+            <p className="text-sm text-muted-foreground">Пока нет завершенных циклов.</p>
+          ) : (
+            cycleHistory
+              .filter((item) => !item.is_active)
+              .map((item) => (
+                <div key={item.id} className="rounded-2xl border border-border p-4">
+                  <p className="font-medium">{item.program_name}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {formatDateTime(item.started_at)} → {item.completed_at ? formatDateTime(item.completed_at) : "в процессе"}
+                  </p>
+                  {item.completion_reason ? (
+                    <p className="mt-2 text-sm">Причина: {item.completion_reason}</p>
+                  ) : null}
+                  {item.completion_feeling ? (
+                    <p className="mt-1 text-sm text-muted-foreground">{item.completion_feeling}</p>
+                  ) : null}
+                </div>
+              ))
           )}
-          {status === "error" && (
-            <p className="text-center text-sm text-destructive">
-              Ошибка сохранения
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

@@ -108,7 +108,7 @@ export function ExerciseList({
 					{groupExercises(exercises).map(item =>
 						item.type === 'single' ? (
 							<ExerciseCard
-								key={item.exercise.id}
+								key={item.exercise.slot_key}
 								dayExercise={item.exercise}
 								displayOrder={item.displayOrder}
 							/>

@@ -5,19 +5,23 @@ import type {
   OneRepMaxData,
   ProgramData,
   ProgramSummary,
+  TrainingCycleStartInput,
+  TrainingCycleSummary,
   WeekDetailData,
   WeekListItem,
 } from "./api";
 import {
   fetchAccessoryWeightsLatest as apiFetchAccessoryWeightsLatest,
+  fetchActiveTrainingCycle as apiFetchActiveTrainingCycle,
   fetchCompletions as apiFetchCompletions,
   fetchOneRepMax as apiFetchOneRepMax,
   fetchProgram as apiFetchProgram,
   fetchPrograms as apiFetchPrograms,
+  fetchTrainingCycleHistory as apiFetchTrainingCycleHistory,
+  finishTrainingCycle as apiFinishTrainingCycle,
   markComplete as apiMarkComplete,
-  resetCompletions as apiResetCompletions,
   saveAccessoryWeight as apiSaveAccessoryWeight,
-  saveOneRepMax as apiSaveOneRepMax,
+  startTrainingCycle as apiStartTrainingCycle,
   unmarkComplete as apiUnmarkComplete,
   updateSelectedProgram as apiUpdateSelectedProgram,
 } from "./api";
@@ -46,15 +50,14 @@ function resolveSelectedDay(
 interface ProgramState {
   selectedWeek: number | null;
   selectedDay: string | null;
-
   programs: ProgramSummary[];
   selectedProgram: ProgramSummary | null;
+  activeCycle: TrainingCycleSummary | null;
+  cycleHistory: TrainingCycleSummary[];
   weeks: WeekListItem[];
   weekDetailCache: Record<number, WeekDetailData>;
   loading: boolean;
   error: string | null;
-  programVersion: number | null;
-  programUpdatedAt: string | null;
   oneRepMax: OneRepMaxData | null;
   completions: Map<string, string>;
   accessoryWeights: AccessoryWeightLatest;
@@ -63,14 +66,16 @@ interface ProgramState {
   setDay: (day: string) => void;
   fetchPrograms: () => Promise<void>;
   selectProgram: (programId: number) => Promise<void>;
+  fetchActiveCycle: () => Promise<void>;
+  fetchCycleHistory: () => Promise<void>;
   fetchProgram: () => Promise<void>;
   fetchOneRepMax: () => Promise<void>;
-  saveOneRepMax: (data: { items: Array<{ exercise_id: number; value: number }> }) => Promise<void>;
   fetchCompletions: () => Promise<void>;
-  toggleCompletion: (weekNumber: number, weekday: string) => Promise<void>;
-  resetCompletions: () => Promise<void>;
   fetchAccessoryWeights: () => Promise<void>;
+  toggleCompletion: (weekNumber: number, weekday: string) => Promise<void>;
   saveAccessoryWeight: (exerciseId: number, weight: number, setsDisplay: string) => Promise<void>;
+  startCycle: (data: TrainingCycleStartInput) => Promise<void>;
+  finishCycle: (reason: string, feeling: string) => Promise<void>;
   navigateNext: () => Promise<NavigationResult>;
   navigatePrev: () => Promise<NavigationResult>;
 }
@@ -82,12 +87,12 @@ export const useProgramStore = create<ProgramState>()(
       selectedDay: null,
       programs: [],
       selectedProgram: null,
+      activeCycle: null,
+      cycleHistory: [],
       weeks: [],
       weekDetailCache: {},
       loading: false,
       error: null,
-      programVersion: null,
-      programUpdatedAt: null,
       oneRepMax: null,
       completions: new Map<string, string>(),
       accessoryWeights: {},
@@ -106,7 +111,8 @@ export const useProgramStore = create<ProgramState>()(
           set((state) => ({
             programs,
             selectedProgram:
-              programs.find((item) => item.id === state.selectedProgram?.id)
+              programs.find((item) => item.id === state.activeCycle?.program_id)
+              ?? programs.find((item) => item.id === state.selectedProgram?.id)
               ?? state.selectedProgram
               ?? programs[0]
               ?? null,
@@ -118,12 +124,25 @@ export const useProgramStore = create<ProgramState>()(
 
       selectProgram: async (programId) => {
         await apiUpdateSelectedProgram(programId);
-        await Promise.all([
-          get().fetchPrograms(),
-          get().fetchProgram(),
-          get().fetchOneRepMax(),
-          get().fetchCompletions(),
-        ]);
+        await Promise.all([get().fetchPrograms(), get().fetchProgram(), get().fetchOneRepMax()]);
+      },
+
+      fetchActiveCycle: async () => {
+        try {
+          const response = await apiFetchActiveTrainingCycle();
+          set({ activeCycle: response.cycle });
+        } catch {
+          set({ activeCycle: null });
+        }
+      },
+
+      fetchCycleHistory: async () => {
+        try {
+          const items = await apiFetchTrainingCycleHistory();
+          set({ cycleHistory: items });
+        } catch {
+          // Silent fail
+        }
       },
 
       fetchProgram: async () => {
@@ -145,8 +164,6 @@ export const useProgramStore = create<ProgramState>()(
               weeks,
               weekDetailCache,
               selectedProgram: program.program,
-              programVersion: program.version,
-              programUpdatedAt: program.updated_at,
               selectedWeek: nextSelectedWeek,
               selectedDay: resolveSelectedDay(nextSelectedWeek, state.selectedDay, weekDetailCache),
               loading: false,
@@ -157,7 +174,6 @@ export const useProgramStore = create<ProgramState>()(
           set({
             loading: false,
             error: "Не удалось загрузить программу",
-            selectedProgram: null,
             weeks: [],
             weekDetailCache: {},
           });
@@ -169,13 +185,8 @@ export const useProgramStore = create<ProgramState>()(
           const data = await apiFetchOneRepMax();
           set({ oneRepMax: data });
         } catch {
-          // Silent fail — 1RM is optional
+          set({ oneRepMax: null });
         }
-      },
-
-      saveOneRepMax: async (data) => {
-        const result = await apiSaveOneRepMax(data);
-        set({ oneRepMax: result });
       },
 
       fetchCompletions: async () => {
@@ -187,7 +198,16 @@ export const useProgramStore = create<ProgramState>()(
           }
           set({ completions: map });
         } catch {
-          // Silent fail — completions are non-critical
+          set({ completions: new Map<string, string>() });
+        }
+      },
+
+      fetchAccessoryWeights: async () => {
+        try {
+          const data = await apiFetchAccessoryWeightsLatest();
+          set({ accessoryWeights: data });
+        } catch {
+          // Silent fail
         }
       },
 
@@ -215,25 +235,6 @@ export const useProgramStore = create<ProgramState>()(
         }
       },
 
-      resetCompletions: async () => {
-        const previous = get().completions;
-        set({ completions: new Map<string, string>() });
-        try {
-          await apiResetCompletions();
-        } catch {
-          set({ completions: previous });
-        }
-      },
-
-      fetchAccessoryWeights: async () => {
-        try {
-          const data = await apiFetchAccessoryWeightsLatest();
-          set({ accessoryWeights: data });
-        } catch {
-          // Silent fail
-        }
-      },
-
       saveAccessoryWeight: async (exerciseId, weight, setsDisplay) => {
         const { selectedWeek } = get();
         try {
@@ -250,6 +251,45 @@ export const useProgramStore = create<ProgramState>()(
         } catch {
           // Silent fail
         }
+      },
+
+      startCycle: async (data) => {
+        const response = await apiStartTrainingCycle(data);
+        const weeks = response.program.weeks.map((week) => ({
+          id: week.id,
+          number: week.number,
+          title: week.title,
+        }));
+        const weekDetailCache = buildWeekCache(response.program);
+        const nextSelectedWeek = weeks[0]?.number ?? null;
+
+        set((state) => ({
+          activeCycle: response.cycle,
+          selectedProgram: response.program.program,
+          oneRepMax: response.one_rep_max,
+          completions: new Map<string, string>(),
+          weeks,
+          weekDetailCache,
+          selectedWeek: nextSelectedWeek,
+          selectedDay: resolveSelectedDay(nextSelectedWeek, state.selectedDay, weekDetailCache),
+          error: null,
+        }));
+      },
+
+      finishCycle: async (reason, feeling) => {
+        const finished = await apiFinishTrainingCycle({ reason, feeling });
+        set((state) => ({
+          activeCycle: null,
+          completions: new Map<string, string>(),
+          cycleHistory: [finished, ...state.cycleHistory.filter((item) => item.id !== finished.id)],
+        }));
+        await Promise.all([
+          get().fetchActiveCycle(),
+          get().fetchProgram(),
+          get().fetchOneRepMax(),
+          get().fetchCompletions(),
+          get().fetchCycleHistory(),
+        ]);
       },
 
       navigateNext: async () => {

@@ -1,3 +1,4 @@
+/*
 import { DayTabsBar } from '@/components/DayTabsBar'
 import { ExerciseDisplayContent } from '@/components/ExerciseDisplayContent'
 import { Badge } from '@/components/ui/badge'
@@ -41,6 +42,9 @@ const WEEKDAY_SHORT_LABELS: Record<string, string> = {
 	SAT: 'Сб',
 	SUN: 'Вс',
 }
+*/
+
+export { ProgramAdaptationsPage as ProgramEditPage } from './ProgramAdaptationsPage'
 
 type LoadType = 'PERCENT' | 'KG' | 'INDIVIDUAL' | 'BODYWEIGHT'
 

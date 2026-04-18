@@ -2,11 +2,14 @@ from django.contrib import admin
 
 from .models import (
     AccessoryWeight,
+    CycleOneRepMax,
     Day,
     DayExercise,
     Exercise,
     ExerciseSet,
+    ProgramAdaptation,
     ProgramSnapshot,
+    TrainingCycle,
     Week,
     WorkoutCompletion,
 )
@@ -70,8 +73,8 @@ class ExerciseSetAdmin(admin.ModelAdmin):
 
 @admin.register(WorkoutCompletion)
 class WorkoutCompletionAdmin(admin.ModelAdmin):
-    list_display = ["telegram_id", "week_number", "weekday", "completed_at"]
-    list_filter = ["week_number", "weekday"]
+    list_display = ["telegram_id", "cycle", "week_number", "weekday", "completed_at"]
+    list_filter = ["cycle", "week_number", "weekday"]
     ordering = ["-completed_at"]
 
 
@@ -87,3 +90,32 @@ class AccessoryWeightAdmin(admin.ModelAdmin):
     list_display = ["telegram_id", "exercise", "weight", "sets_display", "recorded_date", "week"]
     list_filter = ["exercise", "week"]
     ordering = ["-recorded_date"]
+
+
+@admin.register(TrainingCycle)
+class TrainingCycleAdmin(admin.ModelAdmin):
+    list_display = ["telegram_id", "program", "started_at", "completed_at"]
+    list_filter = ["program", "completed_at"]
+    ordering = ["-started_at"]
+
+
+@admin.register(CycleOneRepMax)
+class CycleOneRepMaxAdmin(admin.ModelAdmin):
+    list_display = ["cycle", "exercise", "label", "value"]
+    list_filter = ["cycle__program"]
+    ordering = ["-cycle_id", "exercise__name"]
+
+
+@admin.register(ProgramAdaptation)
+class ProgramAdaptationAdmin(admin.ModelAdmin):
+    list_display = [
+        "telegram_id",
+        "program",
+        "cycle",
+        "scope",
+        "action",
+        "slot_key",
+        "created_at",
+    ]
+    list_filter = ["program", "scope", "action"]
+    ordering = ["-created_at"]

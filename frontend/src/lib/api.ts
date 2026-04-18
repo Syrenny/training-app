@@ -2,6 +2,18 @@ import { getTelegram } from "./telegram";
 
 const BASE_URL = "/api";
 
+async function readErrorMessage(response: Response): Promise<string> {
+  try {
+    const data = (await response.json()) as { detail?: string };
+    if (typeof data.detail === "string" && data.detail) {
+      return data.detail;
+    }
+  } catch {
+    // Ignore JSON parsing errors
+  }
+  return `API error: ${response.status}`;
+}
+
 export interface AuthUser {
   id: number;
   telegram_id: number | null;
@@ -73,25 +85,25 @@ function getRequestOptions(method?: string, data?: unknown): RequestInit {
 
 async function fetchApi<T>(path: string): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("GET"));
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  if (!response.ok) throw new Error(await readErrorMessage(response));
   return response.json();
 }
 
 async function postApi<T>(path: string, data: unknown): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("POST", data));
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  if (!response.ok) throw new Error(await readErrorMessage(response));
   return response.json();
 }
 
 async function putApi<T>(path: string, data: unknown): Promise<T> {
   const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("PUT", data));
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  if (!response.ok) throw new Error(await readErrorMessage(response));
   return response.json();
 }
 
 async function deleteApi(path: string): Promise<void> {
   const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("DELETE"));
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
+  if (!response.ok) throw new Error(await readErrorMessage(response));
 }
 
 export async function fetchSession(): Promise<AuthSessionData> {
@@ -153,6 +165,7 @@ export interface ProgramOneRepMaxExerciseData {
 export interface DayExerciseData {
   id: string;
   order: number;
+  slot_key: string;
   exercise: ExerciseData;
   sets: ExerciseSetData[];
   superset_group: number | null;
@@ -269,8 +282,65 @@ export interface OneRepMaxItemData {
 }
 
 export interface OneRepMaxData {
+  cycle_id: number | null;
   program_id: number | null;
   items: OneRepMaxItemData[];
+}
+
+export interface TrainingCycleSummary {
+  id: number;
+  program_id: number;
+  program_name: string;
+  started_at: string;
+  completed_at: string | null;
+  completion_reason: string;
+  completion_feeling: string;
+  is_active: boolean;
+}
+
+export interface ActiveTrainingCycleResponse {
+  cycle: TrainingCycleSummary | null;
+}
+
+export interface TrainingCycleStartInput {
+  program_id: number;
+  items: Array<{ exercise_id: number; value: number }>;
+}
+
+export interface TrainingCycleStartResponse {
+  cycle: TrainingCycleSummary;
+  program: ProgramData;
+  one_rep_max: OneRepMaxData;
+}
+
+export interface ProgramAdaptation {
+  id: number;
+  program_id: number;
+  program_name: string;
+  cycle_id: number | null;
+  scope: "ONLY_HERE" | "CURRENT_CYCLE" | "FUTURE_CYCLES";
+  scope_label: string;
+  action: "DELETE" | "REPLACE";
+  action_label: string;
+  slot_key: string;
+  week_number: number;
+  weekday: string;
+  original_exercise_name: string | null;
+  replacement_exercise_name: string | null;
+  reason: string;
+  created_at: string;
+}
+
+export interface ProgramAdaptationInput {
+  program_id: number;
+  scope: "ONLY_HERE" | "CURRENT_CYCLE" | "FUTURE_CYCLES";
+  action: "DELETE" | "REPLACE";
+  slot_key: string;
+  week_number: number;
+  weekday: string;
+  original_exercise_id?: number | null;
+  replacement_exercise_id?: number | null;
+  reason?: string;
 }
 
 export interface AccessoryWeightLatest {
@@ -346,6 +416,41 @@ export function unmarkComplete(weekNumber: number, weekday: string): Promise<voi
 
 export function resetCompletions(): Promise<void> {
   return deleteApi("/completions/");
+}
+
+export function fetchActiveTrainingCycle(): Promise<ActiveTrainingCycleResponse> {
+  return fetchApi<ActiveTrainingCycleResponse>("/training-cycle/active/");
+}
+
+export function startTrainingCycle(
+  data: TrainingCycleStartInput,
+): Promise<TrainingCycleStartResponse> {
+  return postApi<TrainingCycleStartResponse>("/training-cycle/start/", data);
+}
+
+export function finishTrainingCycle(data: {
+  reason: string;
+  feeling: string;
+}): Promise<TrainingCycleSummary> {
+  return postApi<TrainingCycleSummary>("/training-cycle/finish/", data);
+}
+
+export function fetchTrainingCycleHistory(): Promise<TrainingCycleSummary[]> {
+  return fetchApi<TrainingCycleSummary[]>("/training-cycle/history/");
+}
+
+export function fetchProgramAdaptations(
+  programId: number,
+): Promise<ProgramAdaptation[]> {
+  return fetchApi<ProgramAdaptation[]>(
+    `/program/adaptations/?program_id=${encodeURIComponent(String(programId))}`,
+  );
+}
+
+export function createProgramAdaptation(
+  data: ProgramAdaptationInput,
+): Promise<ProgramAdaptation> {
+  return postApi<ProgramAdaptation>("/program/adaptations/", data);
 }
 
 export function fetchAccessoryWeightsLatest(): Promise<AccessoryWeightLatest> {

@@ -4,7 +4,7 @@ import type { TelegramWidgetAuthData } from "@/lib/api";
 import { fetchSession, loginWithTelegram, logoutSession } from "@/lib/api";
 import { getTelegram, initTelegram, isTelegramContext } from "@/lib/telegram";
 import { ProgramPage } from "@/pages/ProgramPage";
-import { ProgramEditPage } from "@/pages/ProgramEditPage";
+import { ProgramAdaptationsPage } from "@/pages/ProgramAdaptationsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { BottomTabBar, type AppTab } from "@/components/BottomTabBar";
 import { UnauthorizedScreen } from "@/components/UnauthorizedScreen";
@@ -257,7 +257,7 @@ function App() {
         </div>
         {editorMounted ? (
           <div className={screen === "editor" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
-            <ProgramEditPage />
+            <ProgramAdaptationsPage />
           </div>
         ) : null}
         <div className={screen === "profile" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>

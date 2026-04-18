@@ -234,8 +234,164 @@ class OneRepMax(models.Model):
         )
 
 
+class TrainingCycle(models.Model):
+    telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="training_cycles",
+        verbose_name="Программа",
+    )
+    program_payload = models.JSONField(default=dict, verbose_name="Снапшот программы")
+    started_at = models.DateTimeField(auto_now_add=True, verbose_name="Начало цикла")
+    completed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Завершение цикла",
+    )
+    completion_reason = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        verbose_name="Причина завершения",
+    )
+    completion_feeling = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Ощущения от программы",
+    )
+
+    class Meta:
+        ordering = ["-started_at", "-id"]
+        verbose_name = "Тренировочный цикл"
+        verbose_name_plural = "Тренировочные циклы"
+
+    def __str__(self):
+        return (
+            f"tg:{self.telegram_id} — {self.program.name} — "
+            f"{self.started_at:%Y-%m-%d}"
+        )
+
+    @property
+    def is_active(self):
+        return self.completed_at is None
+
+
+class CycleOneRepMax(models.Model):
+    cycle = models.ForeignKey(
+        TrainingCycle,
+        on_delete=models.CASCADE,
+        related_name="one_rep_max_values",
+        verbose_name="Тренировочный цикл",
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name="cycle_one_rep_max_values",
+        verbose_name="Упражнение 1ПМ",
+    )
+    label = models.CharField(max_length=200, blank=True, default="", verbose_name="Подпись")
+    value = models.PositiveIntegerField(
+        default=0,
+        validators=[MaxValueValidator(999)],
+        verbose_name="Разовый максимум (кг)",
+    )
+
+    class Meta:
+        ordering = ["cycle_id", "exercise_id"]
+        unique_together = [("cycle", "exercise")]
+        verbose_name = "1ПМ тренировочного цикла"
+        verbose_name_plural = "1ПМ тренировочных циклов"
+
+    def __str__(self):
+        return f"Цикл {self.cycle_id}: {self.label or self.exercise.name} = {self.value}"
+
+
+class AdaptationScope(models.TextChoices):
+    ONLY_HERE = "ONLY_HERE", "Только здесь"
+    CURRENT_CYCLE = "CURRENT_CYCLE", "До конца текущего цикла"
+    FUTURE_CYCLES = "FUTURE_CYCLES", "Во всех будущих циклах"
+
+
+class AdaptationAction(models.TextChoices):
+    DELETE = "DELETE", "Удалить"
+    REPLACE = "REPLACE", "Заменить"
+
+
+class ProgramAdaptation(models.Model):
+    telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="adaptations",
+        verbose_name="Программа",
+    )
+    cycle = models.ForeignKey(
+        TrainingCycle,
+        on_delete=models.CASCADE,
+        related_name="adaptations",
+        null=True,
+        blank=True,
+        verbose_name="Тренировочный цикл",
+    )
+    scope = models.CharField(
+        max_length=20,
+        choices=AdaptationScope.choices,
+        verbose_name="Область действия",
+    )
+    action = models.CharField(
+        max_length=10,
+        choices=AdaptationAction.choices,
+        verbose_name="Действие",
+    )
+    slot_key = models.CharField(max_length=100, verbose_name="Ключ позиции")
+    week_number = models.PositiveIntegerField(verbose_name="Номер недели")
+    weekday = models.CharField(
+        max_length=3,
+        choices=Weekday.choices,
+        verbose_name="День недели",
+    )
+    original_exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="original_program_adaptations",
+        verbose_name="Исходное упражнение",
+    )
+    replacement_exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="replacement_program_adaptations",
+        verbose_name="Заменяющее упражнение",
+    )
+    reason = models.TextField(blank=True, default="", verbose_name="Причина адаптации")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        verbose_name = "Адаптация программы"
+        verbose_name_plural = "Адаптации программы"
+
+    def __str__(self):
+        return (
+            f"tg:{self.telegram_id} — {self.program.name} — "
+            f"{self.get_action_display()} ({self.get_scope_display()})"
+        )
+
+
 class WorkoutCompletion(models.Model):
     telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    cycle = models.ForeignKey(
+        TrainingCycle,
+        on_delete=models.CASCADE,
+        related_name="completions",
+        null=True,
+        blank=True,
+        verbose_name="Тренировочный цикл",
+    )
     program = models.ForeignKey(
         Program,
         on_delete=models.CASCADE,
@@ -267,7 +423,7 @@ class WorkoutCompletion(models.Model):
     completed_at = models.DateTimeField(auto_now_add=True, verbose_name="Завершено")
 
     class Meta:
-        unique_together = [("telegram_id", "program", "week_number", "weekday")]
+        unique_together = [("cycle", "week_number", "weekday")]
         verbose_name = "Завершение тренировки"
         verbose_name_plural = "Завершения тренировок"
 
