@@ -16,11 +16,11 @@ const TABS: Array<{ id: AppTab; label: string; icon: typeof Dumbbell }> = [
 
 export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
   return (
-    <div className="fixed bottom-4 left-0 right-0 z-50 px-4">
+    <div className="fixed bottom-2 left-0 right-0 z-50 px-16">
       <div
         className="
           mx-auto max-w-screen-sm
-          rounded-2xl
+          rounded-full
           backdrop-blur-xl
           bg-white/10 dark:bg-black/20
           backdrop-saturate-150
@@ -38,12 +38,13 @@ export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
                 key={tab.id}
                 variant="ghost"
                 className={`
-                    h-12 flex-1 flex-col gap-1 relative
+                    h-14 flex-1 flex-col gap-1 relative
 
                     ${active ? `
                     bg-white/20 dark:bg-white/10
                     backdrop-blur-md
                     shadow-sm
+                    rounded-full
                     ` : `
                     hover:bg-white/10 dark:hover:bg-white/5
                     `}

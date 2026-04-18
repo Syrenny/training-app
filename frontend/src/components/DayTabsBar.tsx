@@ -16,12 +16,12 @@ interface DayTabsBarProps {
 export function DayTabsBar({ items, action }: DayTabsBarProps) {
   return (
     <div className="flex items-center gap-2">
-      <TabsList className="w-full">
+      <TabsList className="w-full rounded-full">
         {items.map((item) => (
           <TabsTrigger
             key={item.key}
             value={item.value}
-            className="relative flex-1 text-base"
+            className="relative flex-1 text-base rounded-full"
           >
             {item.label}
             {item.indicator ? (
