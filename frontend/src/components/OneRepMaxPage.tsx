@@ -221,7 +221,7 @@ export function OneRepMaxPage() {
 						) : null}
 					</div>
 
-					<div className='space-y-3 border-t pt-5'>
+					<div className='space-y-3 border-t pt-5 flex justify-between items-start'>
 						<p className='text-sm font-medium'>Шаг 3. Старт</p>
 						{activeCycle ? (
 							<div className='text-sm'>
@@ -239,6 +239,7 @@ export function OneRepMaxPage() {
 									className='w-full'
 									onClick={handleStart}
 									disabled={starting || !selectedProgram}
+                                    variant='ghost'
 								>
 									<Play className='h-4 w-4' />
 									{starting ? 'Запуск...' : 'Начать цикл'}

@@ -497,7 +497,7 @@ export function ProgramAdaptationsPage() {
 								</div>
 							) : (
 								<div className='flex flex-wrap items-center justify-between gap-2'>
-									<div className='flex flex-wrap gap-2'>
+									<div className='flex flex-wrap gap-5'>
 										{item.effectiveAdaptation ? (
 											<Button
 												variant='ghost'
@@ -553,7 +553,7 @@ export function ProgramAdaptationsPage() {
 
 	return (
 		<div className='flex min-h-0 flex-1 flex-col'>
-			<div className='shrink-0 pl-1 pr-2 pt-1 pb-1'>
+			<div className='shrink-0 px-4 py-3'>
 				<WeekPicker
 					items={weeks}
 					selectedNumber={selectedWeek}
@@ -594,7 +594,7 @@ export function ProgramAdaptationsPage() {
 							</Card>
 						) : (
 							<>
-								<Card className='gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none mb-5'>
+								<Card className='gap-0 bg-transparent py-0 shadow-none mb-5'>
 									<CardContent className='px-0 py-3'>
 										{day.title ? (
 											<p className='mb-2 text-md font-semibold text-muted-foreground'>
@@ -643,7 +643,7 @@ export function ProgramAdaptationsPage() {
 									adaptations.map(item => (
 										<div
 											key={item.id}
-											className='rounded-2xl border border-border p-4'
+											className='py-4 border-t'
 										>
 											<div className='flex flex-wrap items-center gap-2'>
 												<Badge

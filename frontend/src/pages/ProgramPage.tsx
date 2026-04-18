@@ -62,7 +62,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
           </Card>
         </div>
       ) : null}
-      <div className="pl-1 pr-2 pt-1 pb-1 shrink-0">
+      <div className="px-4 py-3 shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex-1">
             <WeekSelector />
