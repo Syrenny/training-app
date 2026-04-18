@@ -5,7 +5,6 @@ import { DayTabs } from "@/components/DayTabs";
 import { InfoButton } from "@/components/InfoButton";
 import { PageHeaderOverlay } from "@/components/PageHeaderOverlay";
 import { WeekSelector } from "@/components/WeekSelector";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ProgramPageProps {
   user: AuthUser | null;
