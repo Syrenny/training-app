@@ -13,9 +13,14 @@ import { ExerciseList } from './ExerciseList'
 interface DayTabsProps {
 	weekNumber: number
 	days: DayData[]
+	showCompletionControls?: boolean
 }
 
-export function DayTabs({ weekNumber, days }: DayTabsProps) {
+export function DayTabs({
+	weekNumber,
+	days,
+	showCompletionControls = true,
+}: DayTabsProps) {
 	const selectedDay = useProgramStore(s => s.selectedDay)
 	const setDay = useProgramStore(s => s.setDay)
 	const completions = useProgramStore(s => s.completions)
@@ -114,7 +119,9 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 						key: day.weekday,
 						value: day.weekday,
 						label: day.weekday_display,
-						indicator: completions.has(`${weekNumber}:${day.weekday}`),
+						indicator:
+							showCompletionControls &&
+							completions.has(`${weekNumber}:${day.weekday}`),
 					}))}
 				/>
 
@@ -145,6 +152,9 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 													textBlocks={day.text_blocks}
 													weekNumber={weekNumber}
 													weekday={day.weekday}
+													showCompletionControl={
+														showCompletionControls
+													}
 												/>
 										</div>
 									</SwiperSlide>

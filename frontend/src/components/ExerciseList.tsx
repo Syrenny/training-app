@@ -52,6 +52,7 @@ interface ExerciseListProps {
 	textBlocks: DayTextBlockData[]
 	weekNumber: number
 	weekday: string
+	showCompletionControl?: boolean
 }
 
 export function ExerciseList({
@@ -60,6 +61,7 @@ export function ExerciseList({
 	textBlocks,
 	weekNumber,
 	weekday,
+	showCompletionControl = true,
 }: ExerciseListProps) {
 	const completions = useProgramStore(s => s.completions)
 	const toggleCompletion = useProgramStore(s => s.toggleCompletion)
@@ -77,13 +79,15 @@ export function ExerciseList({
 							<p className='mb-2 text-md font-semibold text-muted-foreground'>
 								{title}
 							</p>
-							<CompletionButton
-								completed={isCompleted}
-								completionDate={completionDate}
-								onToggle={() =>
-									toggleCompletion(weekNumber, weekday)
-								}
-							/>
+							{showCompletionControl ? (
+								<CompletionButton
+									completed={isCompleted}
+									completionDate={completionDate}
+									onToggle={() =>
+										toggleCompletion(weekNumber, weekday)
+									}
+								/>
+							) : null}
 						</div>
 					) : null}
 					<div className='flex items-start justify-start gap-3'>

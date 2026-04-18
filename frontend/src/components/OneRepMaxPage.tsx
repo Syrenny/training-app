@@ -14,6 +14,41 @@ import { useProgramStore } from '@/lib/store'
 import { LockKeyhole, Play, Square, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
+function getOneRepMaxDraftKey(programId: number) {
+	return `training-app-orm-draft:${programId}`
+}
+
+function loadOneRepMaxDraft(programId: number): Record<number, string> {
+	if (typeof window === 'undefined') return {}
+	try {
+		const raw = window.localStorage.getItem(getOneRepMaxDraftKey(programId))
+		if (!raw) return {}
+		const parsed = JSON.parse(raw) as Record<string, string>
+		return Object.fromEntries(
+			Object.entries(parsed).map(([key, value]) => [Number(key), value]),
+		)
+	} catch {
+		return {}
+	}
+}
+
+function saveOneRepMaxDraft(programId: number, draft: Record<number, string>) {
+	if (typeof window === 'undefined') return
+	if (Object.keys(draft).length === 0) {
+		window.localStorage.removeItem(getOneRepMaxDraftKey(programId))
+		return
+	}
+	window.localStorage.setItem(
+		getOneRepMaxDraftKey(programId),
+		JSON.stringify(draft),
+	)
+}
+
+function clearOneRepMaxDraft(programId: number) {
+	if (typeof window === 'undefined') return
+	window.localStorage.removeItem(getOneRepMaxDraftKey(programId))
+}
+
 function formatDateTime(value: string) {
 	return new Date(value).toLocaleString('ru-RU', {
 		day: '2-digit',
@@ -65,9 +100,19 @@ export function OneRepMaxPage() {
 	])
 
 	useEffect(() => {
-		setDraft({})
+		if (!selectedProgram || activeCycle) {
+			setDraft({})
+			setStartError(null)
+			return
+		}
+		setDraft(loadOneRepMaxDraft(selectedProgram.id))
 		setStartError(null)
 	}, [selectedProgram?.id, activeCycle?.id])
+
+	useEffect(() => {
+		if (!selectedProgram || activeCycle) return
+		saveOneRepMaxDraft(selectedProgram.id, draft)
+	}, [draft, selectedProgram?.id, activeCycle])
 
 	const items = useMemo(() => {
 		if (activeCycle && oneRepMax?.cycle_id === activeCycle.id) {
@@ -115,6 +160,7 @@ export function OneRepMaxPage() {
 					value: Number(draft[item.exercise_id] ?? item.value ?? 0),
 				})),
 			})
+			clearOneRepMaxDraft(selectedProgram.id)
 			setDraft({})
 		} catch (error) {
 			setStartError(

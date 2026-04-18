@@ -32,7 +32,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
   }, [fetchActiveCycle, fetchProgram, fetchOneRepMax, fetchCompletions, fetchAccessoryWeights]);
 
   const weekData = selectedWeek !== null ? weekDetailCache[selectedWeek] : null;
-  const hasOverlayHeader = Boolean(activeCycle && weekData);
+  const hasOverlayHeader = Boolean(weekData);
 
   if (loading && !weekData) {
     return (
@@ -52,18 +52,6 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
 
   return (
     <div className="relative flex flex-col flex-1 min-h-0">
-      {!activeCycle ? (
-        <div className="px-4 pt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Активный цикл не запущен</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-muted-foreground">
-              Сначала выберите программу, задайте 1ПМ и начните цикл во вкладке профиля.
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
       {hasOverlayHeader ? (
         <PageHeaderOverlay contentClassName="flex items-center gap-2">
           <div className="flex-1">
@@ -85,8 +73,12 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
       <div
         className={`flex flex-col flex-1 min-h-0 px-4`}
       >
-        {activeCycle && weekData ? (
-          <DayTabs weekNumber={weekData.number} days={weekData.days} />
+        {weekData ? (
+          <DayTabs
+            weekNumber={weekData.number}
+            days={weekData.days}
+            showCompletionControls={Boolean(activeCycle)}
+          />
         ) : null}
       </div>
     </div>
