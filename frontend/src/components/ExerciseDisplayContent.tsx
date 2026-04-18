@@ -47,6 +47,10 @@ export function ExerciseDisplayContent({
 }: ExerciseDisplayContentProps) {
 	const oneRepMax = useProgramStore(s => s.oneRepMax)
 	const badge_items = React.Children.toArray(badges)
+	const firstIndividualSetIndex = sets.findIndex(
+		set => set.load_type === 'INDIVIDUAL',
+	)
+	const hasIndividualLoad = firstIndividualSetIndex !== -1
 
 	const tonnage =
 		exercise.category !== 'ACCESSORY'
@@ -76,8 +80,8 @@ export function ExerciseDisplayContent({
 						oneRepMaxExerciseId={exercise.one_rep_max_exercise_id}
 						weightEditor={
 							showAccessoryWeight &&
-							exercise.category === 'ACCESSORY' &&
-							index === 0 ? (
+							hasIndividualLoad &&
+							index === firstIndividualSetIndex ? (
 								<AccessoryWeightInput
 									exerciseId={exercise.id}
 									exerciseName={exercise.name}
@@ -89,8 +93,8 @@ export function ExerciseDisplayContent({
 						}
 						rightAddon={
 							showAccessoryWeight &&
-							exercise.category === 'ACCESSORY' &&
-							index === 0 ? (
+							hasIndividualLoad &&
+							index === firstIndividualSetIndex ? (
 								<AccessoryWeightHistoryButton
 									exerciseId={exercise.id}
 									exerciseName={exercise.name}

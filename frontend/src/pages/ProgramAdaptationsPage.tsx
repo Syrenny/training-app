@@ -748,12 +748,6 @@ export function ProgramAdaptationsPage() {
 								? 'Удалить упражнение'
 								: 'Заменить упражнение'}
 						</DialogTitle>
-						<DialogDescription>
-							{(pending?.item.current ?? pending?.item.original)
-								?.exercise.name ?? 'Упражнение'}{' '}
-							— выберите область действия и, если нужно, новую
-							замену.
-						</DialogDescription>
 					</DialogHeader>
 
 					<div className='space-y-4'>
@@ -797,7 +791,7 @@ export function ProgramAdaptationsPage() {
 									onValueChange={setReplacementExerciseId}
 								>
 									<SelectTrigger>
-										<SelectValue placeholder='Выберите упражнение' />
+										<SelectValue placeholder='Выберите' />
 									</SelectTrigger>
 									<SelectContent>
 										{catalog
@@ -831,7 +825,6 @@ export function ProgramAdaptationsPage() {
 								onChange={event =>
 									setReason(event.target.value)
 								}
-								placeholder='Например: колено не терпит этот вариант'
 							/>
 						</div>
 
@@ -843,11 +836,11 @@ export function ProgramAdaptationsPage() {
 					</div>
 
 					<DialogFooter>
-						<Button variant='outline' onClick={closeAction}>
+						<Button variant='ghost' onClick={closeAction}>
 							Отмена
 						</Button>
-						<Button onClick={handleSubmit} disabled={submitting}>
-							{submitting ? 'Сохраняю...' : 'Сохранить адаптацию'}
+						<Button onClick={handleSubmit} disabled={submitting} variant='ghost'>
+							{submitting ? 'Сохраняю...' : 'Сохранить'}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
