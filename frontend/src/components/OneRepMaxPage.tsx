@@ -18,8 +18,6 @@ function formatDateTime(value: string) {
 		day: '2-digit',
 		month: '2-digit',
 		year: 'numeric',
-		hour: '2-digit',
-		minute: '2-digit',
 	})
 }
 
@@ -233,9 +231,8 @@ export function OneRepMaxPage() {
 									{activeCycle.program_name}
 								</p>
 								<p className='mt-1 text-muted-foreground'>
-									Цикл начат{' '}
-									{formatDateTime(activeCycle.started_at)}.
-									Программу и 1ПМ менять нельзя до завершения.
+									Начало: {' '}
+									{formatDateTime(activeCycle.started_at)}
 								</p>
 							</div>
 						) : (
@@ -280,7 +277,7 @@ export function OneRepMaxPage() {
 					<CardContent className='space-y-4'>
 						<div className='space-y-1'>
 							<label className='block text-sm text-muted-foreground'>
-								Причина завершения
+								Причина
 							</label>
 							<Input
 								value={finishReason}
@@ -291,7 +288,7 @@ export function OneRepMaxPage() {
 						</div>
 						<div className='space-y-1'>
 							<label className='block text-sm text-muted-foreground'>
-								Заметки по программе
+								Заметки
 							</label>
 							<Textarea
 								className='min-h-24'

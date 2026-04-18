@@ -633,17 +633,12 @@ export function ProgramAdaptationsPage() {
 
 						<Card>
 							<CardHeader>
-								<CardTitle>Список адаптаций</CardTitle>
-								<CardDescription>
-									Активные правила можно отменять прямо
-									отсюда. Отменённые правила остаются в
-									истории с причиной.
-								</CardDescription>
+								<CardTitle>Модификации</CardTitle>
 							</CardHeader>
 							<CardContent className='space-y-3'>
 								{adaptations.length === 0 ? (
 									<p className='text-sm text-muted-foreground'>
-										Пока адаптаций нет.
+										Изменений нет
 									</p>
 								) : (
 									adaptations.map(item => (
