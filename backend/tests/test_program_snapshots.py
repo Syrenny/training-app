@@ -13,13 +13,13 @@ class ProgramSnapshotAPITest(TestCase):
         )
         cls.week = Week.objects.create(program=cls.program, number=1, title="1 неделя")
         cls.day = Day.objects.create(week=cls.week, weekday=Weekday.MON, order=1)
-        cls.squat = Exercise.objects.create(
+        cls.squat, _ = Exercise.objects.get_or_create(
             name="Приседания",
-            category=ExerciseCategory.SQUAT,
+            defaults={"category": ExerciseCategory.SQUAT},
         )
-        cls.bench = Exercise.objects.create(
+        cls.bench, _ = Exercise.objects.get_or_create(
             name="Жим лёжа",
-            category=ExerciseCategory.BENCH,
+            defaults={"category": ExerciseCategory.BENCH},
         )
         day_exercise = DayExercise.objects.create(day=cls.day, exercise=cls.squat, order=1)
         ExerciseSet.objects.create(
@@ -214,4 +214,5 @@ class ProgramSnapshotAPITest(TestCase):
         response = self.client.get("/api/exercises/")
         self.assertEqual(response.status_code, 200)
         names = [item["name"] for item in response.json()]
-        self.assertEqual(names, ["Жим лёжа", "Приседания"])
+        self.assertIn("Жим лёжа", names)
+        self.assertIn("Приседания", names)

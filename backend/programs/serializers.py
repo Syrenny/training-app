@@ -7,10 +7,12 @@ from .models import (
     DayTextBlock,
     DayTextBlockKind,
     Exercise,
+    ExerciseCategory,
     ExerciseSet,
     LoadType,
     OneRepMax,
     Program,
+    ProgramOneRepMaxExercise,
     Week,
     Weekday,
     WorkoutCompletion,
@@ -18,24 +20,31 @@ from .models import (
 from .program_snapshot import WEEKDAY_SORT_ORDER, decimal_to_json, normalize_week_title
 
 
-class OneRepMaxSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OneRepMax
-        fields = ["bench", "squat", "deadlift"]
+class OneRepMaxItemSerializer(serializers.Serializer):
+    exercise_id = serializers.IntegerField()
+    exercise_name = serializers.CharField()
+    category = serializers.ChoiceField(choices=ExerciseCategory.choices)
+    label = serializers.CharField()
+    value = serializers.IntegerField(min_value=0, max_value=999)
 
-    def validate_bench(self, value):
-        if value > 999:
-            raise serializers.ValidationError("Значение не может превышать 999.")
-        return value
 
-    def validate_squat(self, value):
-        if value > 999:
-            raise serializers.ValidationError("Значение не может превышать 999.")
-        return value
+class OneRepMaxResponseSerializer(serializers.Serializer):
+    program_id = serializers.IntegerField(allow_null=True)
+    items = OneRepMaxItemSerializer(many=True)
 
-    def validate_deadlift(self, value):
-        if value > 999:
-            raise serializers.ValidationError("Значение не может превышать 999.")
+
+class OneRepMaxUpdateItemSerializer(serializers.Serializer):
+    exercise_id = serializers.IntegerField()
+    value = serializers.IntegerField(min_value=0, max_value=999)
+
+
+class OneRepMaxUpdateSerializer(serializers.Serializer):
+    items = OneRepMaxUpdateItemSerializer(many=True)
+
+    def validate_items(self, value):
+        exercise_ids = [item["exercise_id"] for item in value]
+        if len(exercise_ids) != len(set(exercise_ids)):
+            raise serializers.ValidationError("Упражнения 1ПМ не должны повторяться.")
         return value
 
 
@@ -66,10 +75,19 @@ class ExerciseSerializer(serializers.ModelSerializer):
 class DayExerciseSerializer(serializers.ModelSerializer):
     exercise = ExerciseSerializer(read_only=True)
     sets = ExerciseSetSerializer(many=True, read_only=True)
+    one_rep_max_exercise_id = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = DayExercise
-        fields = ["id", "order", "exercise", "sets", "superset_group", "notes"]
+        fields = [
+            "id",
+            "order",
+            "exercise",
+            "sets",
+            "superset_group",
+            "notes",
+            "one_rep_max_exercise_id",
+        ]
 
 
 class DayTextBlockSerializer(serializers.ModelSerializer):
@@ -103,9 +121,24 @@ class WorkoutCompletionSerializer(serializers.ModelSerializer):
 
 
 class ProgramSerializer(serializers.ModelSerializer):
+    one_rep_max_exercises = serializers.SerializerMethodField()
+
     class Meta:
         model = Program
-        fields = ["id", "slug", "name", "description"]
+        fields = ["id", "slug", "name", "description", "one_rep_max_exercises"]
+
+    def get_one_rep_max_exercises(self, obj):
+        items = obj.one_rep_max_exercises.select_related("exercise").all()
+        return ProgramOneRepMaxExerciseSerializer(items, many=True).data
+
+
+class ProgramOneRepMaxExerciseSerializer(serializers.ModelSerializer):
+    exercise = ExerciseSerializer(read_only=True)
+    exercise_id = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ProgramOneRepMaxExercise
+        fields = ["exercise_id", "label", "order", "exercise"]
 
 
 class AccessoryWeightSerializer(serializers.ModelSerializer):
@@ -162,6 +195,11 @@ class ProgramSetInputSerializer(serializers.Serializer):
 
 class ProgramExerciseInputSerializer(serializers.Serializer):
     exercise = serializers.PrimaryKeyRelatedField(queryset=Exercise.objects.all())
+    one_rep_max_exercise = serializers.PrimaryKeyRelatedField(
+        queryset=Exercise.objects.all(),
+        required=False,
+        allow_null=True,
+    )
     superset_group = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     notes = serializers.CharField(required=False, allow_blank=True)
     sets = ProgramSetInputSerializer(many=True, allow_empty=False)
@@ -220,6 +258,11 @@ class ProgramSnapshotInputSerializer(serializers.Serializer):
                             "exercises": [
                                 {
                                     "exercise_id": exercise["exercise"].id,
+                                    "one_rep_max_exercise_id": (
+                                        exercise["one_rep_max_exercise"].id
+                                        if exercise.get("one_rep_max_exercise")
+                                        else None
+                                    ),
                                     "superset_group": exercise.get("superset_group"),
                                     "notes": exercise.get("notes", ""),
                                     "sets": [

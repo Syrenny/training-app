@@ -42,26 +42,6 @@ class UserProfile(models.Model):
         return f"{self.user.username} (tg:{self.telegram_id})"
 
 
-class OneRepMax(models.Model):
-    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID")
-    bench = models.PositiveIntegerField(
-        default=0, validators=[MaxValueValidator(999)], verbose_name="Жим лёжа (кг)"
-    )
-    squat = models.PositiveIntegerField(
-        default=0, validators=[MaxValueValidator(999)], verbose_name="Присед (кг)"
-    )
-    deadlift = models.PositiveIntegerField(
-        default=0, validators=[MaxValueValidator(999)], verbose_name="Тяга (кг)"
-    )
-
-    class Meta:
-        verbose_name = "Разовый максимум"
-        verbose_name_plural = "Разовые максимумы"
-
-    def __str__(self):
-        return f"1ПМ (tg:{self.telegram_id}): жим={self.bench}, присед={self.squat}, тяга={self.deadlift}"
-
-
 class Weekday(models.TextChoices):
     MON = "MON", "Понедельник"
     TUE = "TUE", "Вторник"
@@ -98,6 +78,32 @@ class Program(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class ProgramOneRepMaxExercise(models.Model):
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="one_rep_max_exercises",
+        verbose_name="Программа",
+    )
+    exercise = models.ForeignKey(
+        "Exercise",
+        on_delete=models.CASCADE,
+        related_name="program_one_rep_max_configs",
+        verbose_name="Упражнение 1ПМ",
+    )
+    label = models.CharField(max_length=200, blank=True, default="", verbose_name="Подпись")
+    order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
+
+    class Meta:
+        ordering = ["order", "id"]
+        unique_together = [("program", "exercise")]
+        verbose_name = "Упражнение 1ПМ программы"
+        verbose_name_plural = "Упражнения 1ПМ программы"
+
+    def __str__(self):
+        return f"{self.program.name}: {self.label or self.exercise.name}"
 
 
 class Week(models.Model):
@@ -172,6 +178,14 @@ class DayExercise(models.Model):
     exercise = models.ForeignKey(
         Exercise, on_delete=models.CASCADE, verbose_name="Упражнение"
     )
+    one_rep_max_exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="percent_source_for_day_exercises",
+        verbose_name="Упражнение 1ПМ",
+    )
     order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
     superset_group = models.PositiveIntegerField(
         null=True, blank=True, verbose_name="Группа суперсета"
@@ -185,6 +199,39 @@ class DayExercise(models.Model):
 
     def __str__(self):
         return f"{self.order}. {self.exercise.name}"
+
+
+class OneRepMax(models.Model):
+    telegram_id = models.BigIntegerField(db_index=True, verbose_name="Telegram ID")
+    program = models.ForeignKey(
+        Program,
+        on_delete=models.CASCADE,
+        related_name="one_rep_max_values",
+        verbose_name="Программа",
+    )
+    exercise = models.ForeignKey(
+        Exercise,
+        on_delete=models.CASCADE,
+        related_name="one_rep_max_values",
+        verbose_name="Упражнение 1ПМ",
+    )
+    value = models.PositiveIntegerField(
+        default=0,
+        validators=[MaxValueValidator(999)],
+        verbose_name="Разовый максимум (кг)",
+    )
+
+    class Meta:
+        ordering = ["telegram_id", "program_id", "exercise_id"]
+        unique_together = [("telegram_id", "program", "exercise")]
+        verbose_name = "Разовый максимум"
+        verbose_name_plural = "Разовые максимумы"
+
+    def __str__(self):
+        return (
+            f"1ПМ (tg:{self.telegram_id}, {self.program.name}, "
+            f"{self.exercise.name}) = {self.value}"
+        )
 
 
 class WorkoutCompletion(models.Model):

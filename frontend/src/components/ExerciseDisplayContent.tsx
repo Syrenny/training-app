@@ -19,6 +19,7 @@ interface ExerciseDisplayContentProps {
     id: number;
     name: string;
     category: string;
+    one_rep_max_exercise_id?: number | null;
   };
   sets: ExerciseSetData[];
   notes?: string;
@@ -45,7 +46,7 @@ export function ExerciseDisplayContent({
 
   const tonnage =
     exercise.category !== "ACCESSORY"
-      ? calcTonnage(sets, exercise.category, oneRepMax)
+      ? calcTonnage(sets, exercise.one_rep_max_exercise_id, oneRepMax)
       : null;
 
   return (
@@ -70,7 +71,7 @@ export function ExerciseDisplayContent({
           <SetDisplay
             key={set.id}
             set={set}
-            category={exercise.category}
+            oneRepMaxExerciseId={exercise.one_rep_max_exercise_id}
             weightEditor={
               showAccessoryWeight && exercise.category === "ACCESSORY" && index === 0 ? (
                 <AccessoryWeightInput

@@ -140,6 +140,14 @@ export interface ExerciseData {
   id: number;
   name: string;
   category: "BENCH" | "SQUAT" | "DEADLIFT" | "ACCESSORY";
+  one_rep_max_exercise_id?: number | null;
+}
+
+export interface ProgramOneRepMaxExerciseData {
+  exercise_id: number;
+  label: string;
+  order: number;
+  exercise: ExerciseData;
 }
 
 export interface DayExerciseData {
@@ -181,6 +189,7 @@ export interface ProgramSummary {
   slug: string;
   name: string;
   description: string;
+  one_rep_max_exercises: ProgramOneRepMaxExerciseData[];
 }
 
 export interface ProgramData {
@@ -251,10 +260,17 @@ export interface CompletionsData {
   completions: CompletionRecord[];
 }
 
+export interface OneRepMaxItemData {
+  exercise_id: number;
+  exercise_name: string;
+  category: "BENCH" | "SQUAT" | "DEADLIFT" | "ACCESSORY";
+  label: string;
+  value: number;
+}
+
 export interface OneRepMaxData {
-  bench: number;
-  squat: number;
-  deadlift: number;
+  program_id: number | null;
+  items: OneRepMaxItemData[];
 }
 
 export interface AccessoryWeightLatest {
@@ -307,7 +323,9 @@ export function fetchOneRepMax(): Promise<OneRepMaxData> {
   return fetchApi<OneRepMaxData>("/one-rep-max/");
 }
 
-export function saveOneRepMax(data: Partial<OneRepMaxData>): Promise<OneRepMaxData> {
+export function saveOneRepMax(
+  data: { items: Array<{ exercise_id: number; value: number }> },
+): Promise<OneRepMaxData> {
   return putApi<OneRepMaxData>("/one-rep-max/", data);
 }
 

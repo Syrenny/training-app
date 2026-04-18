@@ -65,7 +65,7 @@ interface ProgramState {
   selectProgram: (programId: number) => Promise<void>;
   fetchProgram: () => Promise<void>;
   fetchOneRepMax: () => Promise<void>;
-  saveOneRepMax: (data: Partial<OneRepMaxData>) => Promise<void>;
+  saveOneRepMax: (data: { items: Array<{ exercise_id: number; value: number }> }) => Promise<void>;
   fetchCompletions: () => Promise<void>;
   toggleCompletion: (weekNumber: number, weekday: string) => Promise<void>;
   resetCompletions: () => Promise<void>;
@@ -121,6 +121,7 @@ export const useProgramStore = create<ProgramState>()(
         await Promise.all([
           get().fetchPrograms(),
           get().fetchProgram(),
+          get().fetchOneRepMax(),
           get().fetchCompletions(),
         ]);
       },
@@ -173,12 +174,8 @@ export const useProgramStore = create<ProgramState>()(
       },
 
       saveOneRepMax: async (data) => {
-        try {
-          const result = await apiSaveOneRepMax(data);
-          set({ oneRepMax: result });
-        } catch {
-          // Silent fail
-        }
+        const result = await apiSaveOneRepMax(data);
+        set({ oneRepMax: result });
       },
 
       fetchCompletions: async () => {

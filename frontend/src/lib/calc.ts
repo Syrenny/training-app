@@ -9,27 +9,28 @@ function midpoint(min: number, max: number | null | undefined): number {
   return (min + max) / 2;
 }
 
-export const categoryToField: Record<string, keyof OneRepMaxData | null> = {
-  BENCH: "bench",
-  SQUAT: "squat",
-  DEADLIFT: "deadlift",
-  ACCESSORY: null,
-};
+export function getOneRepMaxValue(
+  oneRepMax: OneRepMaxData | null,
+  exerciseId: number | null | undefined,
+): number | null {
+  if (!oneRepMax || exerciseId == null) return null;
+  const item = oneRepMax.items.find((entry) => entry.exercise_id === exerciseId);
+  if (!item || item.value <= 0) return null;
+  return item.value;
+}
 
 export function calcTonnage(
   sets: ExerciseSetData[],
-  category: string,
+  oneRepMaxExerciseId: number | null | undefined,
   oneRepMax: OneRepMaxData | null,
 ): number | null {
-  const field = categoryToField[category];
-  if (!field || !oneRepMax) return null;
-  const orm = oneRepMax[field];
-  if (orm <= 0) return null;
+  const orm = getOneRepMaxValue(oneRepMax, oneRepMaxExerciseId);
 
   let total = 0;
   for (const s of sets) {
     let weight: number | null = null;
     if (s.load_type === "PERCENT" && s.load_value) {
+      if (orm == null) return null;
       weight = calcWeight(orm, midpoint(Number(s.load_value), s.load_value_max));
     } else if (s.load_type === "KG" && s.load_value) {
       weight = midpoint(Number(s.load_value), s.load_value_max);

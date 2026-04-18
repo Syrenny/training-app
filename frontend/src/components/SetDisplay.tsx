@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import type { ExerciseSetData } from "@/lib/api";
-import { calcWeight, categoryToField } from "@/lib/calc";
+import { calcWeight, getOneRepMaxValue } from "@/lib/calc";
 import { useProgramStore } from "@/lib/store";
 
 interface SetDisplayProps {
   set: ExerciseSetData;
-  category?: string;
+  oneRepMaxExerciseId?: number | null;
   weightEditor?: ReactNode;
   rightAddon?: ReactNode;
 }
@@ -23,24 +23,26 @@ function formatRange(minValue: number | null | undefined, maxValue: number | nul
   return `${first}–${last}`;
 }
 
-export function SetDisplay({ set, category, weightEditor, rightAddon }: SetDisplayProps) {
+export function SetDisplay({
+  set,
+  oneRepMaxExerciseId,
+  weightEditor,
+  rightAddon,
+}: SetDisplayProps) {
   const oneRepMax = useProgramStore((s) => s.oneRepMax);
 
   let weightLabel = "";
   let percentLabel = "";
 
-  if (set.load_type === "PERCENT" && set.load_value && category) {
-    const field = categoryToField[category];
-    if (field && oneRepMax) {
-      const orm = oneRepMax[field];
-      if (orm > 0) {
-        const minWeight = calcWeight(orm, Number(set.load_value));
-        const maxWeight =
-          set.load_value_max != null
-            ? calcWeight(orm, Number(set.load_value_max))
-            : null;
-        weightLabel = `${formatRange(minWeight, maxWeight)}кг`;
-      }
+  if (set.load_type === "PERCENT" && set.load_value) {
+    const orm = getOneRepMaxValue(oneRepMax, oneRepMaxExerciseId);
+    if (orm != null) {
+      const minWeight = calcWeight(orm, Number(set.load_value));
+      const maxWeight =
+        set.load_value_max != null
+          ? calcWeight(orm, Number(set.load_value_max))
+          : null;
+      weightLabel = `${formatRange(minWeight, maxWeight)}кг`;
     }
     percentLabel = `${formatRange(Number(set.load_value), set.load_value_max)}%`;
   }

@@ -3,7 +3,7 @@ import math
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
 
-from programs.models import OneRepMax
+from programs.models import Exercise, ExerciseCategory, OneRepMax, Program
 
 
 def calc_weight(one_rep_max: int, percent: float) -> float:
@@ -12,22 +12,41 @@ def calc_weight(one_rep_max: int, percent: float) -> float:
 
 
 class OneRepMaxModelTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        cls.program = Program.objects.create(slug="test-one-rep-max", name="Test One Rep Max")
+        cls.squat, _ = Exercise.objects.get_or_create(
+            name="Приседания",
+            defaults={"category": ExerciseCategory.SQUAT},
+        )
+        cls.bench, _ = Exercise.objects.get_or_create(
+            name="Жим лёжа",
+            defaults={"category": ExerciseCategory.BENCH},
+        )
+
     def test_create(self):
-        orm = OneRepMax.objects.create(telegram_id=123, bench=100, squat=150, deadlift=200)
-        self.assertEqual(orm.bench, 100)
-        self.assertEqual(orm.squat, 150)
-        self.assertEqual(orm.deadlift, 200)
+        orm = OneRepMax.objects.create(
+            telegram_id=123,
+            program=self.program,
+            exercise=self.squat,
+            value=150,
+        )
+        self.assertEqual(orm.value, 150)
+        self.assertEqual(orm.program, self.program)
+        self.assertEqual(orm.exercise, self.squat)
 
     def test_defaults(self):
-        orm = OneRepMax.objects.create(telegram_id=456)
-        self.assertEqual(orm.bench, 0)
-        self.assertEqual(orm.squat, 0)
-        self.assertEqual(orm.deadlift, 0)
+        orm = OneRepMax.objects.create(
+            telegram_id=456,
+            program=self.program,
+            exercise=self.bench,
+        )
+        self.assertEqual(orm.value, 0)
 
-    def test_unique_telegram_id(self):
-        OneRepMax.objects.create(telegram_id=789)
+    def test_unique_per_program_and_exercise(self):
+        OneRepMax.objects.create(telegram_id=789, program=self.program, exercise=self.bench)
         with self.assertRaises(Exception):
-            OneRepMax.objects.create(telegram_id=789)
+            OneRepMax.objects.create(telegram_id=789, program=self.program, exercise=self.bench)
 
 
 @override_settings(TELEGRAM_BOT_TOKEN="")
@@ -36,53 +55,85 @@ class OneRepMaxAPITest(TestCase):
         self.client = APIClient()
         # Authenticate as a fake Telegram user
         self.client.force_authenticate(user={"id": 111, "first_name": "Test"})
+        self.program = Program.objects.get(slug="base-program")
+        self.bench = Exercise.objects.get(name="Жим лёжа")
+        self.squat = Exercise.objects.get(name="Приседания")
 
     def test_get_defaults(self):
         response = self.client.get("/api/one-rep-max/")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, {"bench": 0, "squat": 0, "deadlift": 0})
+        self.assertEqual(response.data["program_id"], self.program.id)
+        values = {item["exercise_id"]: item["value"] for item in response.data["items"]}
+        self.assertEqual(values[self.bench.id], 0)
+        self.assertEqual(values[self.squat.id], 0)
 
     def test_put_creates(self):
         response = self.client.put(
             "/api/one-rep-max/",
-            {"bench": 100, "squat": 150, "deadlift": 200},
+            {
+                "items": [
+                    {"exercise_id": self.bench.id, "value": 100},
+                    {"exercise_id": self.squat.id, "value": 150},
+                ]
+            },
             format="json",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["bench"], 100)
-        self.assertEqual(response.data["squat"], 150)
-        self.assertEqual(response.data["deadlift"], 200)
+        values = {item["exercise_id"]: item["value"] for item in response.data["items"]}
+        self.assertEqual(values[self.bench.id], 100)
+        self.assertEqual(values[self.squat.id], 150)
 
         # Verify persisted
-        orm = OneRepMax.objects.get(telegram_id=111)
-        self.assertEqual(orm.bench, 100)
+        orm = OneRepMax.objects.get(
+            telegram_id=111,
+            program=self.program,
+            exercise=self.bench,
+        )
+        self.assertEqual(orm.value, 100)
 
     def test_put_updates(self):
-        OneRepMax.objects.create(telegram_id=111, bench=80)
+        OneRepMax.objects.create(
+            telegram_id=111,
+            program=self.program,
+            exercise=self.bench,
+            value=80,
+        )
         response = self.client.put(
             "/api/one-rep-max/",
-            {"bench": 120},
+            {"items": [{"exercise_id": self.bench.id, "value": 120}]},
             format="json",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["bench"], 120)
+        values = {item["exercise_id"]: item["value"] for item in response.data["items"]}
+        self.assertEqual(values[self.bench.id], 120)
 
     def test_put_partial(self):
-        OneRepMax.objects.create(telegram_id=111, bench=100, squat=150, deadlift=200)
+        OneRepMax.objects.create(
+            telegram_id=111,
+            program=self.program,
+            exercise=self.bench,
+            value=100,
+        )
+        OneRepMax.objects.create(
+            telegram_id=111,
+            program=self.program,
+            exercise=self.squat,
+            value=150,
+        )
         response = self.client.put(
             "/api/one-rep-max/",
-            {"squat": 160},
+            {"items": [{"exercise_id": self.squat.id, "value": 160}]},
             format="json",
         )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data["squat"], 160)
-        self.assertEqual(response.data["bench"], 100)  # unchanged
-        self.assertEqual(response.data["deadlift"], 200)  # unchanged
+        values = {item["exercise_id"]: item["value"] for item in response.data["items"]}
+        self.assertEqual(values[self.squat.id], 160)
+        self.assertEqual(values[self.bench.id], 100)
 
     def test_put_validation_over_999(self):
         response = self.client.put(
             "/api/one-rep-max/",
-            {"bench": 1000},
+            {"items": [{"exercise_id": self.bench.id, "value": 1000}]},
             format="json",
         )
         self.assertEqual(response.status_code, 400)
@@ -90,13 +141,18 @@ class OneRepMaxAPITest(TestCase):
     def test_get_after_put(self):
         self.client.put(
             "/api/one-rep-max/",
-            {"bench": 90, "squat": 120, "deadlift": 180},
+            {
+                "items": [
+                    {"exercise_id": self.bench.id, "value": 90},
+                    {"exercise_id": self.squat.id, "value": 120},
+                ]
+            },
             format="json",
         )
         response = self.client.get("/api/one-rep-max/")
-        self.assertEqual(response.data["bench"], 90)
-        self.assertEqual(response.data["squat"], 120)
-        self.assertEqual(response.data["deadlift"], 180)
+        values = {item["exercise_id"]: item["value"] for item in response.data["items"]}
+        self.assertEqual(values[self.bench.id], 90)
+        self.assertEqual(values[self.squat.id], 120)
 
 
 class WeightCalculationTest(TestCase):

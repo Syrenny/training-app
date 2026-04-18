@@ -85,6 +85,7 @@ def build_base_program_payload(program=None):
 
     weeks = Week.objects.prefetch_related(
         "days__exercises__exercise",
+        "days__exercises__one_rep_max_exercise",
         "days__exercises__sets",
         "days__text_blocks",
     ).filter(program=active_program)
@@ -97,6 +98,7 @@ def build_base_program_payload(program=None):
                 exercises.append(
                     {
                         "exercise_id": exercise.exercise_id,
+                        "one_rep_max_exercise_id": exercise.one_rep_max_exercise_id,
                         "superset_group": exercise.superset_group,
                         "notes": exercise.notes,
                         "sets": [
@@ -220,6 +222,7 @@ def build_program_response(payload, *, program=None, version=None, created_at=No
                             "id": exercise.id,
                             "name": exercise.name,
                             "category": exercise.category,
+                            "one_rep_max_exercise_id": exercise_item.get("one_rep_max_exercise_id"),
                         },
                         "sets": set_items,
                         "superset_group": exercise_item.get("superset_group"),
@@ -322,6 +325,10 @@ def merge_program_payload_metadata(base_payload, next_payload):
                 merged_exercises.append(
                     {
                         **exercise,
+                        "one_rep_max_exercise_id": exercise.get(
+                            "one_rep_max_exercise_id",
+                            matched.get("one_rep_max_exercise_id") if matched else None,
+                        ),
                         "notes": exercise.get("notes", matched.get("notes", "") if matched else ""),
                         "sets": merged_sets,
                     }

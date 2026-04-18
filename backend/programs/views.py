@@ -24,6 +24,7 @@ from .models import (
     Exercise,
     OneRepMax,
     Program,
+    ProgramOneRepMaxExercise,
     ProgramSnapshot,
     Week,
     Weekday,
@@ -41,7 +42,8 @@ from .program_snapshot import (
 from .serializers import (
     AccessoryWeightSerializer,
     ExerciseSerializer,
-    OneRepMaxSerializer,
+    OneRepMaxResponseSerializer,
+    OneRepMaxUpdateSerializer,
     ProgramSerializer,
     ProgramSnapshotInputSerializer,
     WeekDetailSerializer,
@@ -66,6 +68,34 @@ def get_active_program(request):
         return default_program
 
     return profile.selected_program or default_program
+
+
+def build_one_rep_max_response(telegram_id, program):
+    if program is None:
+        return {"program_id": None, "items": []}
+
+    configs = list(
+        ProgramOneRepMaxExercise.objects.filter(program=program)
+        .select_related("exercise")
+        .order_by("order", "id")
+    )
+    values = {
+        item.exercise_id: item.value
+        for item in OneRepMax.objects.filter(telegram_id=telegram_id, program=program)
+    }
+    return {
+        "program_id": program.id,
+        "items": [
+            {
+                "exercise_id": item.exercise_id,
+                "exercise_name": item.exercise.name,
+                "category": item.exercise.category,
+                "label": item.label or item.exercise.name,
+                "value": values.get(item.exercise_id, 0),
+            }
+            for item in configs
+        ],
+    }
 
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
@@ -189,11 +219,8 @@ class OneRepMaxView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        try:
-            orm = OneRepMax.objects.get(telegram_id=telegram_id)
-        except OneRepMax.DoesNotExist:
-            return Response({"bench": 0, "squat": 0, "deadlift": 0})
-        return Response(OneRepMaxSerializer(orm).data)
+        data = build_one_rep_max_response(telegram_id, get_active_program(request))
+        return Response(OneRepMaxResponseSerializer(data).data)
 
     def put(self, request):
         telegram_id = get_request_telegram_id(request)
@@ -202,11 +229,33 @@ class OneRepMaxView(APIView):
                 {"detail": "Telegram user ID not found."},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
-        orm, _ = OneRepMax.objects.get_or_create(telegram_id=telegram_id)
-        serializer = OneRepMaxSerializer(orm, data=request.data, partial=True)
+        program = get_active_program(request)
+        if program is None:
+            return Response({"detail": "Program not found."}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = OneRepMaxUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        allowed_ids = set(
+            ProgramOneRepMaxExercise.objects.filter(program=program).values_list("exercise_id", flat=True)
+        )
+        provided_ids = {item["exercise_id"] for item in serializer.validated_data["items"]}
+        invalid_ids = sorted(provided_ids - allowed_ids)
+        if invalid_ids:
+            return Response(
+                {"detail": "Unknown one rep max exercises.", "exercise_ids": invalid_ids},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        for item in serializer.validated_data["items"]:
+            OneRepMax.objects.update_or_create(
+                telegram_id=telegram_id,
+                program=program,
+                exercise_id=item["exercise_id"],
+                defaults={"value": item["value"]},
+            )
+
+        data = build_one_rep_max_response(telegram_id, program)
+        return Response(OneRepMaxResponseSerializer(data).data)
 
 
 class CompletionListView(APIView):
@@ -443,6 +492,7 @@ class WeekDetailView(generics.RetrieveAPIView):
     def get_queryset(self):
         return Week.objects.filter(program=get_active_program(self.request)).prefetch_related(
             "days__exercises__exercise",
+            "days__exercises__one_rep_max_exercise",
             "days__exercises__sets",
             "days__text_blocks",
         )
@@ -599,7 +649,7 @@ class ProgramHistoryDetailView(APIView):
 
 
 class ProgramListView(generics.ListAPIView):
-    queryset = Program.objects.all()
+    queryset = Program.objects.prefetch_related("one_rep_max_exercises__exercise").all()
     serializer_class = ProgramSerializer
     permission_classes = [AllowAny]
 
@@ -622,7 +672,7 @@ class ProgramSelectionView(APIView):
         if not program_id:
             return Response({"detail": "program_id is required."}, status=status.HTTP_400_BAD_REQUEST)
 
-        program = Program.objects.filter(pk=program_id).first()
+        program = Program.objects.prefetch_related("one_rep_max_exercises__exercise").filter(pk=program_id).first()
         if program is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 

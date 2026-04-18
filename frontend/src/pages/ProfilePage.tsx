@@ -1,23 +1,8 @@
 import { OneRepMaxPage } from '@/components/OneRepMaxPage'
 import { Button } from '@/components/ui/button'
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from '@/components/ui/card'
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from '@/components/ui/select'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { AuthUser } from '@/lib/api'
-import { useProgramStore } from '@/lib/store'
-import { LogOut, RotateCcw } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { LogOut } from 'lucide-react'
 
 interface ProfilePageProps {
 	user: AuthUser
@@ -34,26 +19,6 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 		.filter(Boolean)
 		.join(' ')
 		.trim()
-	const programs = useProgramStore(s => s.programs)
-	const selectedProgram = useProgramStore(s => s.selectedProgram)
-	const fetchPrograms = useProgramStore(s => s.fetchPrograms)
-	const fetchProgram = useProgramStore(s => s.fetchProgram)
-	const selectProgram = useProgramStore(s => s.selectProgram)
-	const resetCompletions = useProgramStore(s => s.resetCompletions)
-	const [programNotice, setProgramNotice] = useState<string | null>(null)
-
-	useEffect(() => {
-		void Promise.all([fetchPrograms(), fetchProgram()])
-	}, [fetchPrograms, fetchProgram])
-
-	async function handleResetCompletions() {
-		await resetCompletions()
-	}
-
-	async function handleProgramChange(value: string) {
-		await selectProgram(Number(value))
-		setProgramNotice('Программа переключена.')
-	}
 
 	return (
 		<div className='flex min-h-0 flex-1 flex-col'>
@@ -106,63 +71,6 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 					</Card>
 
 					<OneRepMaxPage />
-
-					<Card>
-						<CardHeader>
-							<CardTitle>
-								<div className='flex items-center justify-between gap-3'>
-									<p>Программа</p>
-									<Button
-										variant='ghost'
-										size='sm'
-										onClick={handleResetCompletions}
-									>
-										<RotateCcw className='h-4 w-4' />
-										Сбросить отметки
-									</Button>
-								</div>
-							</CardTitle>
-							<CardDescription>
-								Выбранная программа используется на главном
-								экране и для отметок выполнения.
-							</CardDescription>
-						</CardHeader>
-						<CardContent className='space-y-4'>
-							<Select
-								value={
-									selectedProgram
-										? String(selectedProgram.id)
-										: undefined
-								}
-								onValueChange={handleProgramChange}
-								disabled={programs.length === 0}
-							>
-								<SelectTrigger className='w-full'>
-									<SelectValue placeholder='Выберите программу' />
-								</SelectTrigger>
-								<SelectContent>
-									{programs.map(program => (
-										<SelectItem
-											key={program.id}
-											value={String(program.id)}
-										>
-											{program.name}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							{selectedProgram?.description ? (
-								<p className='text-sm text-muted-foreground'>
-									{selectedProgram.description}
-								</p>
-							) : null}
-							{programNotice ? (
-								<p className='text-sm text-muted-foreground'>
-									{programNotice}
-								</p>
-							) : null}
-						</CardContent>
-					</Card>
 				</div>
 			</div>
 		</div>
