@@ -564,12 +564,12 @@ export function ProgramAdaptationsPage() {
 						onSelect={setWeek}
 					/>
 				</PageHeaderOverlay>
-			) : (
-				<div className='shrink-0 px-4 py-3'>
-					<div className='rounded-full border border-white/20 bg-white/15 px-3 py-2 shadow-lg backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/25'>
-						<WeekPicker
-							items={weeks}
-							selectedNumber={selectedWeek}
+				) : (
+					<div className='shrink-0 px-4 py-3'>
+						<div className='glass-surface rounded-full px-3 py-2'>
+							<WeekPicker
+								items={weeks}
+								selectedNumber={selectedWeek}
 							onSelect={setWeek}
 						/>
 					</div>

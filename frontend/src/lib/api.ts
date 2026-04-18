@@ -444,6 +444,10 @@ export function fetchTrainingCycleHistory(): Promise<TrainingCycleSummary[]> {
   return fetchApi<TrainingCycleSummary[]>("/training-cycle/history/");
 }
 
+export function deleteTrainingCycle(cycleId: number): Promise<void> {
+  return deleteApi(`/training-cycle/history/${cycleId}/`);
+}
+
 export function fetchProgramAdaptations(
   programId: number,
 ): Promise<ProgramAdaptation[]> {

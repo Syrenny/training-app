@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
@@ -10,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useProgramStore } from '@/lib/store'
-import { LockKeyhole, Play, Square } from 'lucide-react'
+import { LockKeyhole, Play, Square, Trash2 } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 function formatDateTime(value: string) {
@@ -35,6 +36,7 @@ export function OneRepMaxPage() {
 	const selectProgram = useProgramStore(s => s.selectProgram)
 	const startCycle = useProgramStore(s => s.startCycle)
 	const finishCycle = useProgramStore(s => s.finishCycle)
+	const deleteCycle = useProgramStore(s => s.deleteCycle)
 
 	const [draft, setDraft] = useState<Record<number, string>>({})
 	const [startError, setStartError] = useState<string | null>(null)
@@ -43,6 +45,8 @@ export function OneRepMaxPage() {
 	const [finishing, setFinishing] = useState(false)
 	const [finishReason, setFinishReason] = useState('')
 	const [finishFeeling, setFinishFeeling] = useState('')
+	const [deleteError, setDeleteError] = useState<string | null>(null)
+	const [deletingCycleId, setDeletingCycleId] = useState<number | null>(null)
 
 	useEffect(() => {
 		void Promise.all([
@@ -79,6 +83,11 @@ export function OneRepMaxPage() {
 			})) ?? []
 		)
 	}, [activeCycle, oneRepMax, selectedProgram])
+
+	const completedCycles = useMemo(
+		() => cycleHistory.filter(item => !item.is_active),
+		[cycleHistory],
+	)
 
 	async function handleProgramChange(value: string) {
 		setStartError(null)
@@ -137,6 +146,27 @@ export function OneRepMaxPage() {
 			)
 		} finally {
 			setFinishing(false)
+		}
+	}
+
+	async function handleDeleteCycle(cycleId: number, programName: string) {
+		const confirmed = window.confirm(
+			`Удалить цикл "${programName}" из истории? Это действие нельзя отменить.`,
+		)
+		if (!confirmed) return
+
+		setDeleteError(null)
+		setDeletingCycleId(cycleId)
+		try {
+			await deleteCycle(cycleId)
+		} catch (error) {
+			setDeleteError(
+				error instanceof Error
+					? error.message
+					: 'Не удалось удалить цикл',
+			)
+		} finally {
+			setDeletingCycleId(null)
 		}
 	}
 
@@ -303,45 +333,71 @@ export function OneRepMaxPage() {
 				</Card>
 			) : null}
 
-			<Card>
-				<CardHeader>
-					<CardTitle>История циклов</CardTitle>
-				</CardHeader>
-				<CardContent className='space-y-3'>
-					{cycleHistory.filter(item => !item.is_active).length ===
-					0 ? (
-						<p className='text-sm text-muted-foreground'>
-							Пока нет завершенных циклов.
-						</p>
-					) : (
-						cycleHistory
-							.filter(item => !item.is_active)
-							.map(item => (
-								<div key={item.id} className='rounded-2xl py-4'>
-									<p className='font-medium'>
-										{item.program_name}
+				<Card>
+					<CardHeader>
+						<CardTitle>История циклов</CardTitle>
+					</CardHeader>
+					<CardContent className='space-y-3'>
+						{deleteError ? (
+							<p className='text-sm text-destructive'>{deleteError}</p>
+						) : null}
+						{completedCycles.length === 0 ? (
+							<p className='text-sm text-muted-foreground'>
+								Пока нет завершенных циклов.
+							</p>
+						) : (
+							completedCycles.map(item => (
+								<div key={item.id} className='border-t py-4'>
+									<div className='flex flex-wrap items-center gap-2'>
+										<Badge variant='secondary'>
+											Завершен
+										</Badge>
+										<Badge variant='outline'>
+											{item.program_name}
+										</Badge>
+										<span className='text-xs text-muted-foreground'>
+											{formatDateTime(item.started_at)} →{' '}
+											{item.completed_at
+												? formatDateTime(item.completed_at)
+												: 'в процессе'}
+										</span>
+									</div>
+									<p className='mt-3 text-sm'>
+										{item.completion_reason ||
+											'Причина завершения не указана'}
 									</p>
-									<p className='mt-1 text-sm text-muted-foreground'>
-										{formatDateTime(item.started_at)} →{' '}
-										{item.completed_at
-											? formatDateTime(item.completed_at)
-											: 'в процессе'}
-									</p>
-									{item.completion_reason ? (
-										<p className='mt-2 text-sm'>
-											Причина: {item.completion_reason}
-										</p>
-									) : null}
 									{item.completion_feeling ? (
-										<p className='mt-1 text-sm text-muted-foreground'>
+										<p className='mt-2 text-sm text-muted-foreground'>
 											{item.completion_feeling}
 										</p>
 									) : null}
+									<div className='mt-3 flex flex-wrap items-center justify-between gap-2'>
+										<p className='text-xs text-muted-foreground'>
+											Завершено{' '}
+											{item.completed_at
+												? formatDateTime(item.completed_at)
+												: 'без даты'}
+										</p>
+										<Button
+											variant='ghost'
+											size='sm'
+											disabled={deletingCycleId === item.id}
+											onClick={() =>
+												handleDeleteCycle(
+													item.id,
+													item.program_name,
+												)
+											}
+										>
+											<Trash2 className='h-4 w-4' />
+											Удалить
+										</Button>
+										</div>
 								</div>
 							))
-					)}
-				</CardContent>
-			</Card>
+						)}
+					</CardContent>
+				</Card>
 		</div>
 	)
 }

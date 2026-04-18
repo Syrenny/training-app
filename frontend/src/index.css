@@ -123,6 +123,66 @@
     }
 }
 
+@layer components {
+  .glass-surface {
+    background-color: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+  }
+
+  .dark .glass-surface {
+    background-color: rgba(0, 0, 0, 0.25);
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-surface-soft {
+    background-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+
+  .dark .glass-surface-soft {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .glass-hover:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .dark .glass-hover:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+
+  @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .glass-surface {
+      background-color: rgba(255, 255, 255, 0.92);
+    }
+
+    .dark .glass-surface {
+      background-color: rgba(24, 24, 24, 0.86);
+    }
+
+    .glass-surface-soft {
+      background-color: rgba(255, 255, 255, 0.96);
+    }
+
+    .dark .glass-surface-soft {
+      background-color: rgba(40, 40, 40, 0.9);
+    }
+
+    .glass-hover:hover {
+      background-color: rgba(255, 255, 255, 0.9);
+    }
+
+    .dark .glass-hover:hover {
+      background-color: rgba(50, 50, 50, 0.86);
+    }
+  }
+}
+
 .slide-child {
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;

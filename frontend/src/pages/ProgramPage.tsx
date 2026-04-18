@@ -73,7 +73,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
         </PageHeaderOverlay>
       ) : (
         <div className="px-4 py-3 shrink-0">
-          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-2 shadow-lg backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/25">
+          <div className="glass-surface flex items-center gap-2 rounded-full px-3 py-2">
             <div className="flex-1">
               <WeekSelector />
             </div>

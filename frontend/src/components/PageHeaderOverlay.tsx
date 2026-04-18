@@ -16,7 +16,7 @@ export function PageHeaderOverlay({
     <div className={cn("absolute left-4 right-4 top-3 z-30", className)}>
       <div
         className={cn(
-          "rounded-full bg-white/15 px-3 py-2 shadow-lg backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/25",
+          "glass-surface rounded-full px-3 py-2",
           contentClassName,
         )}
       >

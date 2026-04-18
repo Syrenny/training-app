@@ -18,6 +18,7 @@ import {
   fetchProgram as apiFetchProgram,
   fetchPrograms as apiFetchPrograms,
   fetchTrainingCycleHistory as apiFetchTrainingCycleHistory,
+  deleteTrainingCycle as apiDeleteTrainingCycle,
   finishTrainingCycle as apiFinishTrainingCycle,
   markComplete as apiMarkComplete,
   saveAccessoryWeight as apiSaveAccessoryWeight,
@@ -76,6 +77,7 @@ interface ProgramState {
   saveAccessoryWeight: (exerciseId: number, weight: number, setsDisplay: string) => Promise<void>;
   startCycle: (data: TrainingCycleStartInput) => Promise<void>;
   finishCycle: (reason: string, feeling: string) => Promise<void>;
+  deleteCycle: (cycleId: number) => Promise<void>;
   navigateNext: () => Promise<NavigationResult>;
   navigatePrev: () => Promise<NavigationResult>;
 }
@@ -290,6 +292,13 @@ export const useProgramStore = create<ProgramState>()(
           get().fetchCompletions(),
           get().fetchCycleHistory(),
         ]);
+      },
+
+      deleteCycle: async (cycleId) => {
+        await apiDeleteTrainingCycle(cycleId);
+        set((state) => ({
+          cycleHistory: state.cycleHistory.filter((item) => item.id !== cycleId),
+        }));
       },
 
       navigateNext: async () => {

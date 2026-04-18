@@ -19,12 +19,9 @@ export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
     <div className="fixed bottom-2 left-0 right-0 z-50 px-20">
       <div
         className="
+          glass-surface
           mx-auto max-w-screen-sm
           rounded-full
-          backdrop-blur-xl
-          bg-white/10 dark:bg-black/20
-          backdrop-saturate-150
-          shadow-lg
         "
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
@@ -41,12 +38,10 @@ export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
                     h-12 flex-1 flex-col gap-1 relative
 
                     ${active ? `
-                    bg-white/20 dark:bg-white/10
-                    backdrop-blur-md
-                    shadow-sm
+                    glass-surface-soft
                     rounded-full
                     ` : `
-                    hover:bg-white/10 dark:hover:bg-white/5
+                    glass-hover
                     `}
                 `}
                 onClick={() => onChange(tab.id)}
