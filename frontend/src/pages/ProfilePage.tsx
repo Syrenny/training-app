@@ -23,7 +23,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 	return (
 		<div className='flex min-h-0 flex-1 flex-col'>
 			<div className='hide-scrollbar min-h-0 flex-1 overflow-y-auto'>
-				<div className='space-y-4 px-4 py-4'>
+				<div className='space-y-4 px-4 py-4 pb-24'>
 					<Card>
 						<CardHeader>
 							<CardTitle>Сессия Telegram</CardTitle>

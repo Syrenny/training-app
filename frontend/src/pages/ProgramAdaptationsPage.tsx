@@ -579,7 +579,7 @@ export function ProgramAdaptationsPage() {
 				) : null}
 
 				<div className='hide-scrollbar min-h-0 flex-1 overflow-y-auto'>
-					<div className='space-y-4 pb-8'>
+					<div className='space-y-4 pb-24'>
 						{pageError ? (
 							<p className='text-sm text-destructive'>
 								{pageError}

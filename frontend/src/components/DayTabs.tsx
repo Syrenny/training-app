@@ -134,7 +134,7 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 					>
 						{days.map(day => (
 							<SwiperSlide key={day.weekday} className='h-full'>
-								<div className='hide-scrollbar h-full overflow-y-auto overscroll-y-contain'>
+								<div className='hide-scrollbar h-full overflow-y-auto overscroll-y-contain pb-24'>
 									<ExerciseList
 										title={day.title}
 										exercises={day.exercises}

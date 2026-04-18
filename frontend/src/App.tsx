@@ -246,7 +246,7 @@ function App() {
 
   return (
     <div
-      className="h-dvh bg-background text-foreground flex flex-col pb-22"
+      className="h-dvh bg-background text-foreground flex flex-col"
       style={{
         paddingTop: "env(safe-area-inset-top)",
       }}
