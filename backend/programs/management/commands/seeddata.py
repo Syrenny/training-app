@@ -26,6 +26,13 @@ A = ExerciseCategory.ACCESSORY
 REST = DayTextBlockKind.REST
 INFO = DayTextBlockKind.INFO
 
+EXERCISE_NAME_ALIASES = {
+    "Приседания со штангой на спине": "Приседания",
+    "Молотковые сгибания на бицепс": "Молотки",
+    "Подтягивания с весом": "Подтягивания",
+    "Отжимания на брусьях с весом": "Отжимания на брусьях",
+}
+
 # fmt: off
 WEEK_1 = {
     "MON": [
@@ -346,7 +353,7 @@ POWERBUILDING_WEEK_1 = {
                 "title": "Фулбоди 1: присед, жим стоя",
                 "exercises": [
                     {
-                        "name": "Приседания со штангой на спине",
+                        "name": "Приседания",
                         "category": S,
                         "sets": [set_item(P, 75, 5, 1, load_value_max=80)],
                         "notes": build_notes(
@@ -356,7 +363,7 @@ POWERBUILDING_WEEK_1 = {
                         ),
                     },
                     {
-                        "name": "Приседания со штангой на спине",
+                        "name": "Приседания",
                         "category": S,
                         "sets": [set_item(P, 70, 8, 2)],
                         "notes": build_notes(
@@ -394,7 +401,7 @@ POWERBUILDING_WEEK_1 = {
                         ),
                     },
                     {
-                        "name": "Молотковые сгибания на бицепс",
+                        "name": "Молотки",
                         "category": A,
                         "sets": [set_item(I, None, 20, 3, reps_max=25)],
                         "notes": build_notes(
@@ -448,7 +455,7 @@ POWERBUILDING_WEEK_1 = {
                         ),
                     },
                     {
-                        "name": "Подтягивания с весом",
+                        "name": "Подтягивания",
                         "category": A,
                         "sets": [set_item(I, None, 5, 3, reps_max=8)],
                         "notes": build_notes(
@@ -490,7 +497,7 @@ POWERBUILDING_WEEK_1 = {
                 "title": "Фулбоди 3: присед, брусья",
                 "exercises": [
                     {
-                        "name": "Приседания со штангой на спине",
+                        "name": "Приседания",
                         "category": S,
                         "sets": [set_item(P, 80, 4, 3)],
                         "notes": build_notes(
@@ -499,7 +506,7 @@ POWERBUILDING_WEEK_1 = {
                         ),
                     },
                     {
-                        "name": "Отжимания на брусьях с весом",
+                        "name": "Отжимания на брусьях",
                         "category": A,
                         "sets": [set_item(I, None, 8, 3)],
                         "notes": build_notes(
@@ -683,6 +690,7 @@ class Command(BaseCommand):
         program.weeks.all().delete()
 
     def get_or_update_exercise(self, name, category):
+        name = EXERCISE_NAME_ALIASES.get(name, name)
         exercise, created = Exercise.objects.get_or_create(
             name=name,
             defaults={"category": category},
