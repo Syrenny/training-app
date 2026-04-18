@@ -120,9 +120,7 @@ export function OneRepMaxPage() {
 
 	async function handleFinish() {
 		if (!finishReason.trim() || !finishFeeling.trim()) {
-			setFinishError(
-				'Нужно указать причину завершения и ощущения от программы.',
-			)
+			setFinishError('Заполните поля.')
 			return
 		}
 		setFinishing(true)
@@ -231,7 +229,7 @@ export function OneRepMaxPage() {
 									{activeCycle.program_name}
 								</p>
 								<p className='mt-1 text-muted-foreground'>
-									Начало: {' '}
+									Начало:{' '}
 									{formatDateTime(activeCycle.started_at)}
 								</p>
 							</div>
@@ -258,16 +256,18 @@ export function OneRepMaxPage() {
 
 			{activeCycle ? (
 				<Card>
-					<CardHeader className='flex justify-between items-center'>
-						<CardTitle>Завершение цикла</CardTitle>
-						<Button
-							variant='ghost'
-							onClick={handleFinish}
-							disabled={finishing}
-						>
-							<Square className='h-4 w-4' />
-							{finishing ? 'Завершение...' : 'Завершить'}
-						</Button>
+					<CardHeader>
+						<div className='flex justify-between items-center'>
+							<CardTitle>Завершение цикла</CardTitle>
+							<Button
+								variant='ghost'
+								onClick={handleFinish}
+								disabled={finishing}
+							>
+								<Square className='h-4 w-4' />
+								{finishing ? 'Завершение...' : 'Завершить'}
+							</Button>
+						</div>
 						{finishError ? (
 							<p className='text-sm text-destructive'>
 								{finishError}
