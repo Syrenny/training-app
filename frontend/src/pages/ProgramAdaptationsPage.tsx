@@ -1,5 +1,6 @@
 import { DayTabsBar } from '@/components/DayTabsBar'
 import { ExerciseDisplayContent } from '@/components/ExerciseDisplayContent'
+import { PageHeaderOverlay } from '@/components/PageHeaderOverlay'
 import { WeekPicker } from '@/components/WeekPicker'
 import { WorkoutSummaryCard } from '@/components/WorkoutSummaryCard'
 import { Badge } from '@/components/ui/badge'
@@ -551,40 +552,56 @@ export function ProgramAdaptationsPage() {
 		)
 	}
 
-	return (
-		<div className='flex min-h-0 flex-1 flex-col'>
-			<div className='shrink-0 px-4 py-3'>
-				<WeekPicker
-					items={weeks}
-					selectedNumber={selectedWeek}
-					onSelect={setWeek}
-				/>
-			</div>
+	const hasOverlayHeader = Boolean(week)
 
-			<Tabs
-				value={selectedDay ?? undefined}
-				onValueChange={setDay}
-				className='flex min-h-0 flex-1 flex-col px-4'
+	return (
+		<div className='relative flex min-h-0 flex-1 flex-col'>
+			{hasOverlayHeader ? (
+				<PageHeaderOverlay>
+					<WeekPicker
+						items={weeks}
+						selectedNumber={selectedWeek}
+						onSelect={setWeek}
+					/>
+				</PageHeaderOverlay>
+			) : (
+				<div className='shrink-0 px-4 py-3'>
+					<div className='rounded-full border border-white/20 bg-white/15 px-3 py-2 shadow-lg backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/25'>
+						<WeekPicker
+							items={weeks}
+							selectedNumber={selectedWeek}
+							onSelect={setWeek}
+						/>
+					</div>
+				</div>
+			)}
+
+			<div
+				className={`flex min-h-0 flex-1 px-4`}
 			>
-				{week ? (
-					<div className='shrink-0 pb-1'>
-						<DayTabsBar
-							items={week.days.map(item => ({
-								key: item.weekday,
-								value: item.weekday,
+					<Tabs
+						value={selectedDay ?? undefined}
+						onValueChange={setDay}
+						className='flex min-h-0 flex-1 flex-col'
+					>
+						{week ? (
+							<DayTabsBar
+								className='absolute left-4 right-4 top-[4rem]'
+								items={week.days.map(item => ({
+									key: item.weekday,
+									value: item.weekday,
 								label: item.weekday_display,
 							}))}
 						/>
-					</div>
-				) : null}
+					) : null}
 
-				<div className='hide-scrollbar min-h-0 flex-1 overflow-y-auto'>
-					<div className='space-y-4 pb-24'>
-						{pageError ? (
-							<p className='text-sm text-destructive'>
-								{pageError}
-							</p>
-						) : null}
+						<div className='hide-scrollbar min-h-0 flex-1 overflow-y-auto'>
+							<div className='space-y-4 pb-24 mt-25'>
+							{pageError ? (
+								<p className='text-sm text-destructive'>
+									{pageError}
+								</p>
+							) : null}
 
 						{!day ? (
 							<Card>
@@ -715,9 +732,10 @@ export function ProgramAdaptationsPage() {
 								)}
 							</CardContent>
 						</Card>
-					</div>
+							</div>
+						</div>
+					</Tabs>
 				</div>
-			</Tabs>
 
 			<Dialog
 				open={pending != null}

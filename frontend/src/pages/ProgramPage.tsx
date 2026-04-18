@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { useProgramStore } from "@/lib/store";
 import { DayTabs } from "@/components/DayTabs";
 import { InfoButton } from "@/components/InfoButton";
+import { PageHeaderOverlay } from "@/components/PageHeaderOverlay";
 import { WeekSelector } from "@/components/WeekSelector";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -31,6 +32,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
   }, [fetchActiveCycle, fetchProgram, fetchOneRepMax, fetchCompletions, fetchAccessoryWeights]);
 
   const weekData = selectedWeek !== null ? weekDetailCache[selectedWeek] : null;
+  const hasOverlayHeader = Boolean(activeCycle && weekData);
 
   if (loading && !weekData) {
     return (
@@ -49,7 +51,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="relative flex flex-col flex-1 min-h-0">
       {!activeCycle ? (
         <div className="px-4 pt-4">
           <Card>
@@ -62,16 +64,27 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
           </Card>
         </div>
       ) : null}
-      <div className="px-4 py-3 shrink-0">
-        <div className="flex items-center gap-2">
+      {hasOverlayHeader ? (
+        <PageHeaderOverlay contentClassName="flex items-center gap-2">
           <div className="flex-1">
             <WeekSelector />
           </div>
           <InfoButton />
+        </PageHeaderOverlay>
+      ) : (
+        <div className="px-4 py-3 shrink-0">
+          <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/15 px-3 py-2 shadow-lg backdrop-blur-xl backdrop-saturate-150 dark:border-white/10 dark:bg-black/25">
+            <div className="flex-1">
+              <WeekSelector />
+            </div>
+            <InfoButton />
+          </div>
         </div>
-      </div>
+      )}
 
-      <div className="flex flex-col flex-1 min-h-0 px-4">
+      <div
+        className={`flex flex-col flex-1 min-h-0 px-4`}
+      >
         {activeCycle && weekData ? (
           <DayTabs weekNumber={weekData.number} days={weekData.days} />
         ) : null}

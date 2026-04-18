@@ -103,8 +103,13 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 
 	return (
 		<div className='flex flex-col flex-1 min-h-0'>
-			<Tabs value={activeDay} onValueChange={handleTabClick}>
+			<Tabs
+				value={activeDay}
+				onValueChange={handleTabClick}
+				className='flex min-h-0 flex-1 flex-col'
+			>
 				<DayTabsBar
+					className='absolute left-4 right-4 top-[4rem]'
 					items={days.map(day => ({
 						key: day.weekday,
 						value: day.weekday,
@@ -112,42 +117,42 @@ export function DayTabs({ weekNumber, days }: DayTabsProps) {
 						indicator: completions.has(`${weekNumber}:${day.weekday}`),
 					}))}
 				/>
-			</Tabs>
 
-			<CrossWeekIndicator ref={indicatorRef} />
+				<CrossWeekIndicator ref={indicatorRef} />
 
-			<div className='flex-1 min-h-0 mt-3'>
-				<div ref={containerRef} className='h-full'>
-					<Swiper
-						className='h-full'
-						key={days.map(d => d.weekday).join(',')}
-						onSwiper={swiper => {
-							swiperRef.current = swiper
-						}}
-						initialSlide={activeIndex >= 0 ? activeIndex : 0}
-						onSlideChange={handleSlideChange}
-						onTouchStart={onTouchStart}
-						onTouchMove={handleTouchMove}
-						onTouchEnd={handleTouchEnd}
-						spaceBetween={16}
-						resistanceRatio={0}
-					>
-						{days.map(day => (
-							<SwiperSlide key={day.weekday} className='h-full'>
-								<div className='hide-scrollbar h-full overflow-y-auto overscroll-y-contain pb-24'>
-									<ExerciseList
-										title={day.title}
-										exercises={day.exercises}
-										textBlocks={day.text_blocks}
-										weekNumber={weekNumber}
-										weekday={day.weekday}
-									/>
-								</div>
-							</SwiperSlide>
-						))}
-					</Swiper>
+					<div className='flex-1 min-h-0'>
+						<div ref={containerRef} className='h-full'>
+						<Swiper
+							className='h-full'
+							key={days.map(d => d.weekday).join(',')}
+							onSwiper={swiper => {
+								swiperRef.current = swiper
+							}}
+							initialSlide={activeIndex >= 0 ? activeIndex : 0}
+							onSlideChange={handleSlideChange}
+							onTouchStart={onTouchStart}
+							onTouchMove={handleTouchMove}
+							onTouchEnd={handleTouchEnd}
+							spaceBetween={16}
+							resistanceRatio={0}
+						>
+								{days.map(day => (
+									<SwiperSlide key={day.weekday} className='h-full'>
+										<div className='hide-scrollbar h-full overflow-y-auto overscroll-y-contain pb-24'>
+												<ExerciseList
+													title={day.title}
+													exercises={day.exercises}
+													textBlocks={day.text_blocks}
+													weekNumber={weekNumber}
+													weekday={day.weekday}
+												/>
+										</div>
+									</SwiperSlide>
+								))}
+						</Swiper>
+					</div>
 				</div>
-			</div>
+			</Tabs>
 		</div>
 	)
 }

@@ -70,7 +70,7 @@ export function ExerciseList({
 
 	return (
 		<div>
-			<Card className='mb-5 gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none'>
+			<Card className='mb-5 mt-25 gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none'>
 				<CardContent className='px-0 py-3'>
 					{title ? (
 						<div className='flex justify-between'>

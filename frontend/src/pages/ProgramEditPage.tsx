@@ -923,14 +923,14 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 				</div>
 			</div>
 
-			<Tabs
-				value={selectedDay?.uid}
-				onValueChange={value => setSelectedDayUid(value)}
-				className='flex min-h-0 flex-1 flex-col px-4'
-			>
-				{selectedWeek ? (
-					<div className='shrink-0 pb-1'>
+				<Tabs
+					value={selectedDay?.uid}
+					onValueChange={value => setSelectedDayUid(value)}
+					className='relative flex min-h-0 flex-1 flex-col px-4'
+				>
+					{selectedWeek ? (
 						<DayTabsBar
+							className='absolute inset-x-0 top-0 -mx-4'
 							items={selectedWeek.days.map(day => ({
 								key: day.uid,
 								value: day.uid,
@@ -939,13 +939,12 @@ export function ProgramEditPage({ onClose }: ProgramEditPageProps) {
 									day.weekday,
 							}))}
 						/>
-					</div>
-				) : null}
+					) : null}
 
-				<div className='hide-scrollbar min-h-0 flex-1 overflow-y-auto'>
-					<div className='pb-8'>
-						<p className='text-sm py-4'>
-							Можно только удалять упражнения, если нет
+						<div className='hide-scrollbar min-h-0 flex-1 overflow-y-auto'>
+							<div className={selectedWeek ? 'pb-8 pt-14' : 'pb-8'}>
+								<p className='text-sm py-4'>
+									Можно только удалять упражнения, если нет
 							возможности их выполнять. Собственная программа
 							создается отдельно.
 						</p>

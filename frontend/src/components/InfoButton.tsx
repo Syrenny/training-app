@@ -27,7 +27,7 @@ export function InfoButton() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Справка">
+        <Button variant="ghost"  aria-label="Справка">
           <Info className="h-5 w-5" />
         </Button>
       </SheetTrigger>
