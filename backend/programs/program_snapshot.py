@@ -36,6 +36,11 @@ WEEKDAY_SORT_ORDER = {
 }
 
 AUTO_WEEK_TITLE_RE = re.compile(r"^(?:\d+\s+неделя|Неделя\s+\d+)$")
+ADAPTATION_SCOPE_PRIORITY = {
+    AdaptationScope.FUTURE_CYCLES: 0,
+    AdaptationScope.CURRENT_CYCLE: 1,
+    AdaptationScope.ONLY_HERE: 2,
+}
 
 
 def decimal_to_json(value):
@@ -378,44 +383,129 @@ def merge_program_payload_metadata(base_payload, next_payload):
     return {"weeks": merged_weeks}
 
 
+def find_day_exercises(payload, week_number, weekday):
+    week = next(
+        (
+            item
+            for item in payload.get("weeks", [])
+            if int(item.get("number") or 0) == week_number
+        ),
+        None,
+    )
+    if week is None:
+        return None
+
+    day = next(
+        (item for item in week.get("days", []) if item.get("weekday") == weekday),
+        None,
+    )
+    if day is None:
+        return None
+
+    return day.get("exercises", [])
+
+
+def find_slot_index(payload, week_number, weekday, slot_key):
+    day_exercises = find_day_exercises(payload, week_number, weekday)
+    if day_exercises is None:
+        return None, None
+
+    exercise_index = next(
+        (
+            index
+            for index, item in enumerate(day_exercises)
+            if item.get("slot_key") == slot_key
+        ),
+        None,
+    )
+    return day_exercises, exercise_index
+
+
+def sort_adaptations_for_application(adaptations):
+    return sorted(
+        [item for item in adaptations if getattr(item, "canceled_at", None) is None],
+        key=lambda item: (
+            ADAPTATION_SCOPE_PRIORITY.get(item.scope, 0),
+            item.created_at,
+            item.id,
+        ),
+    )
+
+
+def insert_slot_payload(day_exercises, slot_payload):
+    next_item = deepcopy(slot_payload)
+    target_key = str(next_item.get("slot_key") or "")
+
+    try:
+        target_order = int(target_key.split(":")[-1])
+    except (TypeError, ValueError):
+        target_order = None
+
+    if target_order is None:
+        day_exercises.append(next_item)
+        return
+
+    insert_index = len(day_exercises)
+    for index, item in enumerate(day_exercises):
+        try:
+            current_order = int(str(item.get("slot_key") or "").split(":")[-1])
+        except (TypeError, ValueError):
+            continue
+        if current_order > target_order:
+            insert_index = index
+            break
+
+    day_exercises.insert(insert_index, next_item)
+
+
+def revert_cycle_adaptation(payload, adaptation):
+    previous_slot_payload = adaptation.previous_slot_payload
+    if previous_slot_payload is None:
+        raise ValueError("Missing previous slot payload.")
+
+    day_exercises, exercise_index = find_slot_index(
+        payload,
+        adaptation.week_number,
+        adaptation.weekday,
+        adaptation.slot_key,
+    )
+    if day_exercises is None:
+        raise ValueError("Adaptation target day not found.")
+
+    previous_slot_key = previous_slot_payload.get("slot_key")
+    if previous_slot_key != adaptation.slot_key:
+        previous_slot_payload = {
+            **previous_slot_payload,
+            "slot_key": adaptation.slot_key,
+        }
+
+    if exercise_index is None:
+        insert_slot_payload(day_exercises, previous_slot_payload)
+        return
+
+    day_exercises[exercise_index] = deepcopy(previous_slot_payload)
+
+
 def apply_adaptations_to_payload(payload, adaptations):
     next_payload = deepcopy(payload)
+    ordered_adaptations = sort_adaptations_for_application(adaptations)
     exercises = Exercise.objects.in_bulk(
         {
             adaptation.replacement_exercise_id
-            for adaptation in adaptations
+            for adaptation in ordered_adaptations
             if adaptation.replacement_exercise_id
         }
     )
 
-    for adaptation in adaptations:
-        week = next(
-            (
-                item
-                for item in next_payload.get("weeks", [])
-                if int(item.get("number") or 0) == adaptation.week_number
-            ),
-            None,
+    for adaptation in ordered_adaptations:
+        day_exercises, exercise_index = find_slot_index(
+            next_payload,
+            adaptation.week_number,
+            adaptation.weekday,
+            adaptation.slot_key,
         )
-        if week is None:
+        if day_exercises is None:
             continue
-
-        day = next(
-            (item for item in week.get("days", []) if item.get("weekday") == adaptation.weekday),
-            None,
-        )
-        if day is None:
-            continue
-
-        day_exercises = day.get("exercises", [])
-        exercise_index = next(
-            (
-                index
-                for index, item in enumerate(day_exercises)
-                if item.get("slot_key") == adaptation.slot_key
-            ),
-            None,
-        )
         if exercise_index is None:
             continue
 
@@ -442,9 +532,9 @@ def build_program_payload_with_future_adaptations(telegram_id, program):
             telegram_id=telegram_id,
             program=program,
             scope=AdaptationScope.FUTURE_CYCLES,
+            canceled_at__isnull=True,
         )
         .select_related("replacement_exercise")
-        .order_by("created_at", "id")
     )
     if not adaptations:
         return payload

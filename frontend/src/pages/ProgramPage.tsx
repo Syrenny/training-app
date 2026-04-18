@@ -62,13 +62,6 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
           </Card>
         </div>
       ) : null}
-
-      {activeCycle ? (
-        <div className="px-4 pt-4 pb-2 text-sm text-muted-foreground">
-          Цикл начат {new Date(activeCycle.started_at).toLocaleString("ru-RU")}
-        </div>
-      ) : null}
-
       <div className="pl-1 pr-2 pt-1 pb-1 shrink-0">
         <div className="flex items-center gap-2">
           <div className="flex-1">

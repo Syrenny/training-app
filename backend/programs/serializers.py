@@ -359,12 +359,26 @@ class ProgramAdaptationCreateSerializer(serializers.Serializer):
         return attrs
 
 
+class ProgramAdaptationCancelSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+
+
 class ProgramAdaptationSerializer(serializers.ModelSerializer):
     program_id = serializers.IntegerField(source="program.id", read_only=True)
     program_name = serializers.CharField(source="program.name", read_only=True)
     cycle_id = serializers.IntegerField(source="cycle.id", read_only=True, allow_null=True)
+    original_exercise_id = serializers.IntegerField(
+        source="original_exercise.id",
+        read_only=True,
+        allow_null=True,
+    )
     original_exercise_name = serializers.CharField(
         source="original_exercise.name",
+        read_only=True,
+        allow_null=True,
+    )
+    replacement_exercise_id = serializers.IntegerField(
+        source="replacement_exercise.id",
         read_only=True,
         allow_null=True,
     )
@@ -375,6 +389,7 @@ class ProgramAdaptationSerializer(serializers.ModelSerializer):
     )
     scope_label = serializers.CharField(source="get_scope_display", read_only=True)
     action_label = serializers.CharField(source="get_action_display", read_only=True)
+    is_canceled = serializers.SerializerMethodField()
 
     class Meta:
         model = ProgramAdaptation
@@ -390,8 +405,16 @@ class ProgramAdaptationSerializer(serializers.ModelSerializer):
             "slot_key",
             "week_number",
             "weekday",
+            "original_exercise_id",
             "original_exercise_name",
+            "replacement_exercise_id",
             "replacement_exercise_name",
             "reason",
+            "is_canceled",
+            "canceled_at",
+            "cancellation_reason",
             "created_at",
         ]
+
+    def get_is_canceled(self, obj):
+        return obj.canceled_at is not None

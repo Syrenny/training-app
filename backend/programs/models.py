@@ -308,8 +308,8 @@ class CycleOneRepMax(models.Model):
 
 
 class AdaptationScope(models.TextChoices):
-    ONLY_HERE = "ONLY_HERE", "Только здесь"
-    CURRENT_CYCLE = "CURRENT_CYCLE", "До конца текущего цикла"
+    ONLY_HERE = "ONLY_HERE", "Только сейчас"
+    CURRENT_CYCLE = "CURRENT_CYCLE", "До конца цикла"
     FUTURE_CYCLES = "FUTURE_CYCLES", "Во всех будущих циклах"
 
 
@@ -367,7 +367,23 @@ class ProgramAdaptation(models.Model):
         related_name="replacement_program_adaptations",
         verbose_name="Заменяющее упражнение",
     )
+    previous_slot_payload = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        verbose_name="Состояние позиции до адаптации",
+    )
     reason = models.TextField(blank=True, default="", verbose_name="Причина адаптации")
+    canceled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Отменено",
+    )
+    cancellation_reason = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Причина отмены",
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создано")
 
     class Meta:

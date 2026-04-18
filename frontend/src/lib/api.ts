@@ -325,9 +325,14 @@ export interface ProgramAdaptation {
   slot_key: string;
   week_number: number;
   weekday: string;
+  original_exercise_id: number | null;
   original_exercise_name: string | null;
+  replacement_exercise_id: number | null;
   replacement_exercise_name: string | null;
   reason: string;
+  is_canceled: boolean;
+  canceled_at: string | null;
+  cancellation_reason: string;
   created_at: string;
 }
 
@@ -451,6 +456,19 @@ export function createProgramAdaptation(
   data: ProgramAdaptationInput,
 ): Promise<ProgramAdaptation> {
   return postApi<ProgramAdaptation>("/program/adaptations/", data);
+}
+
+export async function cancelProgramAdaptation(
+  adaptationId: number,
+  reason?: string,
+): Promise<ProgramAdaptation | null> {
+  const response = await fetch(
+    `${BASE_URL}/program/adaptations/${adaptationId}/cancel/`,
+    getRequestOptions("POST", reason !== undefined ? { reason } : {}),
+  );
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  if (response.status === 204) return null;
+  return response.json();
 }
 
 export function fetchAccessoryWeightsLatest(): Promise<AccessoryWeightLatest> {

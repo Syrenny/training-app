@@ -23,6 +23,7 @@ from .auth_utils import (
 )
 from .models import (
     AccessoryWeight,
+    AdaptationAction,
     AdaptationScope,
     CycleOneRepMax,
     Exercise,
@@ -41,14 +42,17 @@ from .program_snapshot import (
     build_program_payload_with_future_adaptations,
     build_program_response,
     count_program_entities,
+    find_slot_index,
     get_default_program,
     get_latest_snapshot_for_program,
     merge_program_payload_metadata,
+    revert_cycle_adaptation,
 )
 from .serializers import (
     AccessoryWeightSerializer,
     ExerciseSerializer,
     OneRepMaxResponseSerializer,
+    ProgramAdaptationCancelSerializer,
     ProgramAdaptationCreateSerializer,
     ProgramAdaptationSerializer,
     ProgramSerializer,
@@ -100,6 +104,63 @@ def get_program_context(request):
     if active_cycle is not None:
         return active_cycle.program
     return get_selected_program(request)
+
+
+def get_slot_payload(payload, week_number, weekday, slot_key):
+    day_exercises, exercise_index = find_slot_index(payload, week_number, weekday, slot_key)
+    if day_exercises is None or exercise_index is None:
+        return None
+    return day_exercises[exercise_index]
+
+
+def is_slot_replaced(current_payload, base_payload, week_number, weekday, slot_key):
+    current_slot = get_slot_payload(current_payload, week_number, weekday, slot_key)
+    base_slot = get_slot_payload(base_payload, week_number, weekday, slot_key)
+    if current_slot is None or base_slot is None:
+        return False
+    return current_slot.get("exercise_id") != base_slot.get("exercise_id")
+
+
+def adaptation_has_completed_workouts(adaptation):
+    filters = {
+        "telegram_id": adaptation.telegram_id,
+        "week_number": adaptation.week_number,
+        "weekday": adaptation.weekday,
+        "completed_at__gte": adaptation.created_at,
+    }
+
+    if adaptation.scope == AdaptationScope.FUTURE_CYCLES:
+        return WorkoutCompletion.objects.filter(
+            **filters,
+            cycle__program=adaptation.program,
+            cycle__started_at__gte=adaptation.created_at,
+        ).exists()
+
+    if adaptation.cycle_id is None:
+        return False
+
+    return WorkoutCompletion.objects.filter(
+        **filters,
+        cycle=adaptation.cycle,
+    ).exists()
+
+
+def rebuild_cycle_payload(cycle, *, exclude_adaptation_ids=None):
+    excluded_ids = set(exclude_adaptation_ids or [])
+    active_adaptations = list(
+        ProgramAdaptation.objects.filter(cycle=cycle, canceled_at__isnull=True).order_by("created_at", "id")
+    )
+    if not active_adaptations:
+        return cycle.program_payload
+
+    baseline_payload = json.loads(json.dumps(cycle.program_payload))
+    for adaptation in reversed(active_adaptations):
+        revert_cycle_adaptation(baseline_payload, adaptation)
+
+    remaining_adaptations = [
+        adaptation for adaptation in active_adaptations if adaptation.id not in excluded_ids
+    ]
+    return apply_adaptations_to_payload(baseline_payload, remaining_adaptations)
 
 
 def build_pending_one_rep_max_response(program):
@@ -872,6 +933,7 @@ class ProgramAdaptationListCreateView(APIView):
         active_cycle = get_active_cycle(request)
         scope = serializer.validated_data["scope"]
         cycle = None
+        current_payload = None
         if scope != AdaptationScope.FUTURE_CYCLES:
             if active_cycle is None or active_cycle.program_id != program.id:
                 return Response(
@@ -879,6 +941,35 @@ class ProgramAdaptationListCreateView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             cycle = active_cycle
+            current_payload = json.loads(json.dumps(cycle.program_payload))
+        else:
+            current_payload = build_program_payload_with_future_adaptations(telegram_id, program)
+
+        week_number = serializer.validated_data["week_number"]
+        weekday = serializer.validated_data["weekday"]
+        slot_key = serializer.validated_data["slot_key"]
+        current_slot_payload = get_slot_payload(current_payload, week_number, weekday, slot_key)
+        if current_slot_payload is None:
+            return Response(
+                {"detail": "Эта позиция уже недоступна. Сначала отмените предыдущее правило."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        if (
+            serializer.validated_data["action"] == AdaptationAction.REPLACE
+            and scope != AdaptationScope.ONLY_HERE
+        ):
+            base_payload = build_base_program_payload(program)
+            if is_slot_replaced(current_payload, base_payload, week_number, weekday, slot_key):
+                return Response(
+                    {
+                        "detail": (
+                            "Заменённое упражнение можно менять только стратегией "
+                            "«Только сейчас». Для более широкой замены сначала отмените прошлое правило."
+                        )
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
 
         original_exercise = None
         original_exercise_id = serializer.validated_data.get("original_exercise_id")
@@ -898,11 +989,12 @@ class ProgramAdaptationListCreateView(APIView):
             cycle=cycle,
             scope=scope,
             action=serializer.validated_data["action"],
-            slot_key=serializer.validated_data["slot_key"],
-            week_number=serializer.validated_data["week_number"],
-            weekday=serializer.validated_data["weekday"],
+            slot_key=slot_key,
+            week_number=week_number,
+            weekday=weekday,
             original_exercise=original_exercise,
             replacement_exercise=replacement_exercise,
+            previous_slot_payload=current_slot_payload if cycle is not None else None,
             reason=serializer.validated_data.get("reason", ""),
         )
 
@@ -911,3 +1003,70 @@ class ProgramAdaptationListCreateView(APIView):
             cycle.save(update_fields=["program_payload"])
 
         return Response(ProgramAdaptationSerializer(adaptation).data, status=status.HTTP_201_CREATED)
+
+
+class ProgramAdaptationCancelView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request, adaptation_id):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        serializer = ProgramAdaptationCancelSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        adaptation = (
+            ProgramAdaptation.objects.filter(telegram_id=telegram_id, pk=adaptation_id)
+            .select_related("program", "cycle", "original_exercise", "replacement_exercise")
+            .first()
+        )
+        if adaptation is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        if adaptation.canceled_at is not None:
+            return Response(
+                {"detail": "Адаптация уже отменена."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        cancellation_reason = serializer.validated_data.get("reason", "")
+        if adaptation_has_completed_workouts(adaptation):
+            if not cancellation_reason:
+                return Response(
+                    {"detail": "Укажите причину: по этой адаптации уже были проведены тренировки."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            adaptation.canceled_at = timezone.now()
+            adaptation.cancellation_reason = cancellation_reason
+            adaptation.save(update_fields=["canceled_at", "cancellation_reason"])
+            return Response(ProgramAdaptationSerializer(adaptation).data)
+
+        cycle = adaptation.cycle if adaptation.scope != AdaptationScope.FUTURE_CYCLES else None
+
+        with transaction.atomic():
+            if cycle is not None:
+                try:
+                    cycle.program_payload = rebuild_cycle_payload(
+                        cycle,
+                        exclude_adaptation_ids={adaptation.id},
+                    )
+                except ValueError:
+                    return Response(
+                        {
+                            "detail": (
+                                "Эту адаптацию нельзя автоматически отменить. "
+                                "Сначала завершите или скорректируйте более старые правила."
+                            )
+                        },
+                        status=status.HTTP_409_CONFLICT,
+                    )
+                cycle.save(update_fields=["program_payload"])
+
+            adaptation.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
