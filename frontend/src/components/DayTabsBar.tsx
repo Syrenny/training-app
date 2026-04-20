@@ -25,7 +25,7 @@ export function DayTabsBar({ items, action, className }: DayTabsBarProps) {
               <TabsTrigger
                 key={item.key}
                 value={item.value}
-                className="glass-hover data-[state=active]:glass-surface-soft relative flex-1 rounded-full text-sm text-foreground/70 hover:text-foreground dark:text-muted-foreground dark:hover:text-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm"
+                className="glass-surface-stateful relative flex-1 rounded-full text-sm text-foreground/70 dark:text-muted-foreground data-[state=active]:text-foreground data-[state=active]:shadow-sm"
               >
                 {item.label}
                 {item.indicator ? (

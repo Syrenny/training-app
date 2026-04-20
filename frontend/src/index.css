@@ -124,61 +124,67 @@
 }
 
 @layer components {
-  .glass-surface {
-    background-color: rgba(255, 255, 255, 0.15);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  .glass-surface,
+  .glass-surface-active,
+  [data-state="active"].glass-surface-stateful {
+    background-color: var(--glass-surface-bg) !important;
+    border: 1px solid var(--glass-surface-border) !important;
+    box-shadow: 0 2px 10px var(--glass-surface-shadow) !important;
     -webkit-backdrop-filter: blur(24px) saturate(1.5);
     backdrop-filter: blur(24px) saturate(1.5);
   }
 
+  .glass-surface {
+    --glass-surface-bg: color-mix(in oklch, var(--muted) 32%, transparent);
+    --glass-surface-border: color-mix(in oklch, var(--border) 55%, transparent);
+    --glass-surface-shadow: color-mix(in oklch, var(--foreground) 8%, transparent);
+    --glass-surface-fallback-bg: color-mix(in oklch, var(--muted) 78%, var(--card));
+  }
+
   .dark .glass-surface {
-    background-color: rgba(0, 0, 0, 0.25);
-    border-color: rgba(255, 255, 255, 0.1);
+    --glass-surface-bg: color-mix(in oklch, var(--muted) 42%, transparent);
+    --glass-surface-border: color-mix(in oklch, var(--border) 90%, transparent);
+    --glass-surface-shadow: color-mix(in oklch, var(--background) 72%, transparent);
+    --glass-surface-fallback-bg: color-mix(in oklch, var(--muted) 82%, var(--card));
   }
 
-  .glass-surface-soft {
-    background-color: rgba(255, 255, 255, 0.2);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-    -webkit-backdrop-filter: blur(12px);
-    backdrop-filter: blur(12px);
+  .glass-surface-active,
+  [data-state="active"].glass-surface-stateful {
+    --glass-surface-bg: color-mix(
+      in oklch,
+      color-mix(in oklch, var(--accent) 44%, var(--muted)) 58%,
+      transparent
+    );
+    --glass-surface-border: color-mix(in oklch, var(--accent) 42%, var(--border));
+    --glass-surface-shadow: color-mix(in oklch, var(--foreground) 12%, transparent);
+    --glass-surface-fallback-bg: color-mix(
+      in oklch,
+      color-mix(in oklch, var(--accent) 38%, var(--muted)) 88%,
+      var(--card)
+    );
   }
 
-  .dark .glass-surface-soft {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .glass-hover:hover {
-    background-color: rgba(255, 255, 255, 0.1);
-  }
-
-  .dark .glass-hover:hover {
-    background-color: rgba(255, 255, 255, 0.05);
+  .dark .glass-surface-active,
+  .dark [data-state="active"].glass-surface-stateful {
+    --glass-surface-bg: color-mix(
+      in oklch,
+      color-mix(in oklch, var(--accent) 52%, var(--muted)) 64%,
+      transparent
+    );
+    --glass-surface-border: color-mix(in oklch, var(--accent) 48%, var(--border));
+    --glass-surface-shadow: color-mix(in oklch, var(--background) 84%, transparent);
+    --glass-surface-fallback-bg: color-mix(
+      in oklch,
+      color-mix(in oklch, var(--accent) 44%, var(--muted)) 90%,
+      var(--card)
+    );
   }
 
   @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-    .glass-surface {
-      background-color: rgba(255, 255, 255, 0.92);
-    }
-
-    .dark .glass-surface {
-      background-color: rgba(24, 24, 24, 0.86);
-    }
-
-    .glass-surface-soft {
-      background-color: rgba(255, 255, 255, 0.96);
-    }
-
-    .dark .glass-surface-soft {
-      background-color: rgba(40, 40, 40, 0.9);
-    }
-
-    .glass-hover:hover {
-      background-color: rgba(255, 255, 255, 0.9);
-    }
-
-    .dark .glass-hover:hover {
-      background-color: rgba(50, 50, 50, 0.86);
+    .glass-surface,
+    .glass-surface-active,
+    [data-state="active"].glass-surface-stateful {
+      background-color: var(--glass-surface-fallback-bg) !important;
     }
   }
 }

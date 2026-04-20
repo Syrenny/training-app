@@ -74,11 +74,15 @@ export function ExerciseList({
 		<div>
 			<Card className='mb-5 mt-25 gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none'>
 				<CardContent className='px-0 py-3'>
-					{title ? (
+					{title || showCompletionControl ? (
 						<div className='flex justify-between'>
-							<p className='mb-2 text-md font-semibold text-muted-foreground'>
-								{title}
-							</p>
+							{title ? (
+								<p className='mb-2 text-md font-semibold text-muted-foreground'>
+									{title}
+								</p>
+							) : (
+								<div />
+							)}
 							{showCompletionControl ? (
 								<CompletionButton
 									completed={isCompleted}

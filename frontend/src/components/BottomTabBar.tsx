@@ -25,7 +25,7 @@ export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
         "
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="flex items-center gap-1 p-2">
+        <div className="flex items-center gap-1 p-1">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const active = tab.id === activeTab;
@@ -35,13 +35,14 @@ export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
                 key={tab.id}
                 variant="ghost"
                 className={`
-                    h-12 flex-1 flex-col gap-1 relative
+                    relative h-12 flex-1 flex-col gap-1 rounded-full
+                    hover:!bg-transparent dark:hover:!bg-transparent
+                    hover:!text-inherit dark:hover:!text-inherit
 
                     ${active ? `
-                    glass-surface-soft
-                    rounded-full
+                    glass-surface-active text-foreground
                     ` : `
-                    glass-hover
+                    text-muted-foreground
                     `}
                 `}
                 onClick={() => onChange(tab.id)}

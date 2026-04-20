@@ -85,7 +85,7 @@ export function SetDisplay({
 	) : null
 
 	return (
-		<div className='grid w-full grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-baseline gap-x-2 font-mono text-sm tabular-nums'>
+		<div className='grid w-full grid-cols-[minmax(0,1fr)_minmax(0,2fr)_minmax(0,1fr)] items-baseline gap-x-2 font-mono text-sm tabular-nums'>
 			<div className='min-w-0 whitespace-nowrap text-left font-medium text-foreground'>
 				{weightEditor ?? weight_node}
 			</div>
