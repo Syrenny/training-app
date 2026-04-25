@@ -49,7 +49,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
   return (
     <div className="relative flex flex-col flex-1 min-h-0">
       {hasOverlayHeader ? (
-        <PageHeaderOverlay contentClassName="flex items-center gap-2">
+        <PageHeaderOverlay contentClassName="flex items-center gap-10 px-4">
           <div className="flex-1">
             <WeekSelector />
           </div>

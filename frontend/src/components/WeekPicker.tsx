@@ -47,7 +47,7 @@ export function WeekPicker({
         <Button
           variant="ghost"
           {...triggerButtonProps}
-          className={cn("h-auto justify-start px-0 text-lg font-semibold", triggerClassName)}
+          className={cn("h-auto justify-start px-0 text-lg font-semibold w-full", triggerClassName)}
         >
           {title}
           <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -57,7 +57,7 @@ export function WeekPicker({
         <DialogHeader>
           <DialogTitle>Выберите неделю</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-1">
+        <div className="grid gap-5">
           {items.length === 0 ? (
             <p className="py-2 text-sm text-muted-foreground">
               Пока нет недель.

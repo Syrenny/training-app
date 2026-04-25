@@ -190,7 +190,6 @@ export function OneRepMaxPage() {
 				</CardHeader>
 				<CardContent className='space-y-5'>
 					<div className='space-y-3'>
-						<p className='text-sm font-medium'>Текущая программа</p>
 						<Select
 							value={
 								selectedProgram
@@ -290,15 +289,7 @@ export function OneRepMaxPage() {
 								1ПМ.
 							</p>
 						) : null}
-						<div className='flex flex-wrap gap-2 pt-2'>
-							<Button
-								variant='ghost'
-								onClick={handleSave}
-								disabled={saving || !selectedProgram}
-							>
-								<Save className='h-4 w-4' />
-								{saving ? 'Сохранение...' : 'Сохранить 1ПМ'}
-							</Button>
+						<div className='flex justify-between flex-wrap gap-2 pt-2'>
 							<Button
 								variant='ghost'
 								onClick={handleResetCompletions}
@@ -306,6 +297,14 @@ export function OneRepMaxPage() {
 							>
 								<RotateCcw className='h-4 w-4' />
 								{resetting ? 'Сброс...' : 'Сбросить отметки'}
+							</Button>
+							<Button
+								variant='ghost'
+								onClick={handleSave}
+								disabled={saving || !selectedProgram}
+							>
+								<Save className='h-4 w-4' />
+								{saving ? 'Сохранение...' : 'Сохранить 1ПМ'}
 							</Button>
 						</div>
 						{saveError ? (
