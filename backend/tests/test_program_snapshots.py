@@ -122,7 +122,7 @@ class ProgramSnapshotAPITest(TestCase):
         self.assertEqual(snapshot.commit_message, "Добавил вторник")
         self.assertEqual(snapshot.payload["weeks"][0]["days"][0]["weekday"], "TUE")
 
-    def test_program_history_returns_snapshots(self):
+    def test_program_history_returns_single_current_snapshot(self):
         for index, weekday in enumerate(("MON", "WED"), start=1):
             self.authenticated.post(
                 "/api/program/snapshots/",
@@ -157,10 +157,14 @@ class ProgramSnapshotAPITest(TestCase):
         response = self.authenticated.get("/api/program/history/")
         self.assertEqual(response.status_code, 200)
         history = response.json()
-        self.assertEqual(len(history), 2)
-        self.assertEqual(history[0]["version"], 2)
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["version"], 1)
         self.assertEqual(history[0]["commit_message"], "Версия 2")
         self.assertEqual(history[0]["day_count"], 1)
+        self.assertEqual(
+            ProgramSnapshot.objects.filter(telegram_id=42, program=self.program).count(),
+            1,
+        )
 
     def test_program_history_detail_returns_snapshot(self):
         self.authenticated.post(

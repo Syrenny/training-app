@@ -5,6 +5,7 @@ import { fetchSession, loginWithTelegram, logoutSession } from "@/lib/api";
 import { getTelegram, initTelegram, isTelegramContext } from "@/lib/telegram";
 import { ProgramPage } from "@/pages/ProgramPage";
 import { ProgramAdaptationsPage } from "@/pages/ProgramAdaptationsPage";
+import { DesktopProgramEditorPage } from "@/pages/DesktopProgramEditorPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { BottomTabBar, type AppTab } from "@/components/BottomTabBar";
 import { UnauthorizedScreen } from "@/components/UnauthorizedScreen";
@@ -13,6 +14,18 @@ const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 const AUTH_CACHE_KEY = "training-app-auth-user";
 const TAB_CACHE_KEY = "training-app-active-tab";
 type AuthState = "loading" | "authenticated" | "unauthenticated";
+type AppRoute = "main" | "desktop-editor";
+
+function getAppRoute(): AppRoute {
+  if (typeof window === "undefined") {
+    return "main";
+  }
+
+  const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
+  return pathname === "/desktop/editor" || pathname === "/editor"
+    ? "desktop-editor"
+    : "main";
+}
 
 function LoadingScreen() {
   return (
@@ -68,6 +81,7 @@ function cacheTab(tab: AppTab) {
 }
 
 function App() {
+  const route = getAppRoute();
   const initialTab = loadCachedTab();
   const [user, setUser] = useState<AuthUser | null>(() => loadCachedUser());
   const [authState, setAuthState] = useState<AuthState>(() =>
@@ -242,6 +256,10 @@ function App() {
         onWidgetAuth={handleWidgetAuth}
       />
     );
+  }
+
+  if (route === "desktop-editor") {
+    return <DesktopProgramEditorPage user={user} onLogout={handleLogout} />;
   }
 
   return (

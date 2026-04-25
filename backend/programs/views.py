@@ -696,27 +696,30 @@ class ProgramSnapshotCreateView(APIView):
         serializer = ProgramSnapshotInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         program = get_selected_program(request)
-        current_snapshot = get_latest_snapshot_for_program(telegram_id, program)
-        current_payload = current_snapshot.payload if current_snapshot else build_base_program_payload(program)
-        latest = (
-            ProgramSnapshot.objects.filter(telegram_id=telegram_id, program=program)
-            .order_by("-version")
-            .first()
+        existing_snapshots = ProgramSnapshot.objects.filter(
+            telegram_id=telegram_id,
+            program=program,
         )
-        next_version = (latest.version if latest else 0) + 1
+        current_snapshot = existing_snapshots.order_by("-version").first()
+        current_payload = current_snapshot.payload if current_snapshot else build_base_program_payload(program)
         payload = merge_program_payload_metadata(
             current_payload,
             serializer.validated_data["normalized_payload"],
         )
-        snapshot = ProgramSnapshot.objects.create(
-            telegram_id=telegram_id,
-            program=program,
-            version=next_version,
-            commit_message=serializer.validated_data["commit_message"],
-            payload=payload,
-            source_snapshot_version=serializer.validated_data.get("source_snapshot_version")
-            or (current_snapshot.version if current_snapshot else None),
+        source_snapshot_version = serializer.validated_data.get("source_snapshot_version") or (
+            current_snapshot.version if current_snapshot else None
         )
+
+        with transaction.atomic():
+            existing_snapshots.delete()
+            snapshot = ProgramSnapshot.objects.create(
+                telegram_id=telegram_id,
+                program=program,
+                version=1,
+                commit_message=serializer.validated_data["commit_message"],
+                payload=payload,
+                source_snapshot_version=source_snapshot_version,
+            )
         return Response(
             build_program_response(
                 snapshot.payload,
