@@ -2,7 +2,7 @@ import { OneRepMaxPage } from '@/components/OneRepMaxPage'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { AuthUser } from '@/lib/api'
-import { Monitor, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
 
 interface ProfilePageProps {
 	user: AuthUser
@@ -69,29 +69,6 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 							</div>
 						</CardContent>
 					</Card>
-
-					<Card>
-						<CardHeader>
-							<CardTitle>Desktop Editor</CardTitle>
-						</CardHeader>
-						<CardContent className='space-y-3'>
-							<p className='text-sm text-muted-foreground'>
-								Отдельная веб-морда для ПК с полным god-mode
-								редактированием программы и историей снапшотов.
-							</p>
-							<Button asChild variant='outline' size='sm'>
-								<a
-									href='/desktop/editor'
-									target='_blank'
-									rel='noreferrer'
-								>
-									<Monitor className='h-4 w-4' />
-									Открыть на ПК
-								</a>
-							</Button>
-						</CardContent>
-					</Card>
-
 					<OneRepMaxPage />
 				</div>
 			</div>

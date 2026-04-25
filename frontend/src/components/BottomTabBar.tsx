@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button"
-import { Dumbbell, PencilRuler, UserRound } from "lucide-react"
+import { Dumbbell, UserRound } from "lucide-react"
 
-export type AppTab = "home" | "editor" | "profile";
+export type AppTab = "home" | "profile";
 
 interface BottomTabBarProps {
   activeTab: AppTab;
@@ -10,7 +10,6 @@ interface BottomTabBarProps {
 
 const TABS: Array<{ id: AppTab; label: string; icon: typeof Dumbbell }> = [
   { id: "home", label: "Главная", icon: Dumbbell },
-  { id: "editor", label: "Редактор", icon: PencilRuler },
   { id: "profile", label: "Профиль", icon: UserRound },
 ];
 

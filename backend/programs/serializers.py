@@ -133,10 +133,29 @@ class WorkoutCompletionSerializer(serializers.ModelSerializer):
 
 class ProgramSerializer(serializers.ModelSerializer):
     one_rep_max_exercises = serializers.SerializerMethodField()
+    is_custom = serializers.SerializerMethodField()
+    source_program_id = serializers.IntegerField(read_only=True)
+    source_program_name = serializers.CharField(
+        source="source_program.name",
+        read_only=True,
+        allow_null=True,
+    )
 
     class Meta:
         model = Program
-        fields = ["id", "slug", "name", "description", "one_rep_max_exercises"]
+        fields = [
+            "id",
+            "slug",
+            "name",
+            "description",
+            "is_custom",
+            "source_program_id",
+            "source_program_name",
+            "one_rep_max_exercises",
+        ]
+
+    def get_is_custom(self, obj):
+        return obj.owner_id is not None
 
     def get_one_rep_max_exercises(self, obj):
         items = obj.one_rep_max_exercises.select_related("exercise").all()
@@ -299,6 +318,12 @@ class ProgramSnapshotInputSerializer(serializers.Serializer):
         return attrs
 
 
+class ProgramCreateSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=200, allow_blank=False, trim_whitespace=True)
+    description = serializers.CharField(required=False, allow_blank=True, default="")
+    source_program_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+
+
 class TrainingCycleSummarySerializer(serializers.ModelSerializer):
     program_id = serializers.IntegerField(source="program.id", read_only=True)
     program_name = serializers.CharField(source="program.name", read_only=True)
@@ -330,8 +355,9 @@ class TrainingCycleStartSerializer(serializers.Serializer):
 
 
 class TrainingCycleFinishSerializer(serializers.Serializer):
-    reason = serializers.CharField(max_length=255, allow_blank=False, trim_whitespace=True)
-    feeling = serializers.CharField(allow_blank=False, trim_whitespace=True)
+    notes = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+    reason = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+    feeling = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
 
 
 class ProgramAdaptationCreateSerializer(serializers.Serializer):

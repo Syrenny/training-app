@@ -86,6 +86,9 @@ def serialize_program_summary(program):
         "slug": program.slug,
         "name": program.name,
         "description": program.description,
+        "is_custom": program.owner_id is not None,
+        "source_program_id": program.source_program_id,
+        "source_program_name": program.source_program.name if program.source_program_id else None,
         "one_rep_max_exercises": [
             {
                 "exercise_id": item.exercise_id,
@@ -103,7 +106,7 @@ def serialize_program_summary(program):
 
 
 def get_default_program():
-    return Program.objects.order_by("id").first()
+    return Program.objects.filter(owner__isnull=True).order_by("id").first()
 
 
 def build_base_program_payload(program=None):

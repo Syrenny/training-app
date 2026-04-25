@@ -11,24 +11,21 @@ interface ProgramPageProps {
 }
 
 export function ProgramPage({ user: _user }: ProgramPageProps) {
-  const activeCycle = useProgramStore((s) => s.activeCycle);
   const selectedWeek = useProgramStore((s) => s.selectedWeek);
   const loading = useProgramStore((s) => s.loading);
   const error = useProgramStore((s) => s.error);
   const weekDetailCache = useProgramStore((s) => s.weekDetailCache);
-  const fetchActiveCycle = useProgramStore((s) => s.fetchActiveCycle);
   const fetchProgram = useProgramStore((s) => s.fetchProgram);
   const fetchOneRepMax = useProgramStore((s) => s.fetchOneRepMax);
   const fetchCompletions = useProgramStore((s) => s.fetchCompletions);
   const fetchAccessoryWeights = useProgramStore((s) => s.fetchAccessoryWeights);
 
   useEffect(() => {
-    fetchActiveCycle();
     fetchProgram();
     fetchOneRepMax();
     fetchCompletions();
     fetchAccessoryWeights();
-  }, [fetchActiveCycle, fetchProgram, fetchOneRepMax, fetchCompletions, fetchAccessoryWeights]);
+  }, [fetchProgram, fetchOneRepMax, fetchCompletions, fetchAccessoryWeights]);
 
   const weekData = selectedWeek !== null ? weekDetailCache[selectedWeek] : null;
   const hasOverlayHeader = Boolean(weekData);
@@ -76,7 +73,7 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
           <DayTabs
             weekNumber={weekData.number}
             days={weekData.days}
-            showCompletionControls={Boolean(activeCycle)}
+            showCompletionControls
           />
         ) : null}
       </div>

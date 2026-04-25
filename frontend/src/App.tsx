@@ -4,8 +4,6 @@ import type { TelegramWidgetAuthData } from "@/lib/api";
 import { fetchSession, loginWithTelegram, logoutSession } from "@/lib/api";
 import { getTelegram, initTelegram, isTelegramContext } from "@/lib/telegram";
 import { ProgramPage } from "@/pages/ProgramPage";
-import { ProgramAdaptationsPage } from "@/pages/ProgramAdaptationsPage";
-import { DesktopProgramEditorPage } from "@/pages/DesktopProgramEditorPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { BottomTabBar, type AppTab } from "@/components/BottomTabBar";
 import { UnauthorizedScreen } from "@/components/UnauthorizedScreen";
@@ -14,18 +12,6 @@ const DEV_MODE = import.meta.env.VITE_DEV_MODE === "true";
 const AUTH_CACHE_KEY = "training-app-auth-user";
 const TAB_CACHE_KEY = "training-app-active-tab";
 type AuthState = "loading" | "authenticated" | "unauthenticated";
-type AppRoute = "main" | "desktop-editor";
-
-function getAppRoute(): AppRoute {
-  if (typeof window === "undefined") {
-    return "main";
-  }
-
-  const pathname = window.location.pathname.replace(/\/+$/, "") || "/";
-  return pathname === "/desktop/editor" || pathname === "/editor"
-    ? "desktop-editor"
-    : "main";
-}
 
 function LoadingScreen() {
   return (
@@ -70,7 +56,7 @@ function loadCachedTab(): AppTab {
   }
 
   const raw = window.sessionStorage.getItem(TAB_CACHE_KEY);
-  return raw === "home" || raw === "editor" || raw === "profile" ? raw : "home";
+  return raw === "home" || raw === "profile" ? raw : "home";
 }
 
 function cacheTab(tab: AppTab) {
@@ -81,14 +67,12 @@ function cacheTab(tab: AppTab) {
 }
 
 function App() {
-  const route = getAppRoute();
   const initialTab = loadCachedTab();
   const [user, setUser] = useState<AuthUser | null>(() => loadCachedUser());
   const [authState, setAuthState] = useState<AuthState>(() =>
     loadCachedUser() ? "authenticated" : "loading",
   );
   const [screen, setScreen] = useState<AppTab>(initialTab);
-  const [editorMounted, setEditorMounted] = useState(initialTab === "editor");
   const [botUsername, setBotUsername] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [authResetKey, setAuthResetKey] = useState(0);
@@ -101,12 +85,6 @@ function App() {
 
   useEffect(() => {
     cacheTab(screen);
-  }, [screen]);
-
-  useEffect(() => {
-    if (screen === "editor") {
-      setEditorMounted(true);
-    }
   }, [screen]);
 
   useEffect(() => {
@@ -258,10 +236,6 @@ function App() {
     );
   }
 
-  if (route === "desktop-editor") {
-    return <DesktopProgramEditorPage user={user} onLogout={handleLogout} />;
-  }
-
   return (
     <div
       className="h-dvh bg-background text-foreground flex flex-col"
@@ -273,11 +247,6 @@ function App() {
         <div className={screen === "home" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
           <ProgramPage user={user} />
         </div>
-        {editorMounted ? (
-          <div className={screen === "editor" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
-            <ProgramAdaptationsPage />
-          </div>
-        ) : null}
         <div className={screen === "profile" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
           <ProfilePage user={user} onLogout={handleLogout} />
         </div>

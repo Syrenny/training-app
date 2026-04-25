@@ -5,13 +5,15 @@ import { Input } from '@/components/ui/input'
 import {
 	Select,
 	SelectContent,
+	SelectGroup,
 	SelectItem,
+	SelectLabel,
+	SelectSeparator,
 	SelectTrigger,
 	SelectValue,
 } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
 import { useProgramStore } from '@/lib/store'
-import { LockKeyhole, Play, Square, Trash2 } from 'lucide-react'
+import { RotateCcw, Save } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 
 function getOneRepMaxDraftKey(programId: number) {
@@ -49,73 +51,55 @@ function clearOneRepMaxDraft(programId: number) {
 	window.localStorage.removeItem(getOneRepMaxDraftKey(programId))
 }
 
-function formatDateTime(value: string) {
-	return new Date(value).toLocaleString('ru-RU', {
-		day: '2-digit',
-		month: '2-digit',
-		year: 'numeric',
-	})
-}
-
 export function OneRepMaxPage() {
 	const programs = useProgramStore(s => s.programs)
 	const selectedProgram = useProgramStore(s => s.selectedProgram)
-	const activeCycle = useProgramStore(s => s.activeCycle)
-	const cycleHistory = useProgramStore(s => s.cycleHistory)
 	const oneRepMax = useProgramStore(s => s.oneRepMax)
 	const fetchPrograms = useProgramStore(s => s.fetchPrograms)
-	const fetchActiveCycle = useProgramStore(s => s.fetchActiveCycle)
-	const fetchCycleHistory = useProgramStore(s => s.fetchCycleHistory)
 	const fetchProgram = useProgramStore(s => s.fetchProgram)
 	const fetchOneRepMax = useProgramStore(s => s.fetchOneRepMax)
+	const fetchCompletions = useProgramStore(s => s.fetchCompletions)
 	const selectProgram = useProgramStore(s => s.selectProgram)
-	const startCycle = useProgramStore(s => s.startCycle)
-	const finishCycle = useProgramStore(s => s.finishCycle)
-	const deleteCycle = useProgramStore(s => s.deleteCycle)
+	const saveOneRepMax = useProgramStore(s => s.saveOneRepMax)
+	const resetCompletions = useProgramStore(s => s.resetCompletions)
 
 	const [draft, setDraft] = useState<Record<number, string>>({})
-	const [startError, setStartError] = useState<string | null>(null)
-	const [starting, setStarting] = useState(false)
-	const [finishError, setFinishError] = useState<string | null>(null)
-	const [finishing, setFinishing] = useState(false)
-	const [finishReason, setFinishReason] = useState('')
-	const [finishFeeling, setFinishFeeling] = useState('')
-	const [deleteError, setDeleteError] = useState<string | null>(null)
-	const [deletingCycleId, setDeletingCycleId] = useState<number | null>(null)
+	const [saveError, setSaveError] = useState<string | null>(null)
+	const [resetError, setResetError] = useState<string | null>(null)
+	const [saving, setSaving] = useState(false)
+	const [resetting, setResetting] = useState(false)
 
 	useEffect(() => {
 		void Promise.all([
 			fetchPrograms(),
-			fetchActiveCycle(),
-			fetchCycleHistory(),
 			fetchProgram(),
 			fetchOneRepMax(),
+			fetchCompletions(),
 		])
 	}, [
 		fetchPrograms,
-		fetchActiveCycle,
-		fetchCycleHistory,
 		fetchProgram,
 		fetchOneRepMax,
+		fetchCompletions,
 	])
 
 	useEffect(() => {
-		if (!selectedProgram || activeCycle) {
+		if (!selectedProgram) {
 			setDraft({})
-			setStartError(null)
+			setSaveError(null)
 			return
 		}
 		setDraft(loadOneRepMaxDraft(selectedProgram.id))
-		setStartError(null)
-	}, [selectedProgram?.id, activeCycle?.id])
+		setSaveError(null)
+	}, [selectedProgram?.id])
 
 	useEffect(() => {
-		if (!selectedProgram || activeCycle) return
+		if (!selectedProgram) return
 		saveOneRepMaxDraft(selectedProgram.id, draft)
-	}, [draft, selectedProgram?.id, activeCycle])
+	}, [draft, selectedProgram?.id])
 
 	const items = useMemo(() => {
-		if (activeCycle && oneRepMax?.cycle_id === activeCycle.id) {
+		if (selectedProgram && oneRepMax?.program_id === selectedProgram.id) {
 			return oneRepMax.items
 		}
 		return (
@@ -127,15 +111,19 @@ export function OneRepMaxPage() {
 				value: 0,
 			})) ?? []
 		)
-	}, [activeCycle, oneRepMax, selectedProgram])
-
-	const completedCycles = useMemo(
-		() => cycleHistory.filter(item => !item.is_active),
-		[cycleHistory],
+	}, [oneRepMax, selectedProgram])
+	const basePrograms = useMemo(
+		() => programs.filter(program => !program.is_custom),
+		[programs],
+	)
+	const customPrograms = useMemo(
+		() => programs.filter(program => program.is_custom),
+		[programs],
 	)
 
 	async function handleProgramChange(value: string) {
-		setStartError(null)
+		setSaveError(null)
+		setResetError(null)
 		await selectProgram(Number(value))
 	}
 
@@ -148,71 +136,49 @@ export function OneRepMaxPage() {
 		setDraft(prev => ({ ...prev, [exerciseId]: digits }))
 	}
 
-	async function handleStart() {
+	async function handleSave() {
 		if (!selectedProgram) return
-		setStarting(true)
-		setStartError(null)
+		setSaving(true)
+		setSaveError(null)
 		try {
-			await startCycle({
-				program_id: selectedProgram.id,
-				items: items.map(item => ({
+			await saveOneRepMax(
+				items.map(item => ({
 					exercise_id: item.exercise_id,
 					value: Number(draft[item.exercise_id] ?? item.value ?? 0),
 				})),
-			})
+			)
 			clearOneRepMaxDraft(selectedProgram.id)
-			setDraft({})
+			await fetchOneRepMax()
 		} catch (error) {
-			setStartError(
+			setSaveError(
 				error instanceof Error
 					? error.message
-					: 'Не удалось начать цикл',
+					: 'Не удалось сохранить 1ПМ',
 			)
 		} finally {
-			setStarting(false)
+			setSaving(false)
 		}
 	}
 
-	async function handleFinish() {
-		if (!finishReason.trim() || !finishFeeling.trim()) {
-			setFinishError('Заполните поля.')
-			return
-		}
-		setFinishing(true)
-		setFinishError(null)
-		try {
-			await finishCycle(finishReason.trim(), finishFeeling.trim())
-			setFinishReason('')
-			setFinishFeeling('')
-		} catch (error) {
-			setFinishError(
-				error instanceof Error
-					? error.message
-					: 'Не удалось завершить цикл',
-			)
-		} finally {
-			setFinishing(false)
-		}
-	}
-
-	async function handleDeleteCycle(cycleId: number, programName: string) {
+	async function handleResetCompletions() {
+		if (!selectedProgram) return
 		const confirmed = window.confirm(
-			`Удалить цикл "${programName}" из истории? Это действие нельзя отменить.`,
+			`Сбросить все отметки по программе "${selectedProgram.name}"?`,
 		)
 		if (!confirmed) return
 
-		setDeleteError(null)
-		setDeletingCycleId(cycleId)
+		setResetting(true)
+		setResetError(null)
 		try {
-			await deleteCycle(cycleId)
+			await resetCompletions()
 		} catch (error) {
-			setDeleteError(
+			setResetError(
 				error instanceof Error
 					? error.message
-					: 'Не удалось удалить цикл',
+					: 'Не удалось сбросить отметки',
 			)
 		} finally {
-			setDeletingCycleId(null)
+			setResetting(false)
 		}
 	}
 
@@ -220,11 +186,11 @@ export function OneRepMaxPage() {
 		<div className='space-y-4'>
 			<Card>
 				<CardHeader>
-					<CardTitle>Тренировочный цикл</CardTitle>
+					<CardTitle>Программа</CardTitle>
 				</CardHeader>
 				<CardContent className='space-y-5'>
 					<div className='space-y-3'>
-						<p className='text-sm font-medium'>Шаг 1. Программа</p>
+						<p className='text-sm font-medium'>Текущая программа</p>
 						<Select
 							value={
 								selectedProgram
@@ -232,22 +198,42 @@ export function OneRepMaxPage() {
 									: undefined
 							}
 							onValueChange={handleProgramChange}
-							disabled={
-								activeCycle != null || programs.length === 0
-							}
+							disabled={programs.length === 0}
 						>
 							<SelectTrigger className='w-full'>
 								<SelectValue placeholder='Выберите программу' />
 							</SelectTrigger>
-							<SelectContent>
-								{programs.map(program => (
-									<SelectItem
-										key={program.id}
-										value={String(program.id)}
-									>
-										{program.name}
-									</SelectItem>
-								))}
+						<SelectContent>
+								{customPrograms.length > 0 ? (
+									<SelectGroup>
+										<SelectLabel>Мои программы</SelectLabel>
+										{customPrograms.map(program => (
+											<SelectItem
+												key={program.id}
+												value={String(program.id)}
+											>
+												{program.name}
+											</SelectItem>
+										))}
+									</SelectGroup>
+								) : null}
+								{customPrograms.length > 0 &&
+								basePrograms.length > 0 ? (
+									<SelectSeparator />
+								) : null}
+								{basePrograms.length > 0 ? (
+									<SelectGroup>
+										<SelectLabel>Базовые программы</SelectLabel>
+										{basePrograms.map(program => (
+											<SelectItem
+												key={program.id}
+												value={String(program.id)}
+											>
+												{program.name}
+											</SelectItem>
+										))}
+									</SelectGroup>
+								) : null}
 							</SelectContent>
 						</Select>
 						{selectedProgram?.description ? (
@@ -255,15 +241,25 @@ export function OneRepMaxPage() {
 								{selectedProgram.description}
 							</p>
 						) : null}
+						{selectedProgram ? (
+							<div className='flex flex-wrap gap-2'>
+								<Badge variant='outline'>
+									{selectedProgram.is_custom
+										? 'Своя программа'
+										: 'Базовая программа'}
+								</Badge>
+								{selectedProgram.is_custom &&
+								selectedProgram.source_program_name ? (
+									<Badge variant='secondary'>
+										Основа: {selectedProgram.source_program_name}
+									</Badge>
+								) : null}
+							</div>
+						) : null}
 					</div>
 
 					<div className='space-y-3 border-t pt-5'>
-						<div className='flex items-center gap-2'>
-							<p className='text-sm font-medium'>Шаг 2. 1ПМ</p>
-							{activeCycle ? (
-								<LockKeyhole className='h-4 w-4 text-muted-foreground' />
-							) : null}
-						</div>
+						<p className='text-sm font-medium'>1ПМ</p>
 						{items.map(item => (
 							<div key={item.exercise_id} className='space-y-1'>
 								<label className='block text-sm text-muted-foreground'>
@@ -274,7 +270,6 @@ export function OneRepMaxPage() {
 									inputMode='numeric'
 									pattern='[0-9]*'
 									maxLength={3}
-									disabled={activeCycle != null}
 									value={getDraftValue(
 										item.exercise_id,
 										item.value,
@@ -295,153 +290,31 @@ export function OneRepMaxPage() {
 								1ПМ.
 							</p>
 						) : null}
-					</div>
-
-					<div className='space-y-3 border-t pt-5 flex justify-between items-start'>
-						<p className='text-sm font-medium'>Шаг 3. Старт</p>
-						{activeCycle ? (
-							<div className='text-sm'>
-								<p className='font-medium'>
-									{activeCycle.program_name}
-								</p>
-								<p className='mt-1 text-muted-foreground'>
-									Начало:{' '}
-									{formatDateTime(activeCycle.started_at)}
-								</p>
-							</div>
-						) : (
-							<div className='space-y-3'>
-								<Button
-									className='w-full'
-									onClick={handleStart}
-									disabled={starting || !selectedProgram}
-                                    variant='ghost'
-								>
-									<Play className='h-4 w-4' />
-									{starting ? 'Запуск...' : 'Начать цикл'}
-								</Button>
-								{startError ? (
-									<p className='text-sm text-destructive'>
-										{startError}
-									</p>
-								) : null}
-							</div>
-						)}
-					</div>
-				</CardContent>
-			</Card>
-
-			{activeCycle ? (
-				<Card>
-					<CardHeader>
-						<div className='flex justify-between items-center'>
-							<CardTitle>Завершение цикла</CardTitle>
+						<div className='flex flex-wrap gap-2 pt-2'>
 							<Button
 								variant='ghost'
-								onClick={handleFinish}
-								disabled={finishing}
+								onClick={handleSave}
+								disabled={saving || !selectedProgram}
 							>
-								<Square className='h-4 w-4' />
-								{finishing ? 'Завершение...' : 'Завершить'}
+								<Save className='h-4 w-4' />
+								{saving ? 'Сохранение...' : 'Сохранить 1ПМ'}
+							</Button>
+							<Button
+								variant='ghost'
+								onClick={handleResetCompletions}
+								disabled={resetting || !selectedProgram}
+							>
+								<RotateCcw className='h-4 w-4' />
+								{resetting ? 'Сброс...' : 'Сбросить отметки'}
 							</Button>
 						</div>
-						{finishError ? (
-							<p className='text-sm text-destructive'>
-								{finishError}
-							</p>
+						{saveError ? (
+							<p className='text-sm text-destructive'>{saveError}</p>
 						) : null}
-					</CardHeader>
-					<CardContent className='space-y-4'>
-						<div className='space-y-1'>
-							<label className='block text-sm text-muted-foreground'>
-								Причина
-							</label>
-							<Input
-								value={finishReason}
-								onChange={event =>
-									setFinishReason(event.target.value)
-								}
-							/>
-						</div>
-						<div className='space-y-1'>
-							<label className='block text-sm text-muted-foreground'>
-								Заметки
-							</label>
-							<Textarea
-								className='min-h-24'
-								value={finishFeeling}
-								onChange={event =>
-									setFinishFeeling(event.target.value)
-								}
-							/>
-						</div>
-					</CardContent>
-				</Card>
-			) : null}
-
-				<Card>
-					<CardHeader>
-						<CardTitle>История циклов</CardTitle>
-					</CardHeader>
-					<CardContent className='space-y-3'>
-						{deleteError ? (
-							<p className='text-sm text-destructive'>{deleteError}</p>
+						{resetError ? (
+							<p className='text-sm text-destructive'>{resetError}</p>
 						) : null}
-						{completedCycles.length === 0 ? (
-							<p className='text-sm text-muted-foreground'>
-								Пока нет завершенных циклов.
-							</p>
-						) : (
-							completedCycles.map(item => (
-								<div key={item.id} className='border-t py-4'>
-									<div className='flex flex-wrap items-center gap-2'>
-										<Badge variant='secondary'>
-											Завершен
-										</Badge>
-										<Badge variant='outline'>
-											{item.program_name}
-										</Badge>
-										<span className='text-xs text-muted-foreground'>
-											{formatDateTime(item.started_at)} →{' '}
-											{item.completed_at
-												? formatDateTime(item.completed_at)
-												: 'в процессе'}
-										</span>
-									</div>
-									<p className='mt-3 text-sm'>
-										{item.completion_reason ||
-											'Причина завершения не указана'}
-									</p>
-									{item.completion_feeling ? (
-										<p className='mt-2 text-sm text-muted-foreground'>
-											{item.completion_feeling}
-										</p>
-									) : null}
-									<div className='mt-3 flex flex-wrap items-center justify-between gap-2'>
-										<p className='text-xs text-muted-foreground'>
-											Завершено{' '}
-											{item.completed_at
-												? formatDateTime(item.completed_at)
-												: 'без даты'}
-										</p>
-										<Button
-											variant='ghost'
-											size='sm'
-											disabled={deletingCycleId === item.id}
-											onClick={() =>
-												handleDeleteCycle(
-													item.id,
-													item.program_name,
-												)
-											}
-										>
-											<Trash2 className='h-4 w-4' />
-											Удалить
-										</Button>
-										</div>
-								</div>
-							))
-						)}
+					</div>
 					</CardContent>
 				</Card>
 		</div>

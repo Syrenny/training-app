@@ -3,24 +3,10 @@ from rest_framework.test import APIClient
 
 from programs.models import (
     Program,
-    ProgramOneRepMaxExercise,
-    TrainingCycle,
     Week,
     Weekday,
     WorkoutCompletion,
 )
-
-
-def build_start_items(program):
-    configs = (
-        ProgramOneRepMaxExercise.objects.filter(program=program)
-        .select_related("exercise")
-        .order_by("order", "id")
-    )
-    return [
-        {"exercise_id": item.exercise_id, "value": 100 + index * 10}
-        for index, item in enumerate(configs, start=1)
-    ]
 
 
 class CompletionAPITest(TestCase):
@@ -35,13 +21,6 @@ class CompletionAPITest(TestCase):
     def setUp(self):
         self.client = APIClient()
         self.client.force_authenticate(user={"id": 42, "first_name": "Test"})
-        response = self.client.post(
-            "/api/training-cycle/start/",
-            {"program_id": self.program.id, "items": build_start_items(self.program)},
-            format="json",
-        )
-        self.assertEqual(response.status_code, 201)
-        self.cycle = TrainingCycle.objects.get(telegram_id=42, completed_at__isnull=True)
 
     # --- GET /api/completions/ ---
 
@@ -55,7 +34,6 @@ class CompletionAPITest(TestCase):
         """GET returns week/day coordinates for the current user."""
         WorkoutCompletion.objects.create(
             telegram_id=42,
-            cycle=self.cycle,
             program=self.program,
             week_number=1,
             weekday=Weekday.MON,
@@ -78,11 +56,6 @@ class CompletionAPITest(TestCase):
         """GET does not return another user's completions."""
         WorkoutCompletion.objects.create(
             telegram_id=99,
-            cycle=TrainingCycle.objects.create(
-                telegram_id=99,
-                program=self.program,
-                program_payload={"weeks": []},
-            ),
             program=self.program,
             week_number=1,
             weekday=Weekday.MON,
@@ -103,7 +76,7 @@ class CompletionAPITest(TestCase):
         self.assertTrue(
             WorkoutCompletion.objects.filter(
                 telegram_id=42,
-                cycle=self.cycle,
+                program=self.program,
                 week_number=1,
                 weekday=Weekday.MON,
             ).exists()
@@ -117,7 +90,7 @@ class CompletionAPITest(TestCase):
         self.assertEqual(
             WorkoutCompletion.objects.filter(
                 telegram_id=42,
-                cycle=self.cycle,
+                program=self.program,
                 week_number=1,
                 weekday=Weekday.MON,
             ).count(),
@@ -135,7 +108,6 @@ class CompletionAPITest(TestCase):
         """DELETE removes an existing completion and returns 204."""
         WorkoutCompletion.objects.create(
             telegram_id=42,
-            cycle=self.cycle,
             program=self.program,
             week_number=1,
             weekday=Weekday.MON,
@@ -145,7 +117,7 @@ class CompletionAPITest(TestCase):
         self.assertFalse(
             WorkoutCompletion.objects.filter(
                 telegram_id=42,
-                cycle=self.cycle,
+                program=self.program,
                 week_number=1,
                 weekday=Weekday.MON,
             ).exists()
@@ -161,16 +133,21 @@ class CompletionAPITest(TestCase):
         response = self.client.delete("/api/completions/1/XXX/")
         self.assertEqual(response.status_code, 404)
 
-    def test_delete_all_is_blocked(self):
+    def test_delete_all_resets_current_program_completions(self):
         WorkoutCompletion.objects.create(
             telegram_id=42,
-            cycle=self.cycle,
             program=self.program,
             week_number=1,
             weekday=Weekday.MON,
         )
         response = self.client.delete("/api/completions/")
-        self.assertEqual(response.status_code, 409)
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(
+            WorkoutCompletion.objects.filter(
+                telegram_id=42,
+                program=self.program,
+            ).exists()
+        )
 
     # --- Auth ---
 

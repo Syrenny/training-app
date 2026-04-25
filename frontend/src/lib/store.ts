@@ -4,25 +4,22 @@ import type {
   AccessoryWeightLatest,
   OneRepMaxData,
   ProgramData,
+  ProgramCreateInput,
   ProgramSummary,
-  TrainingCycleStartInput,
-  TrainingCycleSummary,
   WeekDetailData,
   WeekListItem,
 } from "./api";
 import {
   fetchAccessoryWeightsLatest as apiFetchAccessoryWeightsLatest,
-  fetchActiveTrainingCycle as apiFetchActiveTrainingCycle,
   fetchCompletions as apiFetchCompletions,
+  createProgram as apiCreateProgram,
   fetchOneRepMax as apiFetchOneRepMax,
   fetchProgram as apiFetchProgram,
   fetchPrograms as apiFetchPrograms,
-  fetchTrainingCycleHistory as apiFetchTrainingCycleHistory,
-  deleteTrainingCycle as apiDeleteTrainingCycle,
-  finishTrainingCycle as apiFinishTrainingCycle,
   markComplete as apiMarkComplete,
+  resetCompletions as apiResetCompletions,
   saveAccessoryWeight as apiSaveAccessoryWeight,
-  startTrainingCycle as apiStartTrainingCycle,
+  saveOneRepMax as apiSaveOneRepMax,
   unmarkComplete as apiUnmarkComplete,
   updateSelectedProgram as apiUpdateSelectedProgram,
 } from "./api";
@@ -53,8 +50,6 @@ interface ProgramState {
   selectedDay: string | null;
   programs: ProgramSummary[];
   selectedProgram: ProgramSummary | null;
-  activeCycle: TrainingCycleSummary | null;
-  cycleHistory: TrainingCycleSummary[];
   weeks: WeekListItem[];
   weekDetailCache: Record<number, WeekDetailData>;
   loading: boolean;
@@ -66,18 +61,16 @@ interface ProgramState {
   setWeek: (week: number) => void;
   setDay: (day: string) => void;
   fetchPrograms: () => Promise<void>;
+  createProgram: (data: ProgramCreateInput) => Promise<ProgramSummary>;
   selectProgram: (programId: number) => Promise<void>;
-  fetchActiveCycle: () => Promise<void>;
-  fetchCycleHistory: () => Promise<void>;
   fetchProgram: () => Promise<void>;
   fetchOneRepMax: () => Promise<void>;
   fetchCompletions: () => Promise<void>;
   fetchAccessoryWeights: () => Promise<void>;
   toggleCompletion: (weekNumber: number, weekday: string) => Promise<void>;
+  saveOneRepMax: (items: Array<{ exercise_id: number; value: number }>) => Promise<void>;
+  resetCompletions: () => Promise<void>;
   saveAccessoryWeight: (exerciseId: number, weight: number, setsDisplay: string) => Promise<void>;
-  startCycle: (data: TrainingCycleStartInput) => Promise<void>;
-  finishCycle: (reason: string, feeling: string) => Promise<void>;
-  deleteCycle: (cycleId: number) => Promise<void>;
   navigateNext: () => Promise<NavigationResult>;
   navigatePrev: () => Promise<NavigationResult>;
 }
@@ -89,8 +82,6 @@ export const useProgramStore = create<ProgramState>()(
       selectedDay: null,
       programs: [],
       selectedProgram: null,
-      activeCycle: null,
-      cycleHistory: [],
       weeks: [],
       weekDetailCache: {},
       loading: false,
@@ -113,8 +104,7 @@ export const useProgramStore = create<ProgramState>()(
           set((state) => ({
             programs,
             selectedProgram:
-              programs.find((item) => item.id === state.activeCycle?.program_id)
-              ?? programs.find((item) => item.id === state.selectedProgram?.id)
+              programs.find((item) => item.id === state.selectedProgram?.id)
               ?? state.selectedProgram
               ?? programs[0]
               ?? null,
@@ -124,27 +114,27 @@ export const useProgramStore = create<ProgramState>()(
         }
       },
 
+      createProgram: async (data) => {
+        const program = await apiCreateProgram(data);
+        await Promise.all([
+          get().fetchPrograms(),
+          get().fetchProgram(),
+          get().fetchOneRepMax(),
+          get().fetchCompletions(),
+        ]);
+        set({ selectedProgram: program });
+        return program;
+      },
+
       selectProgram: async (programId) => {
         await apiUpdateSelectedProgram(programId);
-        await Promise.all([get().fetchPrograms(), get().fetchProgram(), get().fetchOneRepMax()]);
-      },
-
-      fetchActiveCycle: async () => {
-        try {
-          const response = await apiFetchActiveTrainingCycle();
-          set({ activeCycle: response.cycle });
-        } catch {
-          set({ activeCycle: null });
-        }
-      },
-
-      fetchCycleHistory: async () => {
-        try {
-          const items = await apiFetchTrainingCycleHistory();
-          set({ cycleHistory: items });
-        } catch {
-          // Silent fail
-        }
+        await Promise.all([
+          get().fetchPrograms(),
+          get().fetchProgram(),
+          get().fetchOneRepMax(),
+          get().fetchCompletions(),
+          get().fetchAccessoryWeights(),
+        ]);
       },
 
       fetchProgram: async () => {
@@ -237,6 +227,16 @@ export const useProgramStore = create<ProgramState>()(
         }
       },
 
+      saveOneRepMax: async (items) => {
+        const data = await apiSaveOneRepMax({ items });
+        set({ oneRepMax: data });
+      },
+
+      resetCompletions: async () => {
+        await apiResetCompletions();
+        set({ completions: new Map<string, string>() });
+      },
+
       saveAccessoryWeight: async (exerciseId, weight, setsDisplay) => {
         const { selectedWeek } = get();
         try {
@@ -253,52 +253,6 @@ export const useProgramStore = create<ProgramState>()(
         } catch {
           // Silent fail
         }
-      },
-
-      startCycle: async (data) => {
-        const response = await apiStartTrainingCycle(data);
-        const weeks = response.program.weeks.map((week) => ({
-          id: week.id,
-          number: week.number,
-          title: week.title,
-        }));
-        const weekDetailCache = buildWeekCache(response.program);
-        const nextSelectedWeek = weeks[0]?.number ?? null;
-
-        set((state) => ({
-          activeCycle: response.cycle,
-          selectedProgram: response.program.program,
-          oneRepMax: response.one_rep_max,
-          completions: new Map<string, string>(),
-          weeks,
-          weekDetailCache,
-          selectedWeek: nextSelectedWeek,
-          selectedDay: resolveSelectedDay(nextSelectedWeek, state.selectedDay, weekDetailCache),
-          error: null,
-        }));
-      },
-
-      finishCycle: async (reason, feeling) => {
-        const finished = await apiFinishTrainingCycle({ reason, feeling });
-        set((state) => ({
-          activeCycle: null,
-          completions: new Map<string, string>(),
-          cycleHistory: [finished, ...state.cycleHistory.filter((item) => item.id !== finished.id)],
-        }));
-        await Promise.all([
-          get().fetchActiveCycle(),
-          get().fetchProgram(),
-          get().fetchOneRepMax(),
-          get().fetchCompletions(),
-          get().fetchCycleHistory(),
-        ]);
-      },
-
-      deleteCycle: async (cycleId) => {
-        await apiDeleteTrainingCycle(cycleId);
-        set((state) => ({
-          cycleHistory: state.cycleHistory.filter((item) => item.id !== cycleId),
-        }));
       },
 
       navigateNext: async () => {

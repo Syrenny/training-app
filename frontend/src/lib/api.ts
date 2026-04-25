@@ -202,7 +202,16 @@ export interface ProgramSummary {
   slug: string;
   name: string;
   description: string;
+  is_custom: boolean;
+  source_program_id: number | null;
+  source_program_name: string | null;
   one_rep_max_exercises: ProgramOneRepMaxExerciseData[];
+}
+
+export interface ProgramCreateInput {
+  name: string;
+  description?: string;
+  source_program_id?: number | null;
 }
 
 export interface ProgramData {
@@ -374,6 +383,10 @@ export function updateSelectedProgram(programId: number): Promise<ProgramSummary
   return putApi<ProgramSummary>("/programs/selected/", { program_id: programId });
 }
 
+export function createProgram(data: ProgramCreateInput): Promise<ProgramSummary> {
+  return postApi<ProgramSummary>("/programs/create/", data);
+}
+
 export function fetchOriginalProgram(): Promise<ProgramData> {
   return fetchApi<ProgramData>("/program/original/");
 }
@@ -434,8 +447,7 @@ export function startTrainingCycle(
 }
 
 export function finishTrainingCycle(data: {
-  reason: string;
-  feeling: string;
+  notes?: string;
 }): Promise<TrainingCycleSummary> {
   return postApi<TrainingCycleSummary>("/training-cycle/finish/", data);
 }

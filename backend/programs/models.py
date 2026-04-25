@@ -68,8 +68,24 @@ class LoadType(models.TextChoices):
 
 class Program(models.Model):
     slug = models.SlugField(max_length=100, unique=True, verbose_name="Slug")
-    name = models.CharField(max_length=200, unique=True, verbose_name="Название")
+    name = models.CharField(max_length=200, verbose_name="Название")
     description = models.TextField(blank=True, default="", verbose_name="Описание")
+    owner = models.ForeignKey(
+        "UserProfile",
+        on_delete=models.CASCADE,
+        related_name="custom_programs",
+        verbose_name="Владелец",
+        null=True,
+        blank=True,
+    )
+    source_program = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        related_name="derived_programs",
+        verbose_name="Базовая программа-источник",
+        null=True,
+        blank=True,
+    )
 
     class Meta:
         ordering = ["name"]
