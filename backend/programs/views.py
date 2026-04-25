@@ -333,8 +333,8 @@ class AuthSessionView(APIView):
                     "user": {
                         "id": request.user.id,
                         "telegram_id": getattr(profile, "telegram_id", None),
-                        "first_name": profile.first_name or request.user.first_name,
-                        "last_name": profile.last_name or request.user.last_name,
+                        "first_name": getattr(profile, "first_name", "") or request.user.first_name,
+                        "last_name": getattr(profile, "last_name", "") or request.user.last_name,
                         "telegram_username": getattr(profile, "telegram_username", ""),
                         "telegram_photo_url": getattr(profile, "telegram_photo_url", ""),
                     },

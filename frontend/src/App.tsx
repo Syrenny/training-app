@@ -69,9 +69,7 @@ function cacheTab(tab: AppTab) {
 function App() {
   const initialTab = loadCachedTab();
   const [user, setUser] = useState<AuthUser | null>(() => loadCachedUser());
-  const [authState, setAuthState] = useState<AuthState>(() =>
-    loadCachedUser() ? "authenticated" : "loading",
-  );
+  const [authState, setAuthState] = useState<AuthState>("loading");
   const [screen, setScreen] = useState<AppTab>(initialTab);
   const [botUsername, setBotUsername] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
