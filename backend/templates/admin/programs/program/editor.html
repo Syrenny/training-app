@@ -1,0 +1,675 @@
+{% extends "admin/base_site.html" %}
+
+{% block extrahead %}
+{{ block.super }}
+{{ editor_state|json_script:"program-editor-state" }}
+{{ exercise_catalog|json_script:"program-editor-exercises" }}
+{{ weekday_choices|json_script:"program-editor-weekdays" }}
+{{ load_type_choices|json_script:"program-editor-load-types" }}
+{{ text_block_kind_choices|json_script:"program-editor-text-kinds" }}
+<style>
+  #program-editor-form .editor-level-label {
+    margin: 0 0 8px;
+    color: var(--body-quiet-color);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  #program-editor-form .editor-week-panel {
+    margin-top: 12px;
+  }
+
+  #program-editor-form #program-week-tabs {
+    gap: 8px;
+    justify-content: flex-start;
+    margin-bottom: 12px;
+  }
+
+  #program-editor-form .editor-node-day,
+  #program-editor-form .editor-node-exercise,
+  #program-editor-form .editor-node-set,
+  #program-editor-form .editor-node-text {
+    position: relative;
+  }
+
+  #program-editor-form .editor-node-day {
+    margin-top: 16px;
+    border-left: 4px solid var(--hairline-color);
+    padding-left: 12px;
+  }
+
+  #program-editor-form .editor-node-exercise {
+    margin: 14px 0 14px 18px;
+    border-left: 4px solid var(--selected-row);
+    padding-left: 12px;
+  }
+
+  #program-editor-form .editor-node-set,
+  #program-editor-form .editor-node-text {
+    margin: 10px 0 10px 18px;
+    border-left: 3px solid var(--hairline-color);
+    padding-left: 10px;
+  }
+
+  #program-editor-form .editor-subgroup {
+    margin-top: 12px;
+  }
+
+  #program-editor-form .editor-subgroup > .help {
+    margin: 6px 0 0 18px;
+  }
+
+  #program-editor-form .module.aligned .form-row {
+    padding: 10px 0;
+    border-top: 1px solid var(--hairline-color);
+  }
+
+  #program-editor-form .module.aligned .form-row:first-of-type {
+    border-top: 0;
+  }
+
+  #program-editor-form .form-row > div {
+    display: grid;
+    grid-template-columns: minmax(180px, 220px) minmax(280px, 1fr);
+    gap: 16px;
+    align-items: center;
+    width: 100%;
+  }
+
+  #program-editor-form .form-row > div > label {
+    margin: 0;
+    text-align: left;
+  }
+
+  #program-editor-form input[type="text"],
+  #program-editor-form input[type="number"],
+  #program-editor-form select,
+  #program-editor-form textarea {
+    width: min(100%, 560px);
+    justify-self: start;
+  }
+
+  #program-editor-form .editor-node-day,
+  #program-editor-form .editor-node-exercise,
+  #program-editor-form .editor-node-set,
+  #program-editor-form .editor-node-text,
+  #program-editor-form .editor-week-panel {
+    border-top: 1px solid var(--hairline-color);
+    padding-top: 12px;
+  }
+
+  #program-editor-form .editor-node-day:first-of-type,
+  #program-editor-form .editor-node-exercise:first-of-type,
+  #program-editor-form .editor-node-set:first-of-type,
+  #program-editor-form .editor-node-text:first-of-type {
+    margin-top: 0;
+  }
+
+  @media (max-width: 900px) {
+    #program-editor-form .form-row > div {
+      grid-template-columns: 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+
+    #program-editor-form .form-row > div > label {
+      text-align: left;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Главная</a>
+  &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+  &rsaquo; <a href="{% url 'admin:programs_program_changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+  &rsaquo; <a href="{% url 'admin:programs_program_change' original.pk %}">{{ original }}</a>
+  &rsaquo; Редактор
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+  <form method="post" novalidate id="program-editor-form">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <p class="errornote">{{ form.non_field_errors }}</p>
+    {% endif %}
+
+    <fieldset class="module aligned">
+      <h2>Программа</h2>
+      <div class="form-row">
+        {{ form.name.errors }}
+        <div>
+          {{ form.name.label_tag }}
+          {{ form.name }}
+        </div>
+      </div>
+      <div class="form-row">
+        {{ form.slug.errors }}
+        <div>
+          {{ form.slug.label_tag }}
+          {{ form.slug }}
+        </div>
+      </div>
+      <div class="form-row">
+        {{ form.description.errors }}
+        <div>
+          {{ form.description.label_tag }}
+          {{ form.description }}
+        </div>
+      </div>
+      <div class="form-row">
+        {{ form.owner.errors }}
+        <div>
+          {{ form.owner.label_tag }}
+          {{ form.owner }}
+        </div>
+      </div>
+      <div class="form-row">
+        {{ form.source_program.errors }}
+        <div>
+          {{ form.source_program.label_tag }}
+          {{ form.source_program }}
+          <div class="help">Если у программы пока нет своей структуры, редактор подтянет данные из источника.</div>
+        </div>
+      </div>
+      {{ form.one_rep_max_config }}
+      {{ form.structure }}
+    </fieldset>
+
+    <div class="inline-group">
+      <div class="tabular inline-related">
+        <fieldset class="module">
+          <h2>Конфиг 1ПМ</h2>
+          {% if form.one_rep_max_config.errors %}
+            <div class="errornote">{{ form.one_rep_max_config.errors }}</div>
+          {% endif %}
+          <div id="one-rep-max-editor"></div>
+          <div class="submit-row">
+            <input type="button" value="Добавить упражнение 1ПМ" data-action="add-orm">
+          </div>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="inline-group">
+      <div class="tabular inline-related">
+        <fieldset class="module">
+          <h2>Структура программы</h2>
+          {% if form.structure.errors %}
+            <div class="errornote">{{ form.structure.errors }}</div>
+          {% endif %}
+          <div id="program-structure-editor"></div>
+          <div class="submit-row">
+            <input type="button" value="Добавить неделю" data-action="add-week">
+          </div>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="submit-row">
+      <input type="submit" value="Сохранить программу" class="default">
+      <a href="{% url 'admin:programs_program_change' original.pk %}" class="closelink">Назад к карточке</a>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById("program-editor-form");
+    const ormContainer = document.getElementById("one-rep-max-editor");
+    const structureContainer = document.getElementById("program-structure-editor");
+    const ormField = document.getElementById("id_one_rep_max_config");
+    const structureField = document.getElementById("id_structure");
+
+    const state = JSON.parse(document.getElementById("program-editor-state").textContent);
+    const exerciseCatalog = JSON.parse(document.getElementById("program-editor-exercises").textContent);
+    const weekdayChoices = JSON.parse(document.getElementById("program-editor-weekdays").textContent);
+    const loadTypeChoices = JSON.parse(document.getElementById("program-editor-load-types").textContent);
+    const textBlockKindChoices = JSON.parse(document.getElementById("program-editor-text-kinds").textContent);
+
+    const weekdayOrder = weekdayChoices.map((item) => item.value);
+    let activeWeekIndex = 0;
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;");
+    }
+
+    function getByPath(path) {
+      if (!path) {
+        return state;
+      }
+      return path.split(".").reduce((current, part) => {
+        if (/^\d+$/.test(part)) {
+          return current[Number(part)];
+        }
+        return current[part];
+      }, state);
+    }
+
+    function renderOptions(items, selectedValue, { allowBlank = false, blankLabel = "---------", blankValue = "" } = {}) {
+      const options = [];
+      if (allowBlank) {
+        options.push(`<option value="${escapeHtml(blankValue)}"${selectedValue === null || selectedValue === undefined || selectedValue === "" ? " selected" : ""}>${escapeHtml(blankLabel)}</option>`);
+      }
+      for (const item of items) {
+        const selected = String(item.value) === String(selectedValue ?? "") ? " selected" : "";
+        options.push(`<option value="${escapeHtml(item.value)}"${selected}>${escapeHtml(item.label)}</option>`);
+      }
+      return options.join("");
+    }
+
+    function renderExerciseOptions(selectedValue, allowBlank) {
+      const items = exerciseCatalog.map((exercise) => ({
+        value: exercise.id,
+        label: `${exercise.name} (${exercise.category_label})`,
+      }));
+      return renderOptions(items, selectedValue, {
+        allowBlank,
+        blankLabel: "Не выбрано",
+      });
+    }
+
+    function serializeState() {
+      ormField.value = JSON.stringify(state.one_rep_max_config);
+      structureField.value = JSON.stringify({ weeks: state.structure.weeks });
+    }
+
+    function createDefaultSet() {
+      return {
+        load_type: "PERCENT",
+        load_value: 0,
+        load_value_max: null,
+        reps: 5,
+        reps_max: null,
+        sets: 1,
+      };
+    }
+
+    function createDefaultExercise() {
+      const firstExercise = exerciseCatalog[0];
+      return {
+        exercise: firstExercise ? firstExercise.id : null,
+        one_rep_max_exercise: null,
+        superset_group: null,
+        notes: "",
+        sets: [createDefaultSet()],
+      };
+    }
+
+    function createDefaultTextBlock() {
+      return {
+        kind: "INFO",
+        content: "",
+      };
+    }
+
+    function nextWeekdayValue(week) {
+      const used = new Set((week.days || []).map((item) => item.weekday));
+      return weekdayOrder.find((value) => !used.has(value)) || weekdayOrder[0];
+    }
+
+    function createDefaultDay(week) {
+      return {
+        weekday: nextWeekdayValue(week),
+        title: "",
+        exercises: [createDefaultExercise()],
+        text_blocks: [],
+      };
+    }
+
+    function createDefaultWeek() {
+      return {
+        title: "",
+        days: [],
+      };
+    }
+
+    function swap(list, fromIndex, toIndex) {
+      const temp = list[fromIndex];
+      list[fromIndex] = list[toIndex];
+      list[toIndex] = temp;
+    }
+
+    function clampActiveWeekIndex() {
+      if (!state.structure.weeks.length) {
+        activeWeekIndex = 0;
+        return;
+      }
+      if (activeWeekIndex < 0) {
+        activeWeekIndex = 0;
+        return;
+      }
+      if (activeWeekIndex >= state.structure.weeks.length) {
+        activeWeekIndex = state.structure.weeks.length - 1;
+      }
+    }
+
+    function getWeekTabLabel(week, weekIndex) {
+      const title = String(week.title ?? "").trim();
+      return title || `Неделя ${weekIndex + 1}`;
+    }
+
+    function setObjectValue(path, field, target) {
+      const object = getByPath(path);
+      const rawValue = target.value;
+      if (target.dataset.valueType === "int") {
+        object[field] = rawValue === "" ? null : Number(rawValue);
+        return;
+      }
+      if (target.dataset.valueType === "decimal") {
+        object[field] = rawValue === "" ? null : Number(rawValue);
+        return;
+      }
+      object[field] = rawValue;
+    }
+
+    function actionButtons(prefix, index, total, extraAttrs = "") {
+      return `
+        <input type="button" value="Выше" data-action="${prefix}-up" data-index="${index}" ${extraAttrs} ${index === 0 ? "disabled" : ""}>
+        <input type="button" value="Ниже" data-action="${prefix}-down" data-index="${index}" ${extraAttrs} ${index === total - 1 ? "disabled" : ""}>
+      `;
+    }
+
+    function renderOrmEditor() {
+      if (!state.one_rep_max_config.length) {
+        ormContainer.innerHTML = `<p class="help">Конфиг 1ПМ пока пуст.</p>`;
+        return;
+      }
+
+      ormContainer.innerHTML = state.one_rep_max_config.map((item, index) => `
+        <fieldset class="module aligned">
+          <h3>Упражнение 1ПМ ${index + 1}</h3>
+          <div class="form-row">
+            <div>
+              <label>Упражнение</label>
+              <select data-path="one_rep_max_config.${index}" data-field="exercise_id">
+                ${renderExerciseOptions(item.exercise_id, false)}
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label>Подпись</label>
+              <input type="text" value="${escapeHtml(item.label)}" data-path="one_rep_max_config.${index}" data-field="label">
+            </div>
+          </div>
+          <div class="submit-row">
+            ${actionButtons("move-orm", index, state.one_rep_max_config.length)}
+            <input type="button" value="Удалить" data-action="remove-orm" data-index="${index}">
+          </div>
+        </fieldset>
+      `).join("");
+    }
+
+    function renderSet(setItem, weekIndex, dayIndex, exerciseIndex, setIndex, totalSets) {
+      const listPath = `structure.weeks.${weekIndex}.days.${dayIndex}.exercises.${exerciseIndex}.sets`;
+      const itemPath = `${listPath}.${setIndex}`;
+      return `
+        <fieldset class="module aligned editor-node-set">
+          <div class="editor-level-label">Подход</div>
+          <h4>Подход ${setIndex + 1}</h4>
+          <div class="form-row"><div><label>Тип нагрузки</label><select data-path="${itemPath}" data-field="load_type" data-rerender="true">${renderOptions(loadTypeChoices, setItem.load_type)}</select></div></div>
+          <div class="form-row"><div><label>Значение нагрузки</label><input type="number" step="0.1" value="${setItem.load_value !== null ? escapeHtml(setItem.load_value) : ""}" data-path="${itemPath}" data-field="load_value" data-value-type="decimal"></div></div>
+          <div class="form-row"><div><label>Верхняя граница нагрузки</label><input type="number" step="0.1" value="${setItem.load_value_max !== null ? escapeHtml(setItem.load_value_max) : ""}" data-path="${itemPath}" data-field="load_value_max" data-value-type="decimal"></div></div>
+          <div class="form-row"><div><label>Повторения</label><input type="number" min="1" value="${escapeHtml(setItem.reps)}" data-path="${itemPath}" data-field="reps" data-value-type="int"></div></div>
+          <div class="form-row"><div><label>Верхняя граница повторений</label><input type="number" min="1" value="${setItem.reps_max !== null ? escapeHtml(setItem.reps_max) : ""}" data-path="${itemPath}" data-field="reps_max" data-value-type="int"></div></div>
+          <div class="form-row"><div><label>Подходов</label><input type="number" min="1" value="${escapeHtml(setItem.sets)}" data-path="${itemPath}" data-field="sets" data-value-type="int"></div></div>
+          <div class="submit-row">
+            <input type="button" value="Выше" data-action="move-item-up" data-list-path="${listPath}" data-index="${setIndex}" ${setIndex === 0 ? "disabled" : ""}>
+            <input type="button" value="Ниже" data-action="move-item-down" data-list-path="${listPath}" data-index="${setIndex}" ${setIndex === totalSets - 1 ? "disabled" : ""}>
+            <input type="button" value="Удалить" data-action="remove-item" data-list-path="${listPath}" data-index="${setIndex}">
+          </div>
+        </fieldset>
+      `;
+    }
+
+    function renderExercise(exerciseItem, weekIndex, dayIndex, exerciseIndex, totalExercises) {
+      const listPath = `structure.weeks.${weekIndex}.days.${dayIndex}.exercises`;
+      const itemPath = `${listPath}.${exerciseIndex}`;
+      return `
+        <fieldset class="module aligned editor-node-exercise">
+          <div class="editor-level-label">Упражнение</div>
+          <h4>Упражнение ${exerciseIndex + 1}</h4>
+          <div class="form-row"><div><label>Упражнение</label><select data-path="${itemPath}" data-field="exercise">${renderExerciseOptions(exerciseItem.exercise, false)}</select></div></div>
+          <div class="form-row"><div><label>Привязка к 1ПМ</label><select data-path="${itemPath}" data-field="one_rep_max_exercise">${renderExerciseOptions(exerciseItem.one_rep_max_exercise, true)}</select></div></div>
+          <div class="form-row"><div><label>Группа суперсета</label><input type="number" min="1" value="${exerciseItem.superset_group !== null ? escapeHtml(exerciseItem.superset_group) : ""}" data-path="${itemPath}" data-field="superset_group" data-value-type="int"></div></div>
+          <div class="form-row"><div><label>Заметки</label><textarea rows="2" data-path="${itemPath}" data-field="notes">${escapeHtml(exerciseItem.notes)}</textarea></div></div>
+          <div class="editor-subgroup">
+            <div class="editor-level-label">Подходы упражнения</div>
+            ${exerciseItem.sets.map((setItem, setIndex) => renderSet(setItem, weekIndex, dayIndex, exerciseIndex, setIndex, exerciseItem.sets.length)).join("")}
+          </div>
+          <div class="submit-row">
+            <input type="button" value="Добавить подход" data-action="add-set" data-week-index="${weekIndex}" data-day-index="${dayIndex}" data-exercise-index="${exerciseIndex}">
+            <input type="button" value="Выше" data-action="move-item-up" data-list-path="${listPath}" data-index="${exerciseIndex}" ${exerciseIndex === 0 ? "disabled" : ""}>
+            <input type="button" value="Ниже" data-action="move-item-down" data-list-path="${listPath}" data-index="${exerciseIndex}" ${exerciseIndex === totalExercises - 1 ? "disabled" : ""}>
+            <input type="button" value="Удалить упражнение" data-action="remove-item" data-list-path="${listPath}" data-index="${exerciseIndex}">
+          </div>
+        </fieldset>
+      `;
+    }
+
+    function renderTextBlock(textBlock, weekIndex, dayIndex, textIndex, totalTextBlocks) {
+      const listPath = `structure.weeks.${weekIndex}.days.${dayIndex}.text_blocks`;
+      const itemPath = `${listPath}.${textIndex}`;
+      return `
+        <fieldset class="module aligned editor-node-text">
+          <div class="editor-level-label">Текстовый блок</div>
+          <h4>Текстовый блок ${textIndex + 1}</h4>
+          <div class="form-row"><div><label>Тип блока</label><select data-path="${itemPath}" data-field="kind">${renderOptions(textBlockKindChoices, textBlock.kind)}</select></div></div>
+          <div class="form-row"><div><label>Текст</label><textarea rows="3" data-path="${itemPath}" data-field="content">${escapeHtml(textBlock.content)}</textarea></div></div>
+          <div class="submit-row">
+            <input type="button" value="Выше" data-action="move-item-up" data-list-path="${listPath}" data-index="${textIndex}" ${textIndex === 0 ? "disabled" : ""}>
+            <input type="button" value="Ниже" data-action="move-item-down" data-list-path="${listPath}" data-index="${textIndex}" ${textIndex === totalTextBlocks - 1 ? "disabled" : ""}>
+            <input type="button" value="Удалить" data-action="remove-item" data-list-path="${listPath}" data-index="${textIndex}">
+          </div>
+        </fieldset>
+      `;
+    }
+
+    function renderDay(dayItem, weekIndex, dayIndex, totalDays) {
+      const listPath = `structure.weeks.${weekIndex}.days`;
+      const itemPath = `${listPath}.${dayIndex}`;
+      const dayLabel = weekdayChoices.find((item) => item.value === dayItem.weekday)?.label || dayItem.weekday;
+      return `
+        <fieldset class="module aligned editor-node-day">
+          <div class="editor-level-label">День</div>
+          <h3>${escapeHtml(dayLabel)}</h3>
+          <div class="form-row"><div><label>День недели</label><select data-path="${itemPath}" data-field="weekday" data-rerender="true">${renderOptions(weekdayChoices, dayItem.weekday)}</select></div></div>
+          <div class="form-row"><div><label>Заголовок дня</label><input type="text" value="${escapeHtml(dayItem.title)}" data-path="${itemPath}" data-field="title"></div></div>
+          <div class="editor-subgroup">
+            <div class="editor-level-label">Упражнения дня</div>
+            ${dayItem.exercises.length ? dayItem.exercises.map((exerciseItem, exerciseIndex) => renderExercise(exerciseItem, weekIndex, dayIndex, exerciseIndex, dayItem.exercises.length)).join("") : `<p class="help">В этом дне пока нет упражнений.</p>`}
+          </div>
+          <div class="editor-subgroup">
+            <div class="editor-level-label">Текстовые блоки дня</div>
+            ${dayItem.text_blocks.length ? dayItem.text_blocks.map((textBlock, textIndex) => renderTextBlock(textBlock, weekIndex, dayIndex, textIndex, dayItem.text_blocks.length)).join("") : `<p class="help">Текстовых блоков пока нет.</p>`}
+          </div>
+          <div class="submit-row">
+            <input type="button" value="Добавить упражнение" data-action="add-exercise" data-week-index="${weekIndex}" data-day-index="${dayIndex}">
+            <input type="button" value="Добавить текстовый блок" data-action="add-text-block" data-week-index="${weekIndex}" data-day-index="${dayIndex}">
+            <input type="button" value="Выше" data-action="move-item-up" data-list-path="${listPath}" data-index="${dayIndex}" ${dayIndex === 0 ? "disabled" : ""}>
+            <input type="button" value="Ниже" data-action="move-item-down" data-list-path="${listPath}" data-index="${dayIndex}" ${dayIndex === totalDays - 1 ? "disabled" : ""}>
+            <input type="button" value="Удалить день" data-action="remove-item" data-list-path="${listPath}" data-index="${dayIndex}">
+          </div>
+        </fieldset>
+      `;
+    }
+
+    function renderStructureEditor() {
+      if (!state.structure.weeks.length) {
+        activeWeekIndex = 0;
+        structureContainer.innerHTML = `<p class="help">Структура программы пока пустая.</p>`;
+        return;
+      }
+
+      clampActiveWeekIndex();
+
+      const week = state.structure.weeks[activeWeekIndex];
+      structureContainer.innerHTML = `
+        <div class="submit-row" id="program-week-tabs">
+          ${state.structure.weeks.map((item, weekIndex) => `
+            <input
+              type="button"
+              value="${escapeHtml(getWeekTabLabel(item, weekIndex))}"
+              data-action="select-week"
+              data-index="${weekIndex}"
+              ${weekIndex === activeWeekIndex ? 'class="default"' : ""}
+            >
+          `).join("")}
+        </div>
+
+        <fieldset class="module aligned editor-week-panel">
+          <h3>Неделя ${activeWeekIndex + 1}</h3>
+          <div class="form-row"><div><label>Заголовок недели</label><input type="text" value="${escapeHtml(week.title)}" data-path="structure.weeks.${activeWeekIndex}" data-field="title"></div></div>
+          ${week.days.length ? week.days.map((day, dayIndex) => renderDay(day, activeWeekIndex, dayIndex, week.days.length)).join("") : `<p class="help">В неделе пока нет дней.</p>`}
+          <div class="submit-row">
+            <input type="button" value="Добавить день" data-action="add-day" data-week-index="${activeWeekIndex}">
+            <input type="button" value="Выше" data-action="move-week-up" data-index="${activeWeekIndex}" ${activeWeekIndex === 0 ? "disabled" : ""}>
+            <input type="button" value="Ниже" data-action="move-week-down" data-index="${activeWeekIndex}" ${activeWeekIndex === state.structure.weeks.length - 1 ? "disabled" : ""}>
+            <input type="button" value="Удалить неделю" data-action="remove-week" data-index="${activeWeekIndex}">
+          </div>
+        </fieldset>
+      `;
+    }
+
+    function renderAll() {
+      renderOrmEditor();
+      renderStructureEditor();
+      serializeState();
+    }
+
+    function handleAction(button) {
+      const action = button.dataset.action;
+      if (action === "add-orm") {
+        state.one_rep_max_config.push({
+          exercise_id: exerciseCatalog[0] ? exerciseCatalog[0].id : null,
+          label: "",
+        });
+        renderAll();
+        return;
+      }
+      if (action === "remove-orm") {
+        state.one_rep_max_config.splice(Number(button.dataset.index), 1);
+        renderAll();
+        return;
+      }
+      if (action === "move-orm-up" || action === "move-orm-down") {
+        const fromIndex = Number(button.dataset.index);
+        const toIndex = action === "move-orm-up" ? fromIndex - 1 : fromIndex + 1;
+        swap(state.one_rep_max_config, fromIndex, toIndex);
+        renderAll();
+        return;
+      }
+      if (action === "add-week") {
+        state.structure.weeks.push(createDefaultWeek());
+        activeWeekIndex = state.structure.weeks.length - 1;
+        renderAll();
+        return;
+      }
+      if (action === "select-week") {
+        activeWeekIndex = Number(button.dataset.index);
+        renderAll();
+        return;
+      }
+      if (action === "remove-week") {
+        state.structure.weeks.splice(Number(button.dataset.index), 1);
+        renderAll();
+        return;
+      }
+      if (action === "move-week-up" || action === "move-week-down") {
+        const fromIndex = Number(button.dataset.index);
+        const toIndex = action === "move-week-up" ? fromIndex - 1 : fromIndex + 1;
+        swap(state.structure.weeks, fromIndex, toIndex);
+        activeWeekIndex = toIndex;
+        renderAll();
+        return;
+      }
+      if (action === "add-day") {
+        const week = state.structure.weeks[Number(button.dataset.weekIndex)];
+        week.days.push(createDefaultDay(week));
+        renderAll();
+        return;
+      }
+      if (action === "add-exercise") {
+        const day = state.structure.weeks[Number(button.dataset.weekIndex)].days[Number(button.dataset.dayIndex)];
+        day.exercises.push(createDefaultExercise());
+        renderAll();
+        return;
+      }
+      if (action === "add-set") {
+        const exercise = state.structure.weeks[Number(button.dataset.weekIndex)]
+          .days[Number(button.dataset.dayIndex)]
+          .exercises[Number(button.dataset.exerciseIndex)];
+        exercise.sets.push(createDefaultSet());
+        renderAll();
+        return;
+      }
+      if (action === "add-text-block") {
+        const day = state.structure.weeks[Number(button.dataset.weekIndex)].days[Number(button.dataset.dayIndex)];
+        day.text_blocks.push(createDefaultTextBlock());
+        renderAll();
+        return;
+      }
+      if (action === "remove-item") {
+        const list = getByPath(button.dataset.listPath);
+        list.splice(Number(button.dataset.index), 1);
+        renderAll();
+        return;
+      }
+      if (action === "move-item-up" || action === "move-item-down") {
+        const list = getByPath(button.dataset.listPath);
+        const fromIndex = Number(button.dataset.index);
+        const toIndex = action === "move-item-up" ? fromIndex - 1 : fromIndex + 1;
+        swap(list, fromIndex, toIndex);
+        renderAll();
+      }
+    }
+
+    form.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-action]");
+      if (!button) {
+        return;
+      }
+      event.preventDefault();
+      handleAction(button);
+    });
+
+    form.addEventListener("input", (event) => {
+      const target = event.target;
+      if (!target.dataset.path || !target.dataset.field) {
+        return;
+      }
+      setObjectValue(target.dataset.path, target.dataset.field, target);
+      serializeState();
+    });
+
+    form.addEventListener("change", (event) => {
+      const target = event.target;
+      if (!target.dataset.path || !target.dataset.field) {
+        return;
+      }
+      setObjectValue(target.dataset.path, target.dataset.field, target);
+      if (target.dataset.rerender === "true") {
+        renderAll();
+        return;
+      }
+      serializeState();
+    });
+
+    form.addEventListener("submit", () => {
+      serializeState();
+    });
+
+    renderAll();
+  })();
+</script>
+{% endblock %}

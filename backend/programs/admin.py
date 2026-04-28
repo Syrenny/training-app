@@ -1,17 +1,23 @@
 from django.contrib import admin, messages
 from django.db.models import Count
+from django.http import Http404
+from django.template.response import TemplateResponse
+from django.urls import path
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.http import urlencode
 
+from .admin_program_editor import ProgramEditorForm, build_program_editor_state
 from .models import (
     AccessoryWeight,
     CycleOneRepMax,
     Day,
     DayExercise,
     DayTextBlock,
+    DayTextBlockKind,
     Exercise,
     ExerciseSet,
+    LoadType,
     OneRepMax,
     Program,
     ProgramAdaptation,
@@ -20,6 +26,7 @@ from .models import (
     TrainingCycle,
     UserProfile,
     Week,
+    Weekday,
     WorkoutCompletion,
 )
 from .program_clone import clone_program_structure, duplicate_program
@@ -88,6 +95,7 @@ class DayExerciseInline(admin.TabularInline):
 class ProgramAdmin(admin.ModelAdmin):
     list_display = [
         "name",
+        "editor_link",
         "owner",
         "source_program",
         "week_count",
@@ -99,19 +107,93 @@ class ProgramAdmin(admin.ModelAdmin):
     list_filter = ["owner", "source_program"]
     search_fields = ["name", "slug", "description", "owner__user__username", "owner__telegram_username"]
     prepopulated_fields = {"slug": ("name",)}
-    inlines = [ProgramOneRepMaxExerciseInline, WeekInline]
     actions = ["duplicate_selected_programs"]
+    readonly_fields = ["editor_shortcut"]
 
     fieldsets = (
         (None, {"fields": ("name", "slug", "description")}),
         ("Источник", {"fields": ("owner", "source_program")}),
     )
 
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = list(super().get_fieldsets(request, obj))
+        if obj is not None:
+            fieldsets.append(("Редактор", {"fields": ("editor_shortcut",)}))
+        return fieldsets
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<path:object_id>/editor/",
+                self.admin_site.admin_view(self.editor_view),
+                name="programs_program_editor",
+            ),
+        ]
+        return custom_urls + urls
+
+    def editor_view(self, request, object_id):
+        program = self.get_object(request, object_id)
+        if program is None:
+            raise Http404("Программа не найдена.")
+
+        if request.method == "POST":
+            form = ProgramEditorForm(request.POST, instance=program)
+            if form.is_valid():
+                form.save()
+                self.message_user(request, "Программа сохранена через единый редактор.", level=messages.SUCCESS)
+                form = ProgramEditorForm(instance=program)
+        else:
+            form = ProgramEditorForm(instance=program)
+
+        editor_state = build_program_editor_state(
+            program,
+            one_rep_max_json=form.data.get("one_rep_max_config") if form.is_bound else None,
+            structure_json=form.data.get("structure") if form.is_bound else None,
+        )
+        context = {
+            **self.admin_site.each_context(request),
+            "opts": self.model._meta,
+            "original": program,
+            "title": f"Редактор программы: {program.name}",
+            "form": form,
+            "editor_state": editor_state,
+            "exercise_catalog": [
+                {
+                    "id": exercise.id,
+                    "name": exercise.name,
+                    "category": exercise.category,
+                    "category_label": exercise.get_category_display(),
+                }
+                for exercise in Exercise.objects.order_by("category", "name")
+            ],
+            "weekday_choices": [{"value": value, "label": label} for value, label in Weekday.choices],
+            "load_type_choices": [{"value": value, "label": label} for value, label in LoadType.choices],
+            "text_block_kind_choices": [
+                {"value": value, "label": label} for value, label in DayTextBlockKind.choices
+            ],
+        }
+        return TemplateResponse(request, "admin/programs/program/editor.html", context)
+
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("owner", "source_program").annotate(
             week_total=Count("weeks", distinct=True),
             day_total=Count("weeks__days", distinct=True),
             exercise_total=Count("weeks__days__exercises", distinct=True),
+        )
+
+    @admin.display(description="Редактор")
+    def editor_link(self, obj):
+        return format_html(
+            '<a class="button" href="{}">Открыть редактор</a>',
+            reverse("admin:programs_program_editor", args=[obj.pk]),
+        )
+
+    @admin.display(description="Единый редактор")
+    def editor_shortcut(self, obj):
+        return format_html(
+            '<a class="button" href="{}">Открыть единый редактор программы</a>',
+            reverse("admin:programs_program_editor", args=[obj.pk]),
         )
 
     @admin.display(ordering="week_total", description="Недель")
@@ -155,11 +237,9 @@ class ProgramAdmin(admin.ModelAdmin):
         )
 
     def save_model(self, request, obj, form, change):
-        is_new = obj.pk is None
         super().save_model(request, obj, form, change)
         if (
-            is_new
-            and obj.source_program_id
+            obj.source_program_id
             and not obj.weeks.exists()
             and not obj.one_rep_max_exercises.exists()
         ):
