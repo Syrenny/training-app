@@ -27,6 +27,12 @@
     margin-bottom: 12px;
   }
 
+  #program-editor-form #program-day-tabs {
+    gap: 8px;
+    justify-content: flex-start;
+    margin: 12px 0;
+  }
+
   #program-editor-form .editor-node-day,
   #program-editor-form .editor-node-exercise,
   #program-editor-form .editor-node-set,
@@ -234,6 +240,7 @@
 
     const weekdayOrder = weekdayChoices.map((item) => item.value);
     let activeWeekIndex = 0;
+    const activeDayIndexes = {};
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -358,6 +365,28 @@
       return title || `Неделя ${weekIndex + 1}`;
     }
 
+    function getDayTabLabel(day) {
+      return weekdayChoices.find((item) => item.value === day.weekday)?.label || day.weekday;
+    }
+
+    function clampActiveDayIndex(weekIndex) {
+      const week = state.structure.weeks[weekIndex];
+      if (!week || !week.days.length) {
+        activeDayIndexes[weekIndex] = 0;
+        return;
+      }
+      const currentIndex = activeDayIndexes[weekIndex] ?? 0;
+      if (currentIndex < 0) {
+        activeDayIndexes[weekIndex] = 0;
+        return;
+      }
+      if (currentIndex >= week.days.length) {
+        activeDayIndexes[weekIndex] = week.days.length - 1;
+        return;
+      }
+      activeDayIndexes[weekIndex] = currentIndex;
+    }
+
     function setObjectValue(path, field, target) {
       const object = getByPath(path);
       const rawValue = target.value;
@@ -370,6 +399,11 @@
         return;
       }
       object[field] = rawValue;
+    }
+
+    function getWeekIndexFromDayListPath(path) {
+      const match = /^structure\.weeks\.(\d+)\.days$/.exec(path || "");
+      return match ? Number(match[1]) : null;
     }
 
     function actionButtons(prefix, index, total, extraAttrs = "") {
@@ -478,7 +512,7 @@
     function renderDay(dayItem, weekIndex, dayIndex, totalDays) {
       const listPath = `structure.weeks.${weekIndex}.days`;
       const itemPath = `${listPath}.${dayIndex}`;
-      const dayLabel = weekdayChoices.find((item) => item.value === dayItem.weekday)?.label || dayItem.weekday;
+      const dayLabel = getDayTabLabel(dayItem);
       return `
         <fieldset class="module aligned editor-node-day">
           <div class="editor-level-label">День</div>
@@ -514,6 +548,8 @@
       clampActiveWeekIndex();
 
       const week = state.structure.weeks[activeWeekIndex];
+      clampActiveDayIndex(activeWeekIndex);
+      const activeDayIndex = activeDayIndexes[activeWeekIndex] ?? 0;
       structureContainer.innerHTML = `
         <div class="submit-row" id="program-week-tabs">
           ${state.structure.weeks.map((item, weekIndex) => `
@@ -530,7 +566,21 @@
         <fieldset class="module aligned editor-week-panel">
           <h3>Неделя ${activeWeekIndex + 1}</h3>
           <div class="form-row"><div><label>Заголовок недели</label><input type="text" value="${escapeHtml(week.title)}" data-path="structure.weeks.${activeWeekIndex}" data-field="title"></div></div>
-          ${week.days.length ? week.days.map((day, dayIndex) => renderDay(day, activeWeekIndex, dayIndex, week.days.length)).join("") : `<p class="help">В неделе пока нет дней.</p>`}
+          ${week.days.length ? `
+            <div class="submit-row" id="program-day-tabs">
+              ${week.days.map((day, dayIndex) => `
+                <input
+                  type="button"
+                  value="${escapeHtml(getDayTabLabel(day))}"
+                  data-action="select-day"
+                  data-week-index="${activeWeekIndex}"
+                  data-index="${dayIndex}"
+                  ${dayIndex === activeDayIndex ? 'class="default"' : ""}
+                >
+              `).join("")}
+            </div>
+            ${renderDay(week.days[activeDayIndex], activeWeekIndex, activeDayIndex, week.days.length)}
+          ` : `<p class="help">В неделе пока нет дней.</p>`}
           <div class="submit-row">
             <input type="button" value="Добавить день" data-action="add-day" data-week-index="${activeWeekIndex}">
             <input type="button" value="Выше" data-action="move-week-up" data-index="${activeWeekIndex}" ${activeWeekIndex === 0 ? "disabled" : ""}>
@@ -580,6 +630,11 @@
         renderAll();
         return;
       }
+      if (action === "select-day") {
+        activeDayIndexes[Number(button.dataset.weekIndex)] = Number(button.dataset.index);
+        renderAll();
+        return;
+      }
       if (action === "remove-week") {
         state.structure.weeks.splice(Number(button.dataset.index), 1);
         renderAll();
@@ -594,8 +649,10 @@
         return;
       }
       if (action === "add-day") {
-        const week = state.structure.weeks[Number(button.dataset.weekIndex)];
+        const weekIndex = Number(button.dataset.weekIndex);
+        const week = state.structure.weeks[weekIndex];
         week.days.push(createDefaultDay(week));
+        activeDayIndexes[weekIndex] = week.days.length - 1;
         renderAll();
         return;
       }
@@ -620,16 +677,35 @@
         return;
       }
       if (action === "remove-item") {
+        const weekIndex = getWeekIndexFromDayListPath(button.dataset.listPath);
         const list = getByPath(button.dataset.listPath);
-        list.splice(Number(button.dataset.index), 1);
+        const removedIndex = Number(button.dataset.index);
+        list.splice(removedIndex, 1);
+        if (weekIndex !== null) {
+          const activeDayIndex = activeDayIndexes[weekIndex] ?? 0;
+          if (removedIndex < activeDayIndex) {
+            activeDayIndexes[weekIndex] = activeDayIndex - 1;
+          } else if (removedIndex === activeDayIndex) {
+            activeDayIndexes[weekIndex] = Math.max(0, activeDayIndex - 1);
+          }
+        }
         renderAll();
         return;
       }
       if (action === "move-item-up" || action === "move-item-down") {
+        const weekIndex = getWeekIndexFromDayListPath(button.dataset.listPath);
         const list = getByPath(button.dataset.listPath);
         const fromIndex = Number(button.dataset.index);
         const toIndex = action === "move-item-up" ? fromIndex - 1 : fromIndex + 1;
         swap(list, fromIndex, toIndex);
+        if (weekIndex !== null) {
+          const activeDayIndex = activeDayIndexes[weekIndex] ?? 0;
+          if (activeDayIndex === fromIndex) {
+            activeDayIndexes[weekIndex] = toIndex;
+          } else if (activeDayIndex === toIndex) {
+            activeDayIndexes[weekIndex] = fromIndex;
+          }
+        }
         renderAll();
       }
     }

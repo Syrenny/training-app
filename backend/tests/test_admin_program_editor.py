@@ -270,6 +270,17 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertContains(response, 'id="program-week-tabs"', html=False)
         self.assertContains(response, "Первая неделя")
 
+    def test_program_editor_renders_day_tabs_within_week(self):
+        week = Week.objects.create(program=self.program, number=1, title="Первая неделя")
+        Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="Понедельник")
+        Day.objects.create(week=week, weekday=Weekday.WED, order=2, title="Среда")
+
+        response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="program-day-tabs"', html=False)
+        self.assertContains(response, 'data-action="select-day"', html=False)
+
     def test_program_editor_renders_visual_hierarchy_classes(self):
         exercise = Exercise.objects.create(name="Жим стоя", category=ExerciseCategory.BENCH)
         week = Week.objects.create(program=self.program, number=1, title="Неделя")
