@@ -2,8 +2,6 @@ from rest_framework import serializers
 
 from .models import (
     AccessoryWeight,
-    AdaptationAction,
-    AdaptationScope,
     CycleOneRepMax,
     Day,
     DayExercise,
@@ -15,7 +13,6 @@ from .models import (
     LoadType,
     OneRepMax,
     Program,
-    ProgramAdaptation,
     ProgramOneRepMaxExercise,
     TrainingCycle,
     Week,
@@ -262,9 +259,7 @@ class ProgramWeekInputSerializer(serializers.Serializer):
         return attrs
 
 
-class ProgramSnapshotInputSerializer(serializers.Serializer):
-    commit_message = serializers.CharField(max_length=255, allow_blank=False, trim_whitespace=True)
-    source_snapshot_version = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+class ProgramStructureInputSerializer(serializers.Serializer):
     weeks = ProgramWeekInputSerializer(many=True)
 
     def validate(self, attrs):
@@ -358,89 +353,3 @@ class TrainingCycleFinishSerializer(serializers.Serializer):
     notes = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
     reason = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
     feeling = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
-
-
-class ProgramAdaptationCreateSerializer(serializers.Serializer):
-    program_id = serializers.IntegerField(min_value=1)
-    scope = serializers.ChoiceField(choices=AdaptationScope.choices)
-    action = serializers.ChoiceField(choices=AdaptationAction.choices)
-    slot_key = serializers.CharField(max_length=100)
-    week_number = serializers.IntegerField(min_value=1)
-    weekday = serializers.ChoiceField(choices=Weekday.choices)
-    original_exercise_id = serializers.IntegerField(required=False, allow_null=True)
-    replacement_exercise_id = serializers.IntegerField(required=False, allow_null=True)
-    reason = serializers.CharField(required=False, allow_blank=True)
-
-    def validate(self, attrs):
-        action = attrs["action"]
-        replacement_exercise_id = attrs.get("replacement_exercise_id")
-        if action == AdaptationAction.REPLACE and replacement_exercise_id is None:
-            raise serializers.ValidationError(
-                {"replacement_exercise_id": "Для замены нужно выбрать упражнение."}
-            )
-        if action == AdaptationAction.DELETE and replacement_exercise_id is not None:
-            raise serializers.ValidationError(
-                {"replacement_exercise_id": "Для удаления заменяющее упражнение не нужно."}
-            )
-        return attrs
-
-
-class ProgramAdaptationCancelSerializer(serializers.Serializer):
-    reason = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
-
-
-class ProgramAdaptationSerializer(serializers.ModelSerializer):
-    program_id = serializers.IntegerField(source="program.id", read_only=True)
-    program_name = serializers.CharField(source="program.name", read_only=True)
-    cycle_id = serializers.IntegerField(source="cycle.id", read_only=True, allow_null=True)
-    original_exercise_id = serializers.IntegerField(
-        source="original_exercise.id",
-        read_only=True,
-        allow_null=True,
-    )
-    original_exercise_name = serializers.CharField(
-        source="original_exercise.name",
-        read_only=True,
-        allow_null=True,
-    )
-    replacement_exercise_id = serializers.IntegerField(
-        source="replacement_exercise.id",
-        read_only=True,
-        allow_null=True,
-    )
-    replacement_exercise_name = serializers.CharField(
-        source="replacement_exercise.name",
-        read_only=True,
-        allow_null=True,
-    )
-    scope_label = serializers.CharField(source="get_scope_display", read_only=True)
-    action_label = serializers.CharField(source="get_action_display", read_only=True)
-    is_canceled = serializers.SerializerMethodField()
-
-    class Meta:
-        model = ProgramAdaptation
-        fields = [
-            "id",
-            "program_id",
-            "program_name",
-            "cycle_id",
-            "scope",
-            "scope_label",
-            "action",
-            "action_label",
-            "slot_key",
-            "week_number",
-            "weekday",
-            "original_exercise_id",
-            "original_exercise_name",
-            "replacement_exercise_id",
-            "replacement_exercise_name",
-            "reason",
-            "is_canceled",
-            "canceled_at",
-            "cancellation_reason",
-            "created_at",
-        ]
-
-    def get_is_canceled(self, obj):
-        return obj.canceled_at is not None

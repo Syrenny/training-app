@@ -30,6 +30,8 @@ def build_start_items(program):
         {"exercise_id": item.exercise_id, "value": 100 + index * 10}
         for index, item in enumerate(configs, start=1)
     ]
+
+
 class TrainingCycleFlowTest(TestCase):
     def setUp(self):
         self.client = APIClient()
@@ -144,11 +146,16 @@ class ProgramSelectionTest(TestCase):
         self.program = Program.objects.create(slug="selection-guard", name="Selection Guard")
         exercise = Exercise.objects.create(name="Тестовая тяга", category=ExerciseCategory.DEADLIFT)
         ProgramOneRepMaxExercise.objects.create(program=self.program, exercise=exercise, label="Тестовая тяга")
+        self.program_two = Program.objects.create(slug="selection-second", name="Selection Second")
+        second_exercise = Exercise.objects.create(name="Тестовый присед", category=ExerciseCategory.SQUAT)
+        ProgramOneRepMaxExercise.objects.create(
+            program=self.program_two,
+            exercise=second_exercise,
+            label="Тестовый присед",
+        )
 
     def test_program_selection_is_allowed_any_time(self):
-        start_client = APIClient()
-        start_client.force_authenticate(user={"id": 88, "first_name": "Guard"})
-        start_client.post(
+        self.client.post(
             "/api/training-cycle/start/",
             {"program_id": self.program.id, "items": build_start_items(self.program)},
             format="json",
@@ -159,3 +166,38 @@ class ProgramSelectionTest(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, 200)
+
+    def test_program_selection_switches_active_cycle_context(self):
+        first_start = self.client.post(
+            "/api/training-cycle/start/",
+            {"program_id": self.program.id, "items": build_start_items(self.program)},
+            format="json",
+        )
+        self.assertEqual(first_start.status_code, 201)
+        first_cycle_id = first_start.json()["cycle"]["id"]
+
+        self.client.put(
+            "/api/programs/selected/",
+            {"program_id": self.program_two.id},
+            format="json",
+        )
+        second_start = self.client.post(
+            "/api/training-cycle/start/",
+            {"program_id": self.program_two.id, "items": build_start_items(self.program_two)},
+            format="json",
+        )
+        self.assertEqual(second_start.status_code, 201)
+        second_cycle_id = second_start.json()["cycle"]["id"]
+
+        active_for_second = self.client.get("/api/training-cycle/active/")
+        self.assertEqual(active_for_second.status_code, 200)
+        self.assertEqual(active_for_second.json()["cycle"]["id"], second_cycle_id)
+
+        self.client.put(
+            "/api/programs/selected/",
+            {"program_id": self.program.id},
+            format="json",
+        )
+        active_for_first = self.client.get("/api/training-cycle/active/")
+        self.assertEqual(active_for_first.status_code, 200)
+        self.assertEqual(active_for_first.json()["cycle"]["id"], first_cycle_id)

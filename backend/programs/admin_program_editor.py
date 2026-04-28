@@ -16,7 +16,7 @@ from .models import (
     Week,
 )
 from .program_snapshot import build_base_program_payload
-from .serializers import ProgramSnapshotInputSerializer
+from .serializers import ProgramStructureInputSerializer
 
 
 def _json_loads(raw_value, *, default):
@@ -226,12 +226,7 @@ class ProgramEditorForm(forms.Form):
         if not isinstance(raw_structure, dict):
             raise ValidationError("Структура программы должна быть объектом.")
 
-        serializer = ProgramSnapshotInputSerializer(
-            data={
-                "commit_message": "Admin editor",
-                "weeks": raw_structure.get("weeks", []),
-            }
-        )
+        serializer = ProgramStructureInputSerializer(data={"weeks": raw_structure.get("weeks", [])})
         if not serializer.is_valid():
             raise ValidationError(_flatten_errors(serializer.errors))
         return serializer.validated_data["normalized_payload"]

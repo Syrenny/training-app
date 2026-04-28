@@ -258,7 +258,7 @@ class ProgramEditorAdminViewTest(TestCase):
         response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Один экран для редактирования программы")
+        self.assertContains(response, 'id="program-editor-form"', html=False)
 
     def test_program_editor_renders_week_tabs_when_program_has_weeks(self):
         week = Week.objects.create(program=self.program, number=1, title="Первая неделя")

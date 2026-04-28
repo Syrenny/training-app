@@ -34,7 +34,7 @@ class Command(BaseCommand):
         if options["force"]:
             self.stdout.write(
                 self.style.WARNING(
-                    "Rebuilding bundled source programs only. User snapshots will be preserved..."
+                    "Rebuilding bundled source programs only. User program selections and cycle metadata will be preserved..."
                 )
             )
 

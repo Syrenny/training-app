@@ -20,9 +20,7 @@ from .models import (
     LoadType,
     OneRepMax,
     Program,
-    ProgramAdaptation,
     ProgramOneRepMaxExercise,
-    ProgramSnapshot,
     TrainingCycle,
     UserProfile,
     Week,
@@ -378,14 +376,6 @@ class WorkoutCompletionAdmin(admin.ModelAdmin):
     ordering = ["-completed_at"]
 
 
-@admin.register(ProgramSnapshot)
-class ProgramSnapshotAdmin(admin.ModelAdmin):
-    list_display = ["telegram_id", "program", "version", "commit_message", "created_at", "source_snapshot_version"]
-    list_filter = ["program", "telegram_id"]
-    search_fields = ["telegram_id", "program__name", "commit_message"]
-    ordering = ["telegram_id", "-version"]
-
-
 @admin.register(AccessoryWeight)
 class AccessoryWeightAdmin(admin.ModelAdmin):
     list_display = ["telegram_id", "exercise", "weight", "sets_display", "recorded_date", "week"]
@@ -408,20 +398,3 @@ class CycleOneRepMaxAdmin(admin.ModelAdmin):
     list_filter = ["cycle__program"]
     search_fields = ["cycle__program__name", "exercise__name", "label"]
     ordering = ["-cycle_id", "exercise__name"]
-
-
-@admin.register(ProgramAdaptation)
-class ProgramAdaptationAdmin(admin.ModelAdmin):
-    list_display = [
-        "telegram_id",
-        "program",
-        "cycle",
-        "scope",
-        "action",
-        "slot_key",
-        "created_at",
-        "canceled_at",
-    ]
-    list_filter = ["program", "scope", "action", "canceled_at"]
-    search_fields = ["telegram_id", "program__name", "reason", "cancellation_reason"]
-    ordering = ["-created_at"]
