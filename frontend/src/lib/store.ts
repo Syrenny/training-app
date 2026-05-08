@@ -70,7 +70,12 @@ interface ProgramState {
   toggleCompletion: (weekNumber: number, weekday: string) => Promise<void>;
   saveOneRepMax: (items: Array<{ exercise_id: number; value: number }>) => Promise<void>;
   resetCompletions: () => Promise<void>;
-  saveAccessoryWeight: (exerciseId: number, weight: number, setsDisplay: string) => Promise<void>;
+  saveAccessoryWeight: (
+    exerciseId: number,
+    weight: number,
+    setsDisplay: string,
+    note?: string,
+  ) => Promise<void>;
   navigateNext: () => Promise<NavigationResult>;
   navigatePrev: () => Promise<NavigationResult>;
 }
@@ -237,10 +242,10 @@ export const useProgramStore = create<ProgramState>()(
         set({ completions: new Map<string, string>() });
       },
 
-      saveAccessoryWeight: async (exerciseId, weight, setsDisplay) => {
+      saveAccessoryWeight: async (exerciseId, weight, setsDisplay, note) => {
         const { selectedWeek } = get();
         try {
-          await apiSaveAccessoryWeight(exerciseId, weight, selectedWeek, setsDisplay);
+          await apiSaveAccessoryWeight(exerciseId, weight, selectedWeek, setsDisplay, note);
           set((state) => ({
             accessoryWeights: {
               ...state.accessoryWeights,

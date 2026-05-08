@@ -1,0 +1,96 @@
+#exercises-group .related-widget-wrapper-link {
+  display: none !important;
+}
+
+#exercises-group td.original,
+#exercises-group th.original {
+  width: 38px;
+  min-height: 20px;
+  padding-inline: 6px;
+  display: flex;
+  align-items: center;
+}
+
+#exercises-group td.original p {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none !important;
+  width: auto !important;
+  color: transparent;
+}
+
+#exercises-group td.original p::before {
+  content: "⋮⋮";
+  font-size: 16px;
+  color: var(--body-quiet-color);
+}
+
+#exercises-group td.original .inlinechangelink,
+#exercises-group td.original .inlineviewlink,
+#exercises-group td.original span.sort {
+  display: none !important;
+}
+
+#exercises-group .field-notes textarea {
+  min-height: 2.4em;
+  resize: vertical;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+#exercises-group .field-edit_link .button {
+  white-space: nowrap;
+  background: transparent;
+  color: var(--link-fg);
+  box-shadow: none;
+  padding: 0;
+}
+
+
+#exercises-group table {
+  width: 100%;
+  table-layout: auto;
+}
+
+#exercises-group th,
+#exercises-group td,
+#exercises-group tbody td {
+  vertical-align: middle;
+}
+
+#exercises-group .field-order_index,
+#exercises-group .column-order_index {
+  white-space: nowrap;
+}
+
+
+#exercises-group .field-order_index p,
+#exercises-group .field-edit_link p,
+#exercises-group td.delete {
+  display: flex;
+  align-items: center;
+}
+
+#exercises-group td.delete {
+  justify-content: center;
+}
+
+#exercises-group .field-exercise select,
+#exercises-group .field-one_rep_max_exercise select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+#exercises-group .field-exercise,
+#exercises-group .field-one_rep_max_exercise,
+#exercises-group .field-notes {
+  min-width: 0;
+}
+
+#exercises-group td.delete,
+#exercises-group th.delete {
+  white-space: nowrap;
+}

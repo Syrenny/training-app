@@ -518,6 +518,7 @@ class AccessoryWeight(models.Model):
     sets_display = models.CharField(
         max_length=200, blank=True, default="", verbose_name="Подходы (снапшот)"
     )
+    note = models.TextField(blank=True, default="", verbose_name="Заметка")
     recorded_date = models.DateField(verbose_name="Дата записи")
     week = models.ForeignKey(
         Week,

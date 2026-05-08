@@ -173,7 +173,12 @@ class AccessoryWeightSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AccessoryWeight
-        fields = ["weight", "sets_display", "recorded_date", "week_number"]
+        fields = ["weight", "sets_display", "note", "recorded_date", "week_number"]
+
+
+class AccessoryWeightNoteUpdateSerializer(serializers.Serializer):
+    recorded_date = serializers.DateField()
+    note = serializers.CharField(required=False, allow_blank=True, default="")
 
 
 class WeekDetailSerializer(serializers.ModelSerializer):

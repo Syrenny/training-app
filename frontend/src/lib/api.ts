@@ -101,6 +101,12 @@ async function putApi<T>(path: string, data: unknown): Promise<T> {
   return response.json();
 }
 
+async function patchApi<T>(path: string, data: unknown): Promise<T> {
+  const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("PATCH", data));
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+  return response.json();
+}
+
 async function deleteApi(path: string): Promise<void> {
   const response = await fetch(`${BASE_URL}${path}`, getRequestOptions("DELETE"));
   if (!response.ok) throw new Error(await readErrorMessage(response));
@@ -367,6 +373,7 @@ export interface AccessoryWeightLatest {
 export interface AccessoryWeightRecord {
   weight: string;
   sets_display: string;
+  note: string;
   recorded_date: string;
   week_number: number | null;
 }
@@ -496,11 +503,13 @@ export function saveAccessoryWeight(
   weight: number,
   weekNumber: number | null,
   setsDisplay: string,
+  note?: string,
 ): Promise<AccessoryWeightRecord> {
   return putApi<AccessoryWeightRecord>(`/accessory-weights/${exerciseId}/`, {
     weight,
     week_number: weekNumber,
     sets_display: setsDisplay,
+    note: note ?? "",
   });
 }
 
@@ -509,5 +518,19 @@ export function fetchAccessoryWeightHistory(
 ): Promise<AccessoryWeightRecord[]> {
   return fetchApi<AccessoryWeightRecord[]>(
     `/accessory-weights/${exerciseId}/history/`,
+  );
+}
+
+export function updateAccessoryWeightNote(
+  exerciseId: number,
+  recordedDate: string,
+  note: string,
+): Promise<AccessoryWeightRecord> {
+  return patchApi<AccessoryWeightRecord>(
+    `/accessory-weights/${exerciseId}/history/`,
+    {
+      recorded_date: recordedDate,
+      note,
+    },
   );
 }

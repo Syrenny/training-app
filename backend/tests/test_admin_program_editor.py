@@ -333,6 +333,14 @@ class ProgramEditorAdminViewTest(TestCase):
                 "description": "",
                 "owner": "",
                 "source_program": source_program.pk,
+                "one_rep_max_exercises-TOTAL_FORMS": 0,
+                "one_rep_max_exercises-INITIAL_FORMS": 0,
+                "one_rep_max_exercises-MIN_NUM_FORMS": 0,
+                "one_rep_max_exercises-MAX_NUM_FORMS": 1000,
+                "weeks-TOTAL_FORMS": 0,
+                "weeks-INITIAL_FORMS": 0,
+                "weeks-MIN_NUM_FORMS": 0,
+                "weeks-MAX_NUM_FORMS": 1000,
                 "_save": "Save",
             },
             follow=True,
@@ -343,3 +351,61 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertEqual(target_program.source_program, source_program)
         self.assertEqual(target_program.weeks.count(), 1)
         self.assertEqual(target_program.one_rep_max_exercises.count(), 1)
+
+    def test_program_change_form_uses_standard_inlines(self):
+        response = self.client.get(reverse("admin:programs_program_change", args=[self.program.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Упражнения 1ПМ программы")
+        self.assertContains(response, "Недели")
+
+    def test_day_exercise_changelist_hides_redundant_columns_for_single_day(self):
+        exercise = Exercise.objects.create(name="Тестовый жим", category=ExerciseCategory.BENCH)
+        week = Week.objects.create(program=self.program, number=1, title="Неделя")
+        day = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="День")
+        DayExercise.objects.create(day=day, exercise=exercise, order=1)
+
+        response = self.client.get(
+            reverse("admin:programs_dayexercise_changelist"),
+            {"day__id__exact": day.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f"Упражнения: {day}")
+        self.assertNotContains(response, "<th scope=\"col\" class=\"sortable column-day\">", html=False)
+        self.assertNotContains(response, "ФИЛЬТР")
+
+    def test_day_admin_exercises_link_points_to_dayexercise_changelist(self):
+        week = Week.objects.create(program=self.program, number=1, title="Неделя")
+        day = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="День")
+
+        response = self.client.get(reverse("admin:programs_day_changelist"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'{reverse("admin:programs_dayexercise_changelist")}?day__id__exact={day.pk}',
+            html=False,
+        )
+        self.assertContains(response, "Открыть упражнения")
+
+    def test_day_change_form_hides_related_object_action_links_for_exercise_fields(self):
+        exercise = Exercise.objects.create(name="Тестовая тяга", category=ExerciseCategory.DEADLIFT)
+        week = Week.objects.create(program=self.program, number=1, title="Неделя")
+        day = Day.objects.create(week=week, weekday=Weekday.WED, order=1, title="День тяги")
+        day_exercise = DayExercise.objects.create(day=day, exercise=exercise, order=1)
+        ExerciseSet.objects.create(
+            day_exercise=day_exercise,
+            load_type=LoadType.KG,
+            load_value=100,
+            reps=5,
+            sets=3,
+            order=1,
+        )
+
+        response = self.client.get(reverse("admin:programs_day_change", args=[day.pk]))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "admin/programs/day_admin.css")
+        self.assertContains(response, reverse("admin:programs_dayexercise_change", args=[day_exercise.pk]))
+        self.assertContains(response, ">Изменить<", html=False)

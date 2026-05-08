@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Training program viewer - Telegram Mini App backend"
 requires-python = ">=3.13"
 dependencies = [
+    "django-admin-sortable2>=2.3.1",
+    "django-nested-admin>=4.1.6",
     "django>=6.0.2",
     "djangorestframework>=3.16.1",
     "gunicorn>=23.0.0",

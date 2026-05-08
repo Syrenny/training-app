@@ -46,6 +46,7 @@ from .program_snapshot import (
 )
 from .serializers import (
     AccessoryWeightSerializer,
+    AccessoryWeightNoteUpdateSerializer,
     ExerciseSerializer,
     OneRepMaxResponseSerializer,
     OneRepMaxUpdateSerializer,
@@ -550,6 +551,7 @@ class AccessoryWeightView(APIView):
             defaults={
                 "weight": weight,
                 "sets_display": request.data.get("sets_display", ""),
+                "note": request.data.get("note", ""),
                 "week": week,
             },
         )
@@ -615,6 +617,29 @@ class AccessoryWeightHistoryView(APIView):
         )
 
         return Response(AccessoryWeightSerializer(records, many=True).data)
+
+    def patch(self, request, exercise_id):
+        telegram_id = get_request_telegram_id(request)
+        if not telegram_id:
+            return Response(
+                {"detail": "Telegram user ID not found."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        serializer = AccessoryWeightNoteUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        record = AccessoryWeight.objects.filter(
+            telegram_id=telegram_id,
+            exercise_id=exercise_id,
+            recorded_date=serializer.validated_data["recorded_date"],
+        ).select_related("week").first()
+        if record is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        record.note = serializer.validated_data["note"]
+        record.save(update_fields=["note"])
+        return Response(AccessoryWeightSerializer(record).data)
 
 
 class WeekListView(generics.ListAPIView):
