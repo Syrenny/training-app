@@ -1,26 +1,33 @@
+import json
+
 from django import forms
 from django.contrib import admin, messages
 from django.db.models import Count
 from django.http import Http404
+from django.shortcuts import redirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.http import urlencode
 from adminsortable2.admin import SortableAdminBase
 
-from .admin_program_editor import ProgramEditorForm, build_program_editor_state
+from .admin_program_editor import (
+    ProgramEditorForm,
+    ProgramWeekSelectorForm,
+    build_server_render_editor_context,
+    get_editor_selection,
+    perform_editor_action,
+    save_active_week_day,
+)
 from .models import (
     Day,
     DayExercise,
     DayTextBlock,
-    DayTextBlockKind,
     Exercise,
     ExerciseSet,
-    LoadType,
     Program,
     ProgramOneRepMaxExercise,
     Week,
-    Weekday,
 )
 from .program_clone import clone_program_structure, duplicate_program
 
@@ -88,41 +95,52 @@ class ProgramAdmin(admin.ModelAdmin):
         if program is None:
             raise Http404("Программа не найдена.")
 
-        if request.method == "POST":
-            form = ProgramEditorForm(request.POST, instance=program)
-            if form.is_valid():
-                form.save()
-                self.message_user(request, "Программа сохранена через единый редактор.", level=messages.SUCCESS)
-                form = ProgramEditorForm(instance=program)
-        else:
-            form = ProgramEditorForm(instance=program)
+        week_id = request.GET.get("week")
+        day_id = request.GET.get("day")
+        form = ProgramEditorForm(instance=program)
 
-        editor_state = build_program_editor_state(
-            program,
-            one_rep_max_json=form.data.get("one_rep_max_config") if form.is_bound else None,
-            structure_json=form.data.get("structure") if form.is_bound else None,
-        )
+        if request.method == "POST":
+            action = request.POST.get("_action")
+            if action:
+                if action == "select-week":
+                    selected_week = request.POST.get("active_week")
+                    weeks, active_week, active_day = get_editor_selection(program, selected_week, None)
+                    target_week = active_week.id if active_week else None
+                    target_day = active_day.id if active_day else None
+                else:
+                    target_week, target_day = perform_editor_action(program, action, week_id, day_id)
+                url = reverse("admin:programs_program_editor", args=[program.pk])
+                params = {}
+                if target_week:
+                    params["week"] = target_week
+                if target_day:
+                    params["day"] = target_day
+                if params:
+                    return redirect(f"{url}?{urlencode(params)}")
+                return redirect(url)
+            else:
+                if save_active_week_day(program, week_id, day_id, request.POST):
+                    self.message_user(request, "Программа сохранена через единый редактор.", level=messages.SUCCESS)
+                    url = reverse("admin:programs_program_editor", args=[program.pk])
+                    params = {}
+                    if week_id:
+                        params["week"] = week_id
+                    if day_id:
+                        params["day"] = day_id
+                    if params:
+                        return redirect(f"{url}?{urlencode(params)}")
+                    return redirect(url)
+                render_tree = build_server_render_editor_context(program, week_id, day_id, bound_data=request.POST)
+        else:
+            render_tree = build_server_render_editor_context(program, week_id, day_id)
+
         context = {
             **self.admin_site.each_context(request),
             "opts": self.model._meta,
             "original": program,
             "title": f"Редактор программы: {program.name}",
             "form": form,
-            "editor_state": editor_state,
-            "exercise_catalog": [
-                {
-                    "id": exercise.id,
-                    "name": exercise.name,
-                    "category": exercise.category,
-                    "category_label": exercise.get_category_display(),
-                }
-                for exercise in Exercise.objects.order_by("category", "name")
-            ],
-            "weekday_choices": [{"value": value, "label": label} for value, label in Weekday.choices],
-            "load_type_choices": [{"value": value, "label": label} for value, label in LoadType.choices],
-            "text_block_kind_choices": [
-                {"value": value, "label": label} for value, label in DayTextBlockKind.choices
-            ],
+            "render_tree": render_tree,
         }
         return TemplateResponse(request, "admin/programs/program/editor.html", context)
 

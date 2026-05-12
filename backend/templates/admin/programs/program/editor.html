@@ -3,11 +3,6 @@
 
 {% block extrahead %}
 {{ block.super }}
-{{ editor_state|json_script:"program-editor-state" }}
-{{ exercise_catalog|json_script:"program-editor-exercises" }}
-{{ weekday_choices|json_script:"program-editor-weekdays" }}
-{{ load_type_choices|json_script:"program-editor-load-types" }}
-{{ text_block_kind_choices|json_script:"program-editor-text-kinds" }}
 <link rel="stylesheet" href="{% static 'admin/programs/program_editor.css' %}">
 {% endblock %}
 
@@ -23,150 +18,174 @@
 
 {% block content %}
 <div id="content-main">
-  <form
-    method="post"
-    novalidate
-    id="program-editor-form"
-    data-program-id="{{ original.pk }}"
-    data-storage-key="program-editor:{{ original.pk }}"
-    data-form-bound="{% if form.is_bound %}true{% else %}false{% endif %}"
-  >
+  <form method="post" novalidate id="program-editor-form">
     {% csrf_token %}
-    <div id="program-week-tabs" hidden></div>
-    <div id="program-day-tabs" hidden></div>
-    <button type="button" data-action="select-day" hidden></button>
-    <div class="editor-node-day" hidden></div>
-    <div class="editor-node-exercise" hidden></div>
-    <div class="editor-node-set" hidden></div>
     {% if form.non_field_errors %}
       <p class="errornote">{{ form.non_field_errors }}</p>
     {% endif %}
 
-    <ul id="program-editor-status" class="messagelist" aria-live="polite">
-      <li id="program-editor-status-item" class="info">
-        <strong>Редактор программы.</strong>
-        <span id="program-editor-status-text">Изменения сохраняются после отправки формы.</span>
-        <div id="program-editor-status-actions" class="editor-status-actions"></div>
-      </li>
-    </ul>
-
     <div class="program-editor-shell">
       <aside class="program-editor-sidebar">
-        <details class="module aligned collapse program-editor-meta-card">
-          <summary><span class="fieldset-heading">Программа</span></summary>
-          <div class="program-editor-meta-body">
-            <div class="form-row field-name">
-              {{ form.name.errors }}
-              <div>
-                <div class="flex-container">
-                  {{ form.name.label_tag }}
-                  {{ form.name }}
+        <section class="module">
+          <h2>Структура</h2>
+          <div id="program-structure-sidebar" class="program-structure-sidebar">
+            {% if render_tree.week_selector_form %}
+              <fieldset class="module aligned">
+                {% include "admin/programs/program/_field_row.html" with field=render_tree.week_selector_form.active_week %}
+                <div class="submit-row">
+                  <button type="submit" name="_action" value="select-week">Открыть неделю</button>
                 </div>
-              </div>
-            </div>
-            <div class="form-row field-slug">
-              {{ form.slug.errors }}
-              <div>
-                <div class="flex-container">
-                  {{ form.slug.label_tag }}
-                  {{ form.slug }}
-                </div>
-              </div>
-            </div>
-            <div class="form-row field-description">
-              {{ form.description.errors }}
-              <div>
-                <div class="flex-container">
-                  {{ form.description.label_tag }}
-                  {{ form.description }}
-                </div>
-              </div>
-            </div>
-            <div class="form-row field-owner">
-              {{ form.owner.errors }}
-              <div>
-                <div class="flex-container">
-                  {{ form.owner.label_tag }}
-                  {{ form.owner }}
-                </div>
-              </div>
-            </div>
-            <div class="form-row field-source_program">
-              {{ form.source_program.errors }}
-              <div>
-                <div class="flex-container">
-                  {{ form.source_program.label_tag }}
-                  {{ form.source_program }}
-                </div>
-                <div class="help">Если у программы пока нет своей структуры, редактор подтянет данные из источника.</div>
-              </div>
-            </div>
-          </div>
-          {{ form.one_rep_max_config }}
-          {{ form.structure }}
-        </details>
+              </fieldset>
+            {% endif %}
 
-        <section class="module program-editor-sidebar-panel">
-          <div class="program-editor-panel-header">
-            <h2>Структура</h2>
+            {% if render_tree.active_week %}
+              <section class="editor-week-nav-group">
+                <div class="editor-week-nav-header">
+                  <strong>{{ render_tree.active_week.title|default:"Неделя" }}</strong>
+                  <button type="submit" class="button" name="_action" value="remove-week:{{ render_tree.active_week.id }}">Удалить</button>
+                </div>
+                <div class="editor-day-nav-list">
+                  {% for day in render_tree.active_week.days.all %}
+                    <div class="editor-day-nav-item{% if render_tree.active_day and day.id == render_tree.active_day.id %} is-active{% endif %}">
+                      <a href="?week={{ render_tree.active_week.id }}&day={{ day.id }}">
+                        <strong>{{ day.get_weekday_display }}</strong>
+                        {% if day.title %}
+                          <span>{{ day.title }}</span>
+                        {% endif %}
+                      </a>
+                      <button type="submit" class="button" name="_action" value="remove-day:{{ day.id }}">Удалить</button>
+                    </div>
+                  {% empty %}
+                    <p class="editor-empty-hint">В неделе пока нет дней.</p>
+                  {% endfor %}
+                  <div class="submit-row">
+                    <button type="submit" name="_action" value="add-day:{{ render_tree.active_week.id }}">+ День</button>
+                  </div>
+                </div>
+              </section>
+            {% else %}
+              <p class="editor-empty-hint">Добавьте первую неделю, чтобы собрать структуру программы.</p>
+            {% endif %}
+
             <div class="submit-row">
-              <input type="button" value="+ Неделя" data-action="add-week">
+              <button type="submit" name="_action" value="add-week">+ Неделя</button>
             </div>
           </div>
-          {% if form.structure.errors %}
-            <div class="errornote">{{ form.structure.errors }}</div>
-          {% endif %}
-          <div id="program-structure-sidebar"></div>
         </section>
 
-        <section class="module program-editor-sidebar-panel">
-          <div class="program-editor-panel-header">
-            <h2>Конфиг 1ПМ</h2>
-            <div class="submit-row">
-              <input type="button" value="+ 1ПМ" data-action="add-orm">
-            </div>
-          </div>
-          {% if form.one_rep_max_config.errors %}
-            <div class="errornote">{{ form.one_rep_max_config.errors }}</div>
-          {% endif %}
-          <div id="one-rep-max-editor"></div>
-        </section>
+        <div class="submit-row program-editor-sidebar-save">
+          <input type="submit" class="default" name="_save" value="Сохранить программу">
+        </div>
       </aside>
 
-      <main class="program-editor-main">
-        <section
-          id="program-editor-empty"
-          class="module program-editor-empty-state"
-          {% if editor_state.structure.weeks %}hidden{% endif %}
-        >
-          <h2>Структура программы пока пустая</h2>
-          <p>Добавьте первую неделю, затем соберите дни, упражнения и подходы в одном экране.</p>
-          <div class="submit-row">
-            <input type="button" value="Добавить первую неделю" data-action="add-week">
-          </div>
-        </section>
+      <main class="program-editor-main" id="program-day-editor">
+        {% if render_tree.active_week %}
+          <fieldset class="module aligned program-editor-workspace">
+            <h2>Неделя</h2>
+            {% include "admin/programs/program/_field_row.html" with field=render_tree.active_week_form.title %}
+          </fieldset>
 
-        <section id="program-week-editor"></section>
-        <section id="program-day-editor"></section>
+          {% if render_tree.active_day %}
+            <fieldset class="module aligned program-editor-day-panel" id="day-{{ render_tree.active_day.id }}">
+              <h2>День</h2>
+              {% include "admin/programs/program/_field_row.html" with field=render_tree.active_day_form.weekday %}
+              {% include "admin/programs/program/_field_row.html" with field=render_tree.active_day_form.title %}
+            </fieldset>
+
+            <section class="module">
+              <h2>Упражнения</h2>
+              <div class="editor-card-list">
+                {% for exercise_item in render_tree.exercise_items %}
+                  <fieldset class="module aligned editor-exercise-card">
+                    <h2>Упражнение {{ forloop.counter }}</h2>
+                    {% include "admin/programs/program/_field_row.html" with field=exercise_item.form.exercise %}
+                    {% include "admin/programs/program/_field_row.html" with field=exercise_item.form.one_rep_max_exercise %}
+                    {% include "admin/programs/program/_field_row.html" with field=exercise_item.form.superset_group %}
+                    {% include "admin/programs/program/_field_row.html" with field=exercise_item.form.notes %}
+
+                    <div class="form-row">
+                      <div>
+                        <strong>Подходы</strong>
+                      </div>
+                    </div>
+                    <div class="editor-set-table-wrap">
+                      <table class="editor-set-table">
+                        <thead>
+                          <tr>
+                            <th>Тип</th>
+                            <th>От</th>
+                            <th>До</th>
+                            <th>Повт.</th>
+                            <th>До повт.</th>
+                            <th>Подходов</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for set_form in exercise_item.set_forms %}
+                            <tr class="editor-set-row">
+                              <td>{{ set_form.load_type }}</td>
+                              <td>{{ set_form.load_value }}</td>
+                              <td>{{ set_form.load_value_max }}</td>
+                              <td>{{ set_form.reps }}</td>
+                              <td>{{ set_form.reps_max }}</td>
+                              <td>{{ set_form.sets }}</td>
+                              <td>
+                                <button type="submit" class="button" name="_action" value="remove-set:{{ set_form.instance.id }}">Удалить</button>
+                              </td>
+                            </tr>
+                          {% endfor %}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div class="submit-row">
+                      <button type="submit" name="_action" value="add-set:{{ exercise_item.object.id }}">+ Подход</button>
+                      <button type="submit" name="_action" value="remove-exercise:{{ exercise_item.object.id }}">Удалить упражнение</button>
+                    </div>
+                  </fieldset>
+                {% empty %}
+                  <p class="editor-empty-hint">В этом дне пока нет упражнений.</p>
+                {% endfor %}
+              </div>
+              <div class="submit-row">
+                <button type="submit" name="_action" value="add-exercise:{{ render_tree.active_day.id }}">+ Упражнение</button>
+              </div>
+            </section>
+
+            <section class="module">
+              <h2>Текстовые блоки</h2>
+              <div class="editor-card-list">
+                {% for text_item in render_tree.text_block_items %}
+                  <fieldset class="module aligned editor-text-card">
+                    <h2>Текстовый блок {{ forloop.counter }}</h2>
+                    {% include "admin/programs/program/_field_row.html" with field=text_item.form.kind %}
+                    {% include "admin/programs/program/_field_row.html" with field=text_item.form.content %}
+                    <div class="submit-row">
+                      <button type="submit" name="_action" value="remove-text-block:{{ text_item.object.id }}">Удалить текстовый блок</button>
+                    </div>
+                  </fieldset>
+                {% empty %}
+                  <p class="editor-empty-hint">Для этого дня пока нет текстовых блоков.</p>
+                {% endfor %}
+              </div>
+              <div class="submit-row">
+                <button type="submit" name="_action" value="add-text-block:{{ render_tree.active_day.id }}">+ Текстовый блок</button>
+              </div>
+            </section>
+          {% else %}
+            <section class="module program-editor-empty-state">
+              <h2>В неделе пока нет дней</h2>
+              <p>Добавьте день, затем откройте его из сайдбара.</p>
+            </section>
+          {% endif %}
+        {% else %}
+          <section class="module program-editor-empty-state">
+            <h2>Структура программы пока пустая</h2>
+            <p>Добавьте первую неделю, затем соберите дни, упражнения и подходы.</p>
+          </section>
+        {% endif %}
       </main>
     </div>
-
-    <div class="submit-row">
-      <input type="submit" value="Сохранить программу" class="default">
-      <a href="{% url 'admin:programs_program_change' original.pk %}" class="closelink">Назад к карточке</a>
-    </div>
   </form>
-
-  <template id="program-editor-field-row-template">
-    <div class="form-row">
-      <div>
-        <div class="flex-container">
-          <label></label>
-        </div>
-      </div>
-    </div>
-  </template>
 </div>
-
-<script src="{% static 'admin/programs/program_editor.js' %}"></script>
 {% endblock %}

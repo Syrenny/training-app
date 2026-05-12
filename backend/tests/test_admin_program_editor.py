@@ -260,32 +260,35 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="program-editor-form"', html=False)
         self.assertContains(response, "admin/programs/program_editor.css")
-        self.assertContains(response, "admin/programs/program_editor.js")
         self.assertContains(response, 'id="program-structure-sidebar"', html=False)
         self.assertContains(response, 'id="program-day-editor"', html=False)
 
-    def test_program_editor_renders_week_tabs_when_program_has_weeks(self):
+    def test_program_editor_renders_week_sections_when_program_has_weeks(self):
         week = Week.objects.create(program=self.program, number=1, title="Первая неделя")
         Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="День")
 
         response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="program-week-tabs"', html=False)
+        self.assertContains(response, 'value="1"', html=False)
         self.assertContains(response, "Первая неделя")
 
-    def test_program_editor_renders_day_tabs_within_week(self):
+    def test_program_editor_renders_day_navigation_and_single_open_day(self):
         week = Week.objects.create(program=self.program, number=1, title="Первая неделя")
-        Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="Понедельник")
-        Day.objects.create(week=week, weekday=Weekday.WED, order=2, title="Среда")
+        monday = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="Понедельник")
+        wednesday = Day.objects.create(week=week, weekday=Weekday.WED, order=2, title="Среда")
 
         response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="program-day-tabs"', html=False)
-        self.assertContains(response, 'data-action="select-day"', html=False)
+        self.assertContains(response, f'?week={week.id}&day={monday.id}', html=False)
+        self.assertContains(response, f'?week={week.id}&day={wednesday.id}', html=False)
+        self.assertContains(response, f'id="day-{monday.id}"', html=False)
+        self.assertNotContains(response, f'id="day-{wednesday.id}"', html=False)
+        self.assertContains(response, "Понедельник")
+        self.assertContains(response, "Среда")
 
-    def test_program_editor_renders_visual_hierarchy_classes(self):
+    def test_program_editor_renders_server_side_hierarchy_classes(self):
         exercise = Exercise.objects.create(name="Жим стоя", category=ExerciseCategory.BENCH)
         week = Week.objects.create(program=self.program, number=1, title="Неделя")
         day = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="День")
@@ -302,9 +305,9 @@ class ProgramEditorAdminViewTest(TestCase):
         response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "editor-node-day")
-        self.assertContains(response, "editor-node-exercise")
-        self.assertContains(response, "editor-node-set")
+        self.assertContains(response, "editor-exercise-card")
+        self.assertContains(response, "editor-set-row")
+        self.assertContains(response, "editor-day-nav-item")
 
     def test_change_form_clones_source_program_for_empty_program(self):
         exercise = Exercise.objects.create(name="Становая", category=ExerciseCategory.DEADLIFT)

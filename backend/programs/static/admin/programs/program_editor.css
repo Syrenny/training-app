@@ -8,8 +8,10 @@
 .program-editor-shell {
   display: grid;
   grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+  height: calc(100dvh - 220px);
+  min-height: 0;
   gap: var(--editor-gap-lg);
-  align-items: start;
+  align-items: stretch;
 }
 
 .program-editor-sidebar,
@@ -20,8 +22,19 @@
   gap: var(--editor-gap-md);
 }
 
+.program-editor-sidebar {
+  min-height: 0;
+}
+
 .program-editor-main {
   min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.program-editor-sidebar-save {
+  margin-top: auto;
 }
 
 #program-editor-status {
@@ -71,9 +84,12 @@
 
 #program-editor-form .editor-status-actions .button,
 #program-editor-form .editor-week-nav-actions .button,
+#program-editor-form .editor-week-nav-header > .button,
+#program-editor-form .editor-day-nav-item > .button,
 #program-editor-form .editor-inline-actions .button,
 #program-editor-form .editor-inline-actions input[type="button"],
-#program-editor-form .submit-row input[type="button"] {
+#program-editor-form .submit-row input[type="button"],
+#program-editor-form .submit-row button:not(.default) {
   background: transparent;
   color: var(--link-fg);
   border: 0;
@@ -91,12 +107,18 @@
 #program-editor-form .editor-status-actions .button:focus,
 #program-editor-form .editor-week-nav-actions .button:hover,
 #program-editor-form .editor-week-nav-actions .button:focus,
+#program-editor-form .editor-week-nav-header > .button:hover,
+#program-editor-form .editor-week-nav-header > .button:focus,
+#program-editor-form .editor-day-nav-item > .button:hover,
+#program-editor-form .editor-day-nav-item > .button:focus,
 #program-editor-form .editor-inline-actions .button:hover,
 #program-editor-form .editor-inline-actions .button:focus,
 #program-editor-form .editor-inline-actions input[type="button"]:hover,
 #program-editor-form .editor-inline-actions input[type="button"]:focus,
 #program-editor-form .submit-row input[type="button"]:hover,
-#program-editor-form .submit-row input[type="button"]:focus {
+#program-editor-form .submit-row input[type="button"]:focus,
+#program-editor-form .submit-row button:not(.default):hover,
+#program-editor-form .submit-row button:not(.default):focus {
   background: transparent;
   color: var(--link-hover-color);
 }
@@ -113,25 +135,17 @@
   box-shadow: inset 3px 0 0 var(--border-color);
 }
 
-.editor-week-nav-button,
-.editor-day-nav-button {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  font: inherit;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
+.editor-week-nav-header a,
+.editor-day-nav-item a {
+  color: var(--body-fg);
+  text-decoration: none;
 }
 
-.editor-week-nav-button strong,
-.editor-day-nav-button strong {
+.editor-week-nav-header a strong,
+.editor-day-nav-item a strong {
   display: block;
 }
 
-.editor-week-nav-button span,
-.editor-day-nav-button span,
 .program-editor-note,
 .editor-empty-hint {
   color: var(--body-quiet-color);
@@ -203,6 +217,12 @@
 @media (max-width: 1200px) {
   .program-editor-shell {
     grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .program-editor-main {
+    overflow-y: visible;
+    padding-right: 0;
   }
 }
 
