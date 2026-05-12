@@ -3,17 +3,13 @@ from django.contrib import admin, messages
 from django.db.models import Count
 from django.http import Http404
 from django.template.response import TemplateResponse
-from django.urls import path
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.http import urlencode
-from adminsortable2.admin import SortableAdminBase, SortableInlineAdminMixin, SortableTabularInline
-import nested_admin
+from adminsortable2.admin import SortableAdminBase
 
 from .admin_program_editor import ProgramEditorForm, build_program_editor_state
 from .models import (
-    AccessoryWeight,
-    CycleOneRepMax,
     Day,
     DayExercise,
     DayTextBlock,
@@ -21,14 +17,10 @@ from .models import (
     Exercise,
     ExerciseSet,
     LoadType,
-    OneRepMax,
     Program,
     ProgramOneRepMaxExercise,
-    TrainingCycle,
-    UserProfile,
     Week,
     Weekday,
-    WorkoutCompletion,
 )
 from .program_clone import clone_program_structure, duplicate_program
 
@@ -39,155 +31,17 @@ def changelist_link(url_name, label, filters):
     return format_html('<a href="{}?{}">{}</a>', url, query, label)
 
 
-class ProgramOneRepMaxExerciseInline(SortableInlineAdminMixin, admin.TabularInline):
-    model = ProgramOneRepMaxExercise
-    extra = 0
-    fields = ["order", "exercise", "label"]
-    ordering = ["order", "id"]
-    autocomplete_fields = ["exercise"]
-
-
-class WeekInline(SortableInlineAdminMixin, admin.TabularInline):
-    model = Week
-    extra = 0
-    fields = ["number", "title"]
-    ordering = ["number"]
-    show_change_link = True
-
-
-class DayInline(SortableInlineAdminMixin, admin.TabularInline):
-    model = Day
-    extra = 0
-    fields = ["weekday", "order", "title"]
-    ordering = ["order"]
-    show_change_link = True
-
-
-class DayTextBlockInline(SortableInlineAdminMixin, admin.TabularInline):
-    model = DayTextBlock
-    extra = 0
-    fields = ["order", "kind", "content"]
-    ordering = ["order", "id"]
-
-
-class ExerciseSetInline(SortableInlineAdminMixin, admin.TabularInline):
-    model = ExerciseSet
-    extra = 0
-    fields = [
-        "order",
-        "load_type",
-        "load_value",
-        "load_value_max",
-        "reps",
-        "reps_max",
-        "sets",
-    ]
-    ordering = ["order"]
-
-
-class DayExerciseInlineForm(forms.ModelForm):
+class DayExerciseAdminForm(forms.ModelForm):
     class Meta:
         model = DayExercise
-        fields = ["order", "exercise", "one_rep_max_exercise", "notes"]
+        fields = ["day", "order", "exercise", "one_rep_max_exercise", "superset_group", "notes"]
         widgets = {
             "notes": forms.Textarea(attrs={"rows": 1}),
         }
 
 
-class DayExerciseInline(SortableTabularInline):
-    model = DayExercise
-    form = DayExerciseInlineForm
-    extra = 0
-    fields = ["order_index", "exercise", "one_rep_max_exercise", "notes", "edit_link"]
-    ordering = ["order"]
-    readonly_fields = ["order_index", "edit_link"]
-
-    def get_formset(self, request, obj=None, **kwargs):
-        formset = super().get_formset(request, obj, **kwargs)
-        for field_name in ("exercise", "one_rep_max_exercise"):
-            if field_name not in formset.form.base_fields:
-                continue
-            widget = formset.form.base_fields[field_name].widget
-            for attr_name in (
-                "can_add_related",
-                "can_change_related",
-                "can_delete_related",
-                "can_view_related",
-            ):
-                if hasattr(widget, attr_name):
-                    setattr(widget, attr_name, False)
-        return formset
-
-    @admin.display(description="Порядок", ordering="order")
-    def order_index(self, obj):
-        if not obj.pk:
-            return ""
-        return obj.order
-
-    @admin.display(description="")
-    def edit_link(self, obj):
-        if not obj.pk:
-            return ""
-        return format_html(
-            '<a class="button" href="{}">Изменить</a>',
-            reverse("admin:programs_dayexercise_change", args=[obj.pk]),
-        )
-
-
-class NestedProgramOneRepMaxExerciseInline(nested_admin.NestedTabularInline):
-    model = ProgramOneRepMaxExercise
-    extra = 0
-    fields = ["order", "exercise", "label"]
-    ordering = ["order", "id"]
-    sortable_field_name = "order"
-
-
-class NestedExerciseSetInline(nested_admin.NestedTabularInline):
-    model = ExerciseSet
-    extra = 0
-    fields = ["order", "load_type", "load_value", "load_value_max", "reps", "reps_max", "sets"]
-    ordering = ["order"]
-    sortable_field_name = "order"
-
-
-class NestedDayTextBlockInline(nested_admin.NestedTabularInline):
-    model = DayTextBlock
-    extra = 0
-    fields = ["order", "kind", "content"]
-    ordering = ["order", "id"]
-    sortable_field_name = "order"
-
-
-class NestedDayExerciseInline(nested_admin.NestedTabularInline):
-    model = DayExercise
-    form = DayExerciseInlineForm
-    extra = 0
-    fields = ["order", "exercise", "one_rep_max_exercise", "notes"]
-    ordering = ["order"]
-    sortable_field_name = "order"
-    inlines = [NestedExerciseSetInline]
-
-
-class NestedDayInline(nested_admin.NestedStackedInline):
-    model = Day
-    extra = 0
-    fields = ["weekday", "order", "title"]
-    ordering = ["order"]
-    sortable_field_name = "order"
-    inlines = [NestedDayExerciseInline, NestedDayTextBlockInline]
-
-
-class NestedWeekInline(nested_admin.NestedStackedInline):
-    model = Week
-    extra = 0
-    fields = ["number", "title"]
-    ordering = ["number"]
-    sortable_field_name = "number"
-    inlines = [NestedDayInline]
-
-
 @admin.register(Program)
-class ProgramAdmin(nested_admin.NestedModelAdmin):
+class ProgramAdmin(admin.ModelAdmin):
     list_display = [
         "name",
         "owner",
@@ -201,13 +55,7 @@ class ProgramAdmin(nested_admin.NestedModelAdmin):
     search_fields = ["name", "slug", "description", "owner__user__username", "owner__telegram_username"]
     prepopulated_fields = {"slug": ("name",)}
     actions = ["duplicate_selected_programs"]
-    autocomplete_fields = ["owner", "source_program"]
-    inlines = [NestedProgramOneRepMaxExerciseInline, NestedWeekInline]
-
-    fieldsets = (
-        (None, {"fields": ("name", "slug", "description")}),
-        ("Источник", {"fields": ("owner", "source_program")}),
-    )
+    autocomplete_fields = ["source_program"]
 
     def get_urls(self):
         urls = super().get_urls()
@@ -219,6 +67,21 @@ class ProgramAdmin(nested_admin.NestedModelAdmin):
             ),
         ]
         return custom_urls + urls
+
+    def get_fieldsets(self, request, obj=None):
+        fieldsets = [
+            (None, {"fields": ("name", "slug", "description")}),
+            ("Источник", {"fields": ("owner", "source_program")}),
+        ]
+        if obj is not None:
+            fieldsets.append(("Редактор", {"fields": ("editor_link",)}))
+        return fieldsets
+
+    def get_readonly_fields(self, request, obj=None):
+        readonly_fields = list(super().get_readonly_fields(request, obj))
+        if obj is not None:
+            readonly_fields.append("editor_link")
+        return readonly_fields
 
     def editor_view(self, request, object_id):
         program = self.get_object(request, object_id)
@@ -298,6 +161,15 @@ class ProgramAdmin(nested_admin.NestedModelAdmin):
             {"program__id__exact": obj.id},
         )
 
+    @admin.display(description="Единый редактор")
+    def editor_link(self, obj):
+        if not obj.pk:
+            return "Сохраните программу, чтобы открыть редактор."
+        return format_html(
+            '<a class="button" href="{}">Открыть редактор программы</a>',
+            reverse("admin:programs_program_editor", args=[obj.pk]),
+        )
+
     @admin.action(description="Дублировать программу целиком")
     def duplicate_selected_programs(self, request, queryset):
         created = 0
@@ -312,11 +184,7 @@ class ProgramAdmin(nested_admin.NestedModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        if (
-            obj.source_program_id
-            and not obj.weeks.exists()
-            and not obj.one_rep_max_exercises.exists()
-        ):
+        if obj.source_program_id and not obj.weeks.exists() and not obj.one_rep_max_exercises.exists():
             clone_program_structure(obj.source_program, obj)
             self.message_user(
                 request,
@@ -326,10 +194,11 @@ class ProgramAdmin(nested_admin.NestedModelAdmin):
 
 
 @admin.register(ProgramOneRepMaxExercise)
-class ProgramOneRepMaxExerciseAdmin(admin.ModelAdmin):
+class ProgramOneRepMaxExerciseAdmin(SortableAdminBase, admin.ModelAdmin):
     list_display = ["program", "exercise", "label", "order"]
     search_fields = ["program__name", "exercise__name", "label"]
     ordering = ["program__name", "order", "id"]
+    autocomplete_fields = ["program", "exercise"]
 
 
 @admin.register(Week)
@@ -337,7 +206,7 @@ class WeekAdmin(SortableAdminBase, admin.ModelAdmin):
     list_display = ["program", "number", "title", "days_link"]
     search_fields = ["program__name", "title"]
     ordering = ["program__name", "number"]
-    inlines = [DayInline]
+    autocomplete_fields = ["program"]
 
     @admin.display(description="Дни")
     def days_link(self, obj):
@@ -353,7 +222,7 @@ class DayAdmin(SortableAdminBase, admin.ModelAdmin):
     list_display = ["program_name", "week", "weekday", "title", "order", "exercises_link"]
     search_fields = ["title", "week__program__name"]
     ordering = ["week__program__name", "week__number", "order"]
-    inlines = [DayExerciseInline, DayTextBlockInline]
+    autocomplete_fields = ["week"]
 
     class Media:
         css = {"all": ("admin/programs/day_admin.css",)}
@@ -372,10 +241,11 @@ class DayAdmin(SortableAdminBase, admin.ModelAdmin):
 
 
 @admin.register(DayTextBlock)
-class DayTextBlockAdmin(admin.ModelAdmin):
+class DayTextBlockAdmin(SortableAdminBase, admin.ModelAdmin):
     list_display = ["day", "kind", "order", "short_content"]
     search_fields = ["content", "day__week__program__name"]
     ordering = ["day__week__program__name", "day__week__number", "day__order", "order"]
+    autocomplete_fields = ["day"]
 
     @admin.display(description="Текст")
     def short_content(self, obj):
@@ -392,10 +262,11 @@ class ExerciseAdmin(admin.ModelAdmin):
 
 @admin.register(DayExercise)
 class DayExerciseAdmin(SortableAdminBase, admin.ModelAdmin):
+    form = DayExerciseAdminForm
     list_display = ["day", "exercise", "one_rep_max_exercise", "order", "superset_display"]
     search_fields = ["day__week__program__name", "exercise__name", "notes"]
     ordering = ["day__week__program__name", "day__week__number", "day__order", "order"]
-    inlines = [ExerciseSetInline]
+    autocomplete_fields = ["day", "exercise", "one_rep_max_exercise"]
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("day__week__program", "exercise", "one_rep_max_exercise")
@@ -427,7 +298,7 @@ class DayExerciseAdmin(SortableAdminBase, admin.ModelAdmin):
 
 
 @admin.register(ExerciseSet)
-class ExerciseSetAdmin(admin.ModelAdmin):
+class ExerciseSetAdmin(SortableAdminBase, admin.ModelAdmin):
     list_display = [
         "day_exercise",
         "load_type",
@@ -440,44 +311,4 @@ class ExerciseSetAdmin(admin.ModelAdmin):
     ]
     search_fields = ["day_exercise__day__week__program__name", "day_exercise__exercise__name"]
     ordering = ["day_exercise__day__week__program__name", "day_exercise__day__week__number", "order"]
-
-
-@admin.register(UserProfile)
-class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ["user", "telegram_id", "telegram_username", "selected_program"]
-    search_fields = ["user__username", "telegram_username", "first_name", "last_name", "telegram_id"]
-
-
-@admin.register(OneRepMax)
-class OneRepMaxAdmin(admin.ModelAdmin):
-    list_display = ["telegram_id", "program", "exercise", "value"]
-    search_fields = ["telegram_id", "program__name", "exercise__name"]
-    ordering = ["telegram_id", "program__name", "exercise__name"]
-
-
-@admin.register(WorkoutCompletion)
-class WorkoutCompletionAdmin(admin.ModelAdmin):
-    list_display = ["telegram_id", "cycle", "program", "week_number", "weekday", "completed_at"]
-    search_fields = ["telegram_id", "program__name"]
-    ordering = ["-completed_at"]
-
-
-@admin.register(AccessoryWeight)
-class AccessoryWeightAdmin(admin.ModelAdmin):
-    list_display = ["telegram_id", "exercise", "weight", "sets_display", "recorded_date", "week"]
-    search_fields = ["telegram_id", "exercise__name"]
-    ordering = ["-recorded_date"]
-
-
-@admin.register(TrainingCycle)
-class TrainingCycleAdmin(admin.ModelAdmin):
-    list_display = ["telegram_id", "program", "started_at", "completed_at"]
-    search_fields = ["telegram_id", "program__name", "completion_feeling"]
-    ordering = ["-started_at"]
-
-
-@admin.register(CycleOneRepMax)
-class CycleOneRepMaxAdmin(admin.ModelAdmin):
-    list_display = ["cycle", "exercise", "label", "value"]
-    search_fields = ["cycle__program__name", "exercise__name", "label"]
-    ordering = ["-cycle_id", "exercise__name"]
+    autocomplete_fields = ["day_exercise"]

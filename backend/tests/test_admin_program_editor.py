@@ -259,6 +259,10 @@ class ProgramEditorAdminViewTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="program-editor-form"', html=False)
+        self.assertContains(response, "admin/programs/program_editor.css")
+        self.assertContains(response, "admin/programs/program_editor.js")
+        self.assertContains(response, 'id="program-structure-sidebar"', html=False)
+        self.assertContains(response, 'id="program-day-editor"', html=False)
 
     def test_program_editor_renders_week_tabs_when_program_has_weeks(self):
         week = Week.objects.create(program=self.program, number=1, title="Первая неделя")
@@ -352,12 +356,13 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertEqual(target_program.weeks.count(), 1)
         self.assertEqual(target_program.one_rep_max_exercises.count(), 1)
 
-    def test_program_change_form_uses_standard_inlines(self):
+    def test_program_change_form_links_to_unified_editor(self):
         response = self.client.get(reverse("admin:programs_program_change", args=[self.program.pk]))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Упражнения 1ПМ программы")
-        self.assertContains(response, "Недели")
+        self.assertContains(response, "Единый редактор")
+        self.assertContains(response, "Открыть редактор программы")
+        self.assertContains(response, reverse("admin:programs_program_editor", args=[self.program.pk]))
 
     def test_day_exercise_changelist_hides_redundant_columns_for_single_day(self):
         exercise = Exercise.objects.create(name="Тестовый жим", category=ExerciseCategory.BENCH)
@@ -389,7 +394,7 @@ class ProgramEditorAdminViewTest(TestCase):
         )
         self.assertContains(response, "Открыть упражнения")
 
-    def test_day_change_form_hides_related_object_action_links_for_exercise_fields(self):
+    def test_day_change_form_is_now_flat_without_inline_exercises(self):
         exercise = Exercise.objects.create(name="Тестовая тяга", category=ExerciseCategory.DEADLIFT)
         week = Week.objects.create(program=self.program, number=1, title="Неделя")
         day = Day.objects.create(week=week, weekday=Weekday.WED, order=1, title="День тяги")
@@ -407,5 +412,5 @@ class ProgramEditorAdminViewTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "admin/programs/day_admin.css")
-        self.assertContains(response, reverse("admin:programs_dayexercise_change", args=[day_exercise.pk]))
-        self.assertContains(response, ">Изменить<", html=False)
+        self.assertNotContains(response, reverse("admin:programs_dayexercise_change", args=[day_exercise.pk]))
+        self.assertNotContains(response, ">Изменить<", html=False)
