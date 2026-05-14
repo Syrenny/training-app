@@ -9,7 +9,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-interface InfoSectionData {
+export interface InfoSectionData {
   title: string;
   content: ReactNode;
 }
@@ -29,7 +29,7 @@ function Section({
   );
 }
 
-const PROGRAM_INFO_SECTIONS: InfoSectionData[] = [
+const PROGRAM_INFO_SECTIONS: ReadonlyArray<InfoSectionData> = [
   {
     title: "Обозначения подходов",
     content: (
@@ -101,7 +101,7 @@ const PROGRAM_INFO_SECTIONS: InfoSectionData[] = [
 
 interface InfoButtonProps {
   sheetTitle?: string;
-  sections?: InfoSectionData[];
+  sections?: ReadonlyArray<InfoSectionData>;
 }
 
 export function InfoButton({
