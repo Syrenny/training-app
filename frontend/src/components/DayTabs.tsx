@@ -14,12 +14,14 @@ interface DayTabsProps {
 	weekNumber: number
 	days: DayData[]
 	showCompletionControls?: boolean
+	onOpenWarmup: () => void
 }
 
 export function DayTabs({
 	weekNumber,
 	days,
 	showCompletionControls = true,
+	onOpenWarmup,
 }: DayTabsProps) {
 	const selectedDay = useProgramStore(s => s.selectedDay)
 	const setDay = useProgramStore(s => s.setDay)
@@ -27,8 +29,6 @@ export function DayTabs({
 
 	const swiperRef = useRef<SwiperType | null>(null)
 	const programmatic = useRef(false)
-	const daysRef = useRef(days)
-	daysRef.current = days
 
 	const {
 		containerRef,
@@ -54,10 +54,10 @@ export function DayTabs({
 				programmatic.current = false
 				return
 			}
-			const day = daysRef.current[swiper.activeIndex]
+			const day = days[swiper.activeIndex]
 			if (day) setDay(day.weekday)
 		},
-		[setDay],
+		[days, setDay],
 	)
 
 	const handleTouchMove = useCallback(
@@ -68,7 +68,7 @@ export function DayTabs({
 	)
 
 	const handleTouchEnd = useCallback(
-		async (_swiper: SwiperType) => {
+		async () => {
 			if (!programmatic.current) await onTouchEnd()
 		},
 		[onTouchEnd],
@@ -76,7 +76,7 @@ export function DayTabs({
 
 	const handleTabClick = useCallback(
 		(day: string) => {
-			const index = daysRef.current.findIndex(d => d.weekday === day)
+			const index = days.findIndex(d => d.weekday === day)
 			if (
 				index !== -1 &&
 				swiperRef.current &&
@@ -87,7 +87,7 @@ export function DayTabs({
 			}
 			setDay(day)
 		},
-		[setDay],
+		[days, setDay],
 	)
 
 	useEffect(() => {
@@ -152,6 +152,7 @@ export function DayTabs({
 													textBlocks={day.text_blocks}
 													weekNumber={weekNumber}
 													weekday={day.weekday}
+													onOpenWarmup={onOpenWarmup}
 													showCompletionControl={
 														showCompletionControls
 													}

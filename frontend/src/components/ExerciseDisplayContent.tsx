@@ -29,6 +29,7 @@ interface ExerciseDisplayContentProps {
 	badges?: ReactNode
 	footer?: ReactNode
 	showAccessoryWeight?: boolean
+	showCategoryLabel?: boolean
 	className?: string
 	nameClassName?: string
 	setsClassName?: string
@@ -41,6 +42,7 @@ export function ExerciseDisplayContent({
 	badges,
 	footer,
 	showAccessoryWeight = true,
+	showCategoryLabel = true,
 	className,
 	nameClassName,
 	setsClassName,
@@ -63,9 +65,11 @@ export function ExerciseDisplayContent({
 				<span className={cn('font-semibold', nameClassName)}>
 					{exercise.name}
 				</span>
-				<span className='text-muted-foreground ml-auto shrink-0 text-xs'>
-					{categoryLabels[exercise.category] ?? exercise.category}
-				</span>
+				{showCategoryLabel ? (
+					<span className='text-muted-foreground ml-auto shrink-0 text-xs'>
+						{categoryLabels[exercise.category] ?? exercise.category}
+					</span>
+				) : null}
 			</div>
 
 			{badge_items.length > 0 && (

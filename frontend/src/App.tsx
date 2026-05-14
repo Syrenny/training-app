@@ -5,6 +5,7 @@ import { fetchSession, loginWithTelegram, logoutSession } from "@/lib/api";
 import { getTelegram, initTelegram, isTelegramContext } from "@/lib/telegram";
 import { ProgramPage } from "@/pages/ProgramPage";
 import { ProfilePage } from "@/pages/ProfilePage";
+import { WarmupPage } from "@/pages/WarmupPage";
 import { BottomTabBar, type AppTab } from "@/components/BottomTabBar";
 import { UnauthorizedScreen } from "@/components/UnauthorizedScreen";
 
@@ -56,7 +57,7 @@ function loadCachedTab(): AppTab {
   }
 
   const raw = window.sessionStorage.getItem(TAB_CACHE_KEY);
-  return raw === "home" || raw === "profile" ? raw : "home";
+  return raw === "home" || raw === "warmup" || raw === "profile" ? raw : "home";
 }
 
 function cacheTab(tab: AppTab) {
@@ -79,7 +80,7 @@ function App() {
 
   useEffect(() => {
     return initTelegram();
-  }, []);
+  }, [inTelegram]);
 
   useEffect(() => {
     cacheTab(screen);
@@ -243,7 +244,10 @@ function App() {
     >
       <div className="min-h-0 flex flex-1 flex-col overflow-hidden">
         <div className={screen === "home" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
-          <ProgramPage user={user} />
+          <ProgramPage onOpenWarmup={() => setScreen("warmup")} />
+        </div>
+        <div className={screen === "warmup" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
+          <WarmupPage />
         </div>
         <div className={screen === "profile" ? "flex min-h-0 flex-1 flex-col" : "hidden"}>
           <ProfilePage user={user} onLogout={handleLogout} />

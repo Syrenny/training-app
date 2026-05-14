@@ -1,7 +1,7 @@
-import { Button } from "@/components/ui/button"
-import { Dumbbell, UserRound } from "lucide-react"
+import { Button } from "@/components/ui/button";
+import { Dumbbell, Flame, UserRound } from "lucide-react";
 
-export type AppTab = "home" | "profile";
+export type AppTab = "home" | "warmup" | "profile";
 
 interface BottomTabBarProps {
   activeTab: AppTab;
@@ -10,12 +10,13 @@ interface BottomTabBarProps {
 
 const TABS: Array<{ id: AppTab; label: string; icon: typeof Dumbbell }> = [
   { id: "home", label: "Главная", icon: Dumbbell },
+  { id: "warmup", label: "Разминка", icon: Flame },
   { id: "profile", label: "Профиль", icon: UserRound },
 ];
 
 export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
   return (
-    <div className="fixed bottom-2 left-0 right-0 z-50 px-20">
+    <div className="fixed bottom-2 left-0 right-0 z-50 px-4">
       <div
         className="
           glass-surface
@@ -34,18 +35,13 @@ export function BottomTabBar({ activeTab, onChange }: BottomTabBarProps) {
                 key={tab.id}
                 variant="ghost"
                 className={`
-                    relative h-12 flex-1 flex-col gap-1 rounded-full
-                    hover:!bg-transparent dark:hover:!bg-transparent
-                    hover:!text-inherit dark:hover:!text-inherit
-
-                    ${active ? `
-                    glass-surface-active text-foreground
-                    ` : `
-                    text-muted-foreground
-                    `}
+                  relative h-12 flex-1 flex-col gap-1 rounded-full
+                  hover:!bg-transparent dark:hover:!bg-transparent
+                  hover:!text-inherit dark:hover:!text-inherit
+                  ${active ? "glass-surface-active text-foreground" : "text-muted-foreground"}
                 `}
                 onClick={() => onChange(tab.id)}
-                >
+              >
                 <Icon className="h-4 w-4" />
                 <span className="text-[11px]">{tab.label}</span>
               </Button>

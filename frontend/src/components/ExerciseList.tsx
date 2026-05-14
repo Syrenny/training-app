@@ -4,6 +4,8 @@ import { completionKey, useProgramStore } from '@/lib/store'
 import { CompletionButton } from './CompletionButton'
 import { ExerciseCard } from './ExerciseCard'
 import { SupersetCard } from './SupersetCard'
+import { TextBlockItem } from './TextBlockItem'
+import { WarmupTeaserCard } from './WarmupTeaserCard'
 import { WorkoutSummaryCard } from './WorkoutSummaryCard'
 
 type ExerciseItem =
@@ -52,6 +54,7 @@ interface ExerciseListProps {
 	textBlocks: DayTextBlockData[]
 	weekNumber: number
 	weekday: string
+	onOpenWarmup: () => void
 	showCompletionControl?: boolean
 }
 
@@ -61,6 +64,7 @@ export function ExerciseList({
 	textBlocks,
 	weekNumber,
 	weekday,
+	onOpenWarmup,
 	showCompletionControl = true,
 }: ExerciseListProps) {
 	const completions = useProgramStore(s => s.completions)
@@ -74,28 +78,14 @@ export function ExerciseList({
 		<div>
 			<Card className='mb-5 mt-25 gap-0 rounded-2xl border-transparent bg-transparent py-0 shadow-none'>
 				<CardContent className='px-0 py-3'>
-					{title || showCompletionControl ? (
-						<div className='flex justify-between'>
+					<div className='flex items-center justify-between gap-3'>
+						<div className='min-w-0 flex-1'>
 							{title ? (
-								<p className='mb-2 text-md font-semibold text-muted-foreground'>
+								<p className='text-md font-semibold text-muted-foreground'>
 									{title}
 								</p>
-							) : (
-								<div />
-							)}
-							{showCompletionControl ? (
-								<CompletionButton
-									completed={isCompleted}
-									completionDate={completionDate}
-									onToggle={() =>
-										toggleCompletion(weekNumber, weekday)
-									}
-								/>
 							) : null}
-						</div>
-					) : null}
-					<div className='flex items-start justify-start gap-3'>
-						<div className='min-w-0 flex-1'>
+							<div className={title ? 'mt-2' : ''}>
 							{exercises.length > 0 ? (
 								<WorkoutSummaryCard exercises={exercises} />
 							) : (
@@ -103,46 +93,55 @@ export function ExerciseList({
 									В этой тренировке пока нет упражнений.
 								</p>
 							)}
+							</div>
 						</div>
+						{showCompletionControl ? (
+							<CompletionButton
+								completed={isCompleted}
+								completionDate={completionDate}
+								onToggle={() =>
+									toggleCompletion(weekNumber, weekday)
+								}
+							/>
+						) : null}
 					</div>
 				</CardContent>
 			</Card>
+
+			<div className='divide-y divide-border/70 border-y border-border/70'>
+				<WarmupTeaserCard onOpen={onOpenWarmup} />
+				{exercises.length > 0
+					? groupExercises(exercises).map(item =>
+							item.type === 'single' ? (
+								<ExerciseCard
+									key={item.exercise.slot_key}
+									dayExercise={item.exercise}
+									displayOrder={item.displayOrder}
+								/>
+							) : (
+								<SupersetCard
+									key={`ss-${item.group}`}
+									exercises={item.exercises}
+									displayOrder={item.displayOrder}
+								/>
+							),
+						)
+					: null}
+			</div>
+
 			{exercises.length === 0 ? (
 				<p className='text-muted-foreground text-center py-8'>
 					Нет упражнений
 				</p>
-			) : (
-				<div className='divide-y divide-border/70 border-y border-border/70'>
-					{groupExercises(exercises).map(item =>
-						item.type === 'single' ? (
-							<ExerciseCard
-								key={item.exercise.slot_key}
-								dayExercise={item.exercise}
-								displayOrder={item.displayOrder}
-							/>
-						) : (
-							<SupersetCard
-								key={`ss-${item.group}`}
-								exercises={item.exercises}
-								displayOrder={item.displayOrder}
-							/>
-						),
-					)}
-				</div>
-			)}
+			) : null}
 			{textBlocks.length > 0 ? (
 				<div className='mt-4 space-y-3'>
 					{textBlocks.map((block, index) => (
-						<div
+						<TextBlockItem
 							key={`${block.kind}:${index}`}
-							className={
-								block.kind === 'REST'
-									? 'rounded-2xl bg-muted px-4 py-3 text-sm font-medium text-foreground'
-									: 'rounded-2xl bg-green-600/15 px-4 py-3 text-sm text-foreground'
-							}
-						>
-							{block.content}
-						</div>
+							kind={block.kind}
+							content={block.content}
+						/>
 					))}
 				</div>
 			) : null}

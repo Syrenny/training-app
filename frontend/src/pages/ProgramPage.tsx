@@ -1,4 +1,3 @@
-import type { AuthUser } from "@/lib/api";
 import { useEffect } from "react";
 import { useProgramStore } from "@/lib/store";
 import { DayTabs } from "@/components/DayTabs";
@@ -7,10 +6,10 @@ import { PageHeaderOverlay } from "@/components/PageHeaderOverlay";
 import { WeekSelector } from "@/components/WeekSelector";
 
 interface ProgramPageProps {
-  user: AuthUser | null;
+  onOpenWarmup: () => void;
 }
 
-export function ProgramPage({ user: _user }: ProgramPageProps) {
+export function ProgramPage({ onOpenWarmup }: ProgramPageProps) {
   const selectedWeek = useProgramStore((s) => s.selectedWeek);
   const loading = useProgramStore((s) => s.loading);
   const error = useProgramStore((s) => s.error);
@@ -66,14 +65,13 @@ export function ProgramPage({ user: _user }: ProgramPageProps) {
         </div>
       )}
 
-      <div
-        className={`flex flex-col flex-1 min-h-0 px-4`}
-      >
+      <div className="flex flex-1 min-h-0 flex-col px-4">
         {weekData ? (
           <DayTabs
             weekNumber={weekData.number}
             days={weekData.days}
             showCompletionControls
+            onOpenWarmup={onOpenWarmup}
           />
         ) : null}
       </div>
