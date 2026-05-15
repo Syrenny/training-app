@@ -11,9 +11,15 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key-change-me")
 
 DEBUG = os.getenv("DEBUG", "False").lower() in ("true", "1", "yes")
 
-ALLOWED_HOSTS = [host for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",") if host]
+ALLOWED_HOSTS = [
+    host
+    for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    if host
+]
 
-_csrf_origins = [origin for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if origin]
+_csrf_origins = [
+    origin for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if origin
+]
 if _csrf_origins:
     CSRF_TRUSTED_ORIGINS = _csrf_origins
 else:
@@ -90,7 +96,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
 TELEGRAM_WEBAPP_URL = os.getenv("TELEGRAM_WEBAPP_URL", "")
-TELEGRAM_LOGIN_MAX_AGE_SECONDS = int(os.getenv("TELEGRAM_LOGIN_MAX_AGE_SECONDS", "86400"))
+TELEGRAM_LOGIN_MAX_AGE_SECONDS = int(
+    os.getenv("TELEGRAM_LOGIN_MAX_AGE_SECONDS", "86400")
+)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [

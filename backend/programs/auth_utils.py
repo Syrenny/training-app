@@ -83,7 +83,10 @@ def validate_telegram_login_data(
     except (TypeError, ValueError):
         return None
 
-    if max_age_seconds > 0 and abs(time.time() - normalized["auth_date"]) > max_age_seconds:
+    if (
+        max_age_seconds > 0
+        and abs(time.time() - normalized["auth_date"]) > max_age_seconds
+    ):
         return None
 
     data_check_string = "\n".join(

@@ -12,9 +12,7 @@ class Command(BaseCommand):
         token = settings.TELEGRAM_BOT_TOKEN
         if not token:
             self.stderr.write(
-                self.style.ERROR(
-                    "TELEGRAM_BOT_TOKEN is not set. Add it to .env file."
-                )
+                self.style.ERROR("TELEGRAM_BOT_TOKEN is not set. Add it to .env file.")
             )
             return
 

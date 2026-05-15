@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('programs', '0003_workout_completion'),
+        ("programs", "0003_workout_completion"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='dayexercise',
-            name='superset_group',
-            field=models.PositiveIntegerField(blank=True, null=True, verbose_name='Группа суперсета'),
+            model_name="dayexercise",
+            name="superset_group",
+            field=models.PositiveIntegerField(
+                blank=True, null=True, verbose_name="Группа суперсета"
+            ),
         ),
     ]

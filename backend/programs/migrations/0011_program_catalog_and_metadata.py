@@ -15,9 +15,13 @@ def populate_default_program(apps, schema_editor):
     )
 
     Week.objects.filter(program__isnull=True).update(program=default_program)
-    WorkoutCompletion.objects.filter(program__isnull=True).update(program=default_program)
+    WorkoutCompletion.objects.filter(program__isnull=True).update(
+        program=default_program
+    )
     ProgramSnapshot.objects.filter(program__isnull=True).update(program=default_program)
-    UserProfile.objects.filter(selected_program__isnull=True).update(selected_program=default_program)
+    UserProfile.objects.filter(selected_program__isnull=True).update(
+        selected_program=default_program
+    )
 
 
 def clear_default_program(apps, schema_editor):
@@ -34,10 +38,29 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Program",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("slug", models.SlugField(max_length=100, unique=True, verbose_name="Slug")),
-                ("name", models.CharField(max_length=200, unique=True, verbose_name="Название")),
-                ("description", models.TextField(blank=True, default="", verbose_name="Описание")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "slug",
+                    models.SlugField(max_length=100, unique=True, verbose_name="Slug"),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        max_length=200, unique=True, verbose_name="Название"
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(blank=True, default="", verbose_name="Описание"),
+                ),
             ],
             options={
                 "verbose_name": "Программа",
@@ -71,7 +94,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="day",
             name="title",
-            field=models.CharField(blank=True, default="", max_length=200, verbose_name="Заголовок"),
+            field=models.CharField(
+                blank=True, default="", max_length=200, verbose_name="Заголовок"
+            ),
         ),
         migrations.AddField(
             model_name="dayexercise",
@@ -116,12 +141,22 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="exerciseset",
             name="reps_max",
-            field=models.PositiveIntegerField(blank=True, null=True, verbose_name="Максимум повторений"),
+            field=models.PositiveIntegerField(
+                blank=True, null=True, verbose_name="Максимум повторений"
+            ),
         ),
         migrations.CreateModel(
             name="DayTextBlock",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 (
                     "kind",
                     models.CharField(
@@ -132,7 +167,10 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("content", models.TextField(verbose_name="Текст")),
-                ("order", models.PositiveIntegerField(default=1, verbose_name="Порядок")),
+                (
+                    "order",
+                    models.PositiveIntegerField(default=1, verbose_name="Порядок"),
+                ),
                 (
                     "day",
                     models.ForeignKey(

@@ -15,7 +15,12 @@ class TelegramInitDataAuthentication(BaseAuthentication):
 
     def authenticate(self, request):
         if settings.DEBUG and request.headers.get("X-Dev-Mode") == "1":
-            return (sync_telegram_user({"id": 1, "first_name": "Dev"}, username_prefix="dev"), None)
+            return (
+                sync_telegram_user(
+                    {"id": 1, "first_name": "Dev"}, username_prefix="dev"
+                ),
+                None,
+            )
 
         init_data = request.headers.get("X-Telegram-Init-Data", "")
         if not init_data:

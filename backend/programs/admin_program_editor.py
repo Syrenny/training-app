@@ -47,7 +47,11 @@ def _flatten_errors(detail):
 
 
 def _get_editor_source_program(program):
-    if program.weeks.exists() or program.one_rep_max_exercises.exists() or program.source_program_id is None:
+    if (
+        program.weeks.exists()
+        or program.one_rep_max_exercises.exists()
+        or program.source_program_id is None
+    ):
         return program
     return program.source_program
 
@@ -102,7 +106,9 @@ def serialize_one_rep_max_config_for_editor(program):
             "exercise_id": item.exercise_id,
             "label": item.label,
         }
-        for item in source_program.one_rep_max_exercises.select_related("exercise").order_by("order", "id")
+        for item in source_program.one_rep_max_exercises.select_related(
+            "exercise"
+        ).order_by("order", "id")
     ]
 
 
@@ -197,7 +203,9 @@ def parse_server_render_editor_state(post_data):
         exercise_id = post_data.get(f"{prefix}-exercise_id")
         one_rep_max_config.append(
             {
-                "exercise_id": int(exercise_id) if exercise_id not in (None, "") else None,
+                "exercise_id": int(exercise_id)
+                if exercise_id not in (None, "")
+                else None,
                 "label": post_data.get(f"{prefix}-label", ""),
             }
         )
@@ -225,12 +233,20 @@ def parse_server_render_editor_state(post_data):
             for exercise_index in range(exercise_total):
                 exercise_prefix = f"{day_prefix}-exercises-{exercise_index}"
                 exercise_id = post_data.get(f"{exercise_prefix}-exercise")
-                orm_exercise_id = post_data.get(f"{exercise_prefix}-one_rep_max_exercise")
+                orm_exercise_id = post_data.get(
+                    f"{exercise_prefix}-one_rep_max_exercise"
+                )
                 superset_group = post_data.get(f"{exercise_prefix}-superset_group")
                 exercise = {
-                    "exercise": int(exercise_id) if exercise_id not in (None, "") else None,
-                    "one_rep_max_exercise": int(orm_exercise_id) if orm_exercise_id not in (None, "") else None,
-                    "superset_group": int(superset_group) if superset_group not in (None, "") else None,
+                    "exercise": int(exercise_id)
+                    if exercise_id not in (None, "")
+                    else None,
+                    "one_rep_max_exercise": int(orm_exercise_id)
+                    if orm_exercise_id not in (None, "")
+                    else None,
+                    "superset_group": int(superset_group)
+                    if superset_group not in (None, "")
+                    else None,
                     "notes": post_data.get(f"{exercise_prefix}-notes", ""),
                     "sets": [],
                 }
@@ -245,11 +261,17 @@ def parse_server_render_editor_state(post_data):
                     sets = post_data.get(f"{set_prefix}-sets")
                     exercise["sets"].append(
                         {
-                            "load_type": post_data.get(f"{set_prefix}-load_type", LoadType.PERCENT),
+                            "load_type": post_data.get(
+                                f"{set_prefix}-load_type", LoadType.PERCENT
+                            ),
                             "load_value": load_value if load_value != "" else None,
-                            "load_value_max": load_value_max if load_value_max != "" else None,
+                            "load_value_max": load_value_max
+                            if load_value_max != ""
+                            else None,
                             "reps": int(reps) if reps not in (None, "") else 1,
-                            "reps_max": int(reps_max) if reps_max not in (None, "") else None,
+                            "reps_max": int(reps_max)
+                            if reps_max not in (None, "")
+                            else None,
                             "sets": int(sets) if sets not in (None, "") else 1,
                         }
                     )
@@ -261,7 +283,9 @@ def parse_server_render_editor_state(post_data):
                 text_prefix = f"{day_prefix}-text_blocks-{text_index}"
                 day["text_blocks"].append(
                     {
-                        "kind": post_data.get(f"{text_prefix}-kind", DayTextBlockKind.INFO),
+                        "kind": post_data.get(
+                            f"{text_prefix}-kind", DayTextBlockKind.INFO
+                        ),
                         "content": post_data.get(f"{text_prefix}-content", ""),
                     }
                 )
@@ -276,7 +300,9 @@ def parse_server_render_editor_state(post_data):
     }
 
 
-def merge_active_week_post_into_editor_state(editor_state, post_data, active_week_index):
+def merge_active_week_post_into_editor_state(
+    editor_state, post_data, active_week_index
+):
     state = json.loads(json.dumps(editor_state))
     weeks = state.get("structure", {}).get("weeks", [])
     if not weeks or active_week_index < 0 or active_week_index >= len(weeks):
@@ -306,8 +332,12 @@ def merge_active_week_post_into_editor_state(editor_state, post_data, active_wee
             superset_group = post_data.get(f"{exercise_prefix}-superset_group")
             exercise = {
                 "exercise": int(exercise_id) if exercise_id not in (None, "") else None,
-                "one_rep_max_exercise": int(orm_exercise_id) if orm_exercise_id not in (None, "") else None,
-                "superset_group": int(superset_group) if superset_group not in (None, "") else None,
+                "one_rep_max_exercise": int(orm_exercise_id)
+                if orm_exercise_id not in (None, "")
+                else None,
+                "superset_group": int(superset_group)
+                if superset_group not in (None, "")
+                else None,
                 "notes": post_data.get(f"{exercise_prefix}-notes", ""),
                 "sets": [],
             }
@@ -322,11 +352,17 @@ def merge_active_week_post_into_editor_state(editor_state, post_data, active_wee
                 sets = post_data.get(f"{set_prefix}-sets")
                 exercise["sets"].append(
                     {
-                        "load_type": post_data.get(f"{set_prefix}-load_type", LoadType.PERCENT),
+                        "load_type": post_data.get(
+                            f"{set_prefix}-load_type", LoadType.PERCENT
+                        ),
                         "load_value": load_value if load_value != "" else None,
-                        "load_value_max": load_value_max if load_value_max != "" else None,
+                        "load_value_max": load_value_max
+                        if load_value_max != ""
+                        else None,
                         "reps": int(reps) if reps not in (None, "") else 1,
-                        "reps_max": int(reps_max) if reps_max not in (None, "") else None,
+                        "reps_max": int(reps_max)
+                        if reps_max not in (None, "")
+                        else None,
                         "sets": int(sets) if sets not in (None, "") else 1,
                     }
                 )
@@ -380,13 +416,17 @@ def apply_server_render_editor_action(editor_state, action):
     if action_name == "add-exercise" and len(parts) == 3:
         week_index = int(parts[1])
         day_index = int(parts[2])
-        state["structure"]["weeks"][week_index]["days"][day_index]["exercises"].append(create_default_exercise())
+        state["structure"]["weeks"][week_index]["days"][day_index]["exercises"].append(
+            create_default_exercise()
+        )
         return state
     if action_name == "remove-exercise" and len(parts) == 4:
         week_index = int(parts[1])
         day_index = int(parts[2])
         exercise_index = int(parts[3])
-        exercises = state["structure"]["weeks"][week_index]["days"][day_index]["exercises"]
+        exercises = state["structure"]["weeks"][week_index]["days"][day_index][
+            "exercises"
+        ]
         if 0 <= exercise_index < len(exercises):
             del exercises[exercise_index]
         return state
@@ -394,29 +434,35 @@ def apply_server_render_editor_action(editor_state, action):
         week_index = int(parts[1])
         day_index = int(parts[2])
         exercise_index = int(parts[3])
-        state["structure"]["weeks"][week_index]["days"][day_index]["exercises"][exercise_index]["sets"].append(
-            create_default_set()
-        )
+        state["structure"]["weeks"][week_index]["days"][day_index]["exercises"][
+            exercise_index
+        ]["sets"].append(create_default_set())
         return state
     if action_name == "remove-set" and len(parts) == 5:
         week_index = int(parts[1])
         day_index = int(parts[2])
         exercise_index = int(parts[3])
         set_index = int(parts[4])
-        sets = state["structure"]["weeks"][week_index]["days"][day_index]["exercises"][exercise_index]["sets"]
+        sets = state["structure"]["weeks"][week_index]["days"][day_index]["exercises"][
+            exercise_index
+        ]["sets"]
         if 0 <= set_index < len(sets):
             del sets[set_index]
         return state
     if action_name == "add-text-block" and len(parts) == 3:
         week_index = int(parts[1])
         day_index = int(parts[2])
-        state["structure"]["weeks"][week_index]["days"][day_index]["text_blocks"].append(create_default_text_block())
+        state["structure"]["weeks"][week_index]["days"][day_index][
+            "text_blocks"
+        ].append(create_default_text_block())
         return state
     if action_name == "remove-text-block" and len(parts) == 4:
         week_index = int(parts[1])
         day_index = int(parts[2])
         text_index = int(parts[3])
-        text_blocks = state["structure"]["weeks"][week_index]["days"][day_index]["text_blocks"]
+        text_blocks = state["structure"]["weeks"][week_index]["days"][day_index][
+            "text_blocks"
+        ]
         if 0 <= text_index < len(text_blocks):
             del text_blocks[text_index]
         return state
@@ -459,7 +505,9 @@ class ProgramExerciseEditorItemForm(forms.Form):
         required=False,
         label="Привязка к 1ПМ",
     )
-    superset_group = forms.IntegerField(required=False, min_value=1, label="Группа суперсета")
+    superset_group = forms.IntegerField(
+        required=False, min_value=1, label="Группа суперсета"
+    )
     notes = forms.CharField(
         required=False,
         label="Заметки",
@@ -469,8 +517,12 @@ class ProgramExerciseEditorItemForm(forms.Form):
 
 class ProgramExerciseSetEditorItemForm(forms.Form):
     load_type = forms.ChoiceField(choices=LoadType.choices, label="Тип нагрузки")
-    load_value = forms.DecimalField(required=False, decimal_places=1, max_digits=6, label="От")
-    load_value_max = forms.DecimalField(required=False, decimal_places=1, max_digits=6, label="До")
+    load_value = forms.DecimalField(
+        required=False, decimal_places=1, max_digits=6, label="От"
+    )
+    load_value_max = forms.DecimalField(
+        required=False, decimal_places=1, max_digits=6, label="До"
+    )
     reps = forms.IntegerField(min_value=1, label="Повторения")
     reps_max = forms.IntegerField(required=False, min_value=1, label="До повторений")
     sets = forms.IntegerField(min_value=1, label="Подходов")
@@ -487,8 +539,7 @@ class ProgramWeekSelectorForm(forms.Form):
     def __init__(self, *args, weeks, active_week=0, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["active_week"].choices = [
-            (str(week.id), week.title or f"Неделя {week.number}")
-            for week in weeks
+            (str(week.id), week.title or f"Неделя {week.number}") for week in weeks
         ]
         self.initial["active_week"] = str(active_week) if active_week else ""
 
@@ -517,7 +568,14 @@ class ProgramDayExerciseEditorModelForm(forms.ModelForm):
 class ProgramExerciseSetEditorModelForm(forms.ModelForm):
     class Meta:
         model = ExerciseSet
-        fields = ["load_type", "load_value", "load_value_max", "reps", "reps_max", "sets"]
+        fields = [
+            "load_type",
+            "load_value",
+            "load_value_max",
+            "reps",
+            "reps_max",
+            "sets",
+        ]
 
 
 class ProgramDayTextBlockEditorModelForm(forms.ModelForm):
@@ -546,13 +604,17 @@ def _renumber_exercises(day):
 
 
 def _renumber_sets(day_exercise):
-    for index, set_item in enumerate(day_exercise.sets.order_by("order", "id"), start=1):
+    for index, set_item in enumerate(
+        day_exercise.sets.order_by("order", "id"), start=1
+    ):
         if set_item.order != index:
             ExerciseSet.objects.filter(pk=set_item.pk).update(order=index)
 
 
 def _renumber_text_blocks(day):
-    for index, text_block in enumerate(day.text_blocks.order_by("order", "id"), start=1):
+    for index, text_block in enumerate(
+        day.text_blocks.order_by("order", "id"), start=1
+    ):
         if text_block.order != index:
             DayTextBlock.objects.filter(pk=text_block.pk).update(order=index)
 
@@ -570,7 +632,9 @@ def get_editor_selection(program, week_id=None, day_id=None):
     if not weeks:
         return weeks, None, None
 
-    active_week = next((week for week in weeks if str(week.id) == str(week_id)), weeks[0])
+    active_week = next(
+        (week for week in weeks if str(week.id) == str(week_id)), weeks[0]
+    )
     days = list(active_week.days.order_by("order", "id"))
     if not days:
         return weeks, active_week, None
@@ -580,10 +644,14 @@ def get_editor_selection(program, week_id=None, day_id=None):
 
 
 def perform_editor_action(program, action, active_week_id=None, active_day_id=None):
-    weeks, active_week, active_day = get_editor_selection(program, active_week_id, active_day_id)
+    weeks, active_week, active_day = get_editor_selection(
+        program, active_week_id, active_day_id
+    )
 
     if action == "add-week":
-        week = Week.objects.create(program=program, number=program.weeks.count() + 1, title="")
+        week = Week.objects.create(
+            program=program, number=program.weeks.count() + 1, title=""
+        )
         return week.id, None
 
     if action == "select-week":
@@ -596,7 +664,10 @@ def perform_editor_action(program, action, active_week_id=None, active_day_id=No
             week.delete()
             _renumber_weeks(program)
         weeks, active_week, active_day = get_editor_selection(program)
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("add-day:"):
         week_id = int(action.split(":")[1])
@@ -611,18 +682,28 @@ def perform_editor_action(program, action, active_week_id=None, active_day_id=No
                     title="",
                 )
                 return week.id, day.id
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("remove-day:"):
         day_id = int(action.split(":")[1])
-        day = Day.objects.filter(pk=day_id, week__program=program).select_related("week").first()
+        day = (
+            Day.objects.filter(pk=day_id, week__program=program)
+            .select_related("week")
+            .first()
+        )
         if day:
             week = day.week
             day.delete()
             _renumber_days(week)
             remaining_day = week.days.order_by("order", "id").first()
             return week.id, remaining_day.id if remaining_day else None
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("add-exercise:"):
         day_id = int(action.split(":")[1])
@@ -643,21 +724,33 @@ def perform_editor_action(program, action, active_week_id=None, active_day_id=No
                 order=1,
             )
             return day.week_id, day.id
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("remove-exercise:"):
         exercise_id = int(action.split(":")[1])
-        day_exercise = DayExercise.objects.filter(pk=exercise_id, day__week__program=program).select_related("day").first()
+        day_exercise = (
+            DayExercise.objects.filter(pk=exercise_id, day__week__program=program)
+            .select_related("day")
+            .first()
+        )
         if day_exercise:
             day = day_exercise.day
             day_exercise.delete()
             _renumber_exercises(day)
             return day.week_id, day.id
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("add-set:"):
         exercise_id = int(action.split(":")[1])
-        day_exercise = DayExercise.objects.filter(pk=exercise_id, day__week__program=program).first()
+        day_exercise = DayExercise.objects.filter(
+            pk=exercise_id, day__week__program=program
+        ).first()
         if day_exercise:
             ExerciseSet.objects.create(
                 day_exercise=day_exercise,
@@ -668,18 +761,30 @@ def perform_editor_action(program, action, active_week_id=None, active_day_id=No
                 order=day_exercise.sets.count() + 1,
             )
             return day_exercise.day.week_id, day_exercise.day_id
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("remove-set:"):
         set_id = int(action.split(":")[1])
-        set_item = ExerciseSet.objects.filter(pk=set_id, day_exercise__day__week__program=program).select_related("day_exercise__day").first()
+        set_item = (
+            ExerciseSet.objects.filter(
+                pk=set_id, day_exercise__day__week__program=program
+            )
+            .select_related("day_exercise__day")
+            .first()
+        )
         if set_item:
             day_exercise = set_item.day_exercise
             day = day_exercise.day
             set_item.delete()
             _renumber_sets(day_exercise)
             return day.week_id, day.id
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("add-text-block:"):
         day_id = int(action.split(":")[1])
@@ -692,28 +797,49 @@ def perform_editor_action(program, action, active_week_id=None, active_day_id=No
                 order=day.text_blocks.count() + 1,
             )
             return day.week_id, day.id
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
     if action and action.startswith("remove-text-block:"):
         text_id = int(action.split(":")[1])
-        text_block = DayTextBlock.objects.filter(pk=text_id, day__week__program=program).select_related("day").first()
+        text_block = (
+            DayTextBlock.objects.filter(pk=text_id, day__week__program=program)
+            .select_related("day")
+            .first()
+        )
         if text_block:
             day = text_block.day
             text_block.delete()
             _renumber_text_blocks(day)
             return day.week_id, day.id
-        return active_week.id if active_week else None, active_day.id if active_day else None
+        return (
+            active_week.id if active_week else None,
+            active_day.id if active_day else None,
+        )
 
-    return active_week.id if active_week else None, active_day.id if active_day else None
+    return (
+        active_week.id if active_week else None,
+        active_day.id if active_day else None,
+    )
 
 
-def build_server_render_editor_context(program, active_week_id=None, active_day_id=None, bound_data=None):
-    weeks, active_week, active_day = get_editor_selection(program, active_week_id, active_day_id)
-    week_selector_form = ProgramWeekSelectorForm(
-        data=bound_data if bound_data and "active_week" in bound_data else None,
-        weeks=weeks,
-        active_week=active_week.id if active_week else None,
-    ) if weeks else None
+def build_server_render_editor_context(
+    program, active_week_id=None, active_day_id=None, bound_data=None
+):
+    weeks, active_week, active_day = get_editor_selection(
+        program, active_week_id, active_day_id
+    )
+    week_selector_form = (
+        ProgramWeekSelectorForm(
+            data=bound_data if bound_data and "active_week" in bound_data else None,
+            weeks=weeks,
+            active_week=active_week.id if active_week else None,
+        )
+        if weeks
+        else None
+    )
 
     active_week_form = None
     active_day_form = None
@@ -734,7 +860,11 @@ def build_server_render_editor_context(program, active_week_id=None, active_day_
             prefix=f"day-{active_day.id}",
         )
 
-        exercises = active_day.exercises.select_related("exercise", "one_rep_max_exercise").prefetch_related("sets").order_by("order", "id")
+        exercises = (
+            active_day.exercises.select_related("exercise", "one_rep_max_exercise")
+            .prefetch_related("sets")
+            .order_by("order", "id")
+        )
         for exercise in exercises:
             exercise_form = ProgramDayExerciseEditorModelForm(
                 bound_data if bound_data else None,
@@ -749,7 +879,9 @@ def build_server_render_editor_context(program, active_week_id=None, active_day_
                 )
                 for set_item in exercise.sets.order_by("order", "id")
             ]
-            exercise_items.append({"object": exercise, "form": exercise_form, "set_forms": set_forms})
+            exercise_items.append(
+                {"object": exercise, "form": exercise_form, "set_forms": set_forms}
+            )
 
         for text_block in active_day.text_blocks.order_by("order", "id"):
             text_block_form = ProgramDayTextBlockEditorModelForm(
@@ -772,18 +904,24 @@ def build_server_render_editor_context(program, active_week_id=None, active_day_
 
 
 def save_active_week_day(program, active_week_id, active_day_id, post_data):
-    weeks, active_week, active_day = get_editor_selection(program, active_week_id, active_day_id)
+    weeks, active_week, active_day = get_editor_selection(
+        program, active_week_id, active_day_id
+    )
     if not active_week:
         return True
 
     forms_to_save = []
-    week_form = ProgramWeekEditorModelForm(post_data, instance=active_week, prefix=f"week-{active_week.id}")
+    week_form = ProgramWeekEditorModelForm(
+        post_data, instance=active_week, prefix=f"week-{active_week.id}"
+    )
     if not week_form.is_valid():
         return False
     forms_to_save.append(week_form)
 
     if active_day:
-        day_form = ProgramDayEditorModelForm(post_data, instance=active_day, prefix=f"day-{active_day.id}")
+        day_form = ProgramDayEditorModelForm(
+            post_data, instance=active_day, prefix=f"day-{active_day.id}"
+        )
         if not day_form.is_valid():
             return False
         forms_to_save.append(day_form)
@@ -846,8 +984,12 @@ class ProgramEditorForm(forms.Form):
     def __init__(self, *args, instance, **kwargs):
         super().__init__(*args, **kwargs)
         self.instance = instance
-        self.fields["owner"].queryset = UserProfile.objects.select_related("user").order_by("user__username")
-        self.fields["source_program"].queryset = Program.objects.order_by("name").exclude(pk=instance.pk)
+        self.fields["owner"].queryset = UserProfile.objects.select_related(
+            "user"
+        ).order_by("user__username")
+        self.fields["source_program"].queryset = Program.objects.order_by(
+            "name"
+        ).exclude(pk=instance.pk)
 
         if not self.is_bound:
             self.initial.update(
@@ -901,9 +1043,13 @@ class ProgramEditorForm(forms.Form):
             raise ValidationError("Упражнения 1ПМ не должны повторяться.")
 
         exercises = Exercise.objects.in_bulk(exercise_ids)
-        missing_ids = [exercise_id for exercise_id in exercise_ids if exercise_id not in exercises]
+        missing_ids = [
+            exercise_id for exercise_id in exercise_ids if exercise_id not in exercises
+        ]
         if missing_ids:
-            raise ValidationError(f"Не найдены упражнения: {', '.join(str(item) for item in missing_ids)}.")
+            raise ValidationError(
+                f"Не найдены упражнения: {', '.join(str(item) for item in missing_ids)}."
+            )
 
         normalized = []
         for order, item in enumerate(raw_items, start=1):
@@ -922,7 +1068,9 @@ class ProgramEditorForm(forms.Form):
         if not isinstance(raw_structure, dict):
             raise ValidationError("Структура программы должна быть объектом.")
 
-        serializer = ProgramStructureInputSerializer(data={"weeks": raw_structure.get("weeks", [])})
+        serializer = ProgramStructureInputSerializer(
+            data={"weeks": raw_structure.get("weeks", [])}
+        )
         if not serializer.is_valid():
             raise ValidationError(_flatten_errors(serializer.errors))
         return serializer.validated_data["normalized_payload"]
@@ -958,7 +1106,9 @@ class ProgramEditorForm(forms.Form):
                         payload_exercise_ids.add(exercise["one_rep_max_exercise_id"])
         exercises = Exercise.objects.in_bulk(payload_exercise_ids)
 
-        for week_index, week_data in enumerate(normalized_payload.get("weeks", []), start=1):
+        for week_index, week_data in enumerate(
+            normalized_payload.get("weeks", []), start=1
+        ):
             week = Week.objects.create(
                 program=program,
                 number=week_index,
@@ -971,16 +1121,22 @@ class ProgramEditorForm(forms.Form):
                     order=day_index,
                     title=day_data.get("title", ""),
                 )
-                for exercise_index, exercise_data in enumerate(day_data.get("exercises", []), start=1):
+                for exercise_index, exercise_data in enumerate(
+                    day_data.get("exercises", []), start=1
+                ):
                     day_exercise = DayExercise.objects.create(
                         day=day,
                         exercise=exercises[exercise_data["exercise_id"]],
-                        one_rep_max_exercise=exercises.get(exercise_data.get("one_rep_max_exercise_id")),
+                        one_rep_max_exercise=exercises.get(
+                            exercise_data.get("one_rep_max_exercise_id")
+                        ),
                         order=exercise_index,
                         superset_group=exercise_data.get("superset_group"),
                         notes=exercise_data.get("notes", ""),
                     )
-                    for set_index, set_data in enumerate(exercise_data.get("sets", []), start=1):
+                    for set_index, set_data in enumerate(
+                        exercise_data.get("sets", []), start=1
+                    ):
                         ExerciseSet.objects.create(
                             day_exercise=day_exercise,
                             load_type=set_data["load_type"],
@@ -992,7 +1148,9 @@ class ProgramEditorForm(forms.Form):
                             order=set_index,
                         )
 
-                for text_block_index, text_block in enumerate(day_data.get("text_blocks", []), start=1):
+                for text_block_index, text_block in enumerate(
+                    day_data.get("text_blocks", []), start=1
+                ):
                     DayTextBlock.objects.create(
                         day=day,
                         kind=text_block["kind"],

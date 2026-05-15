@@ -51,9 +51,7 @@ class WeekDetailAPITest(TestCase):
             defaults={"name": "Базовая программа"},
         )
         cls.week = Week.objects.create(program=cls.program, number=1, title="1 неделя")
-        cls.day = Day.objects.create(
-            week=cls.week, weekday=Weekday.MON, order=1
-        )
+        cls.day = Day.objects.create(week=cls.week, weekday=Weekday.MON, order=1)
         cls.exercise, _ = Exercise.objects.get_or_create(
             name="Приседания",
             defaults={"category": ExerciseCategory.SQUAT},

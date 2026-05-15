@@ -90,7 +90,9 @@ def ensure_program_one_rep_max_config(apps, program, config):
 
 
 def resolve_source_name(exercise_name, category, config):
-    return config["source_overrides"].get(exercise_name) or config["category_sources"].get(category)
+    return config["source_overrides"].get(exercise_name) or config[
+        "category_sources"
+    ].get(category)
 
 
 def migrate_one_rep_max_to_program_specific(apps, schema_editor):
@@ -147,8 +149,13 @@ def migrate_one_rep_max_to_program_specific(apps, schema_editor):
                 snapshot.payload = payload
                 snapshot.save(update_fields=["payload"])
 
-    legacy_rows = list(OneRepMax.objects.filter(program__isnull=True, exercise__isnull=True))
-    programs = {program.slug: program for program in Program.objects.filter(slug__in=PROGRAM_ONE_REP_MAX_CONFIGS)}
+    legacy_rows = list(
+        OneRepMax.objects.filter(program__isnull=True, exercise__isnull=True)
+    )
+    programs = {
+        program.slug: program
+        for program in Program.objects.filter(slug__in=PROGRAM_ONE_REP_MAX_CONFIGS)
+    }
 
     for row in legacy_rows:
         for slug, config in PROGRAM_ONE_REP_MAX_CONFIGS.items():
@@ -177,9 +184,25 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="ProgramOneRepMaxExercise",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("label", models.CharField(blank=True, default="", max_length=200, verbose_name="Подпись")),
-                ("order", models.PositiveIntegerField(default=1, verbose_name="Порядок")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "label",
+                    models.CharField(
+                        blank=True, default="", max_length=200, verbose_name="Подпись"
+                    ),
+                ),
+                (
+                    "order",
+                    models.PositiveIntegerField(default=1, verbose_name="Порядок"),
+                ),
                 (
                     "exercise",
                     models.ForeignKey(
@@ -255,7 +278,9 @@ class Migration(migrations.Migration):
                 verbose_name="Разовый максимум (кг)",
             ),
         ),
-        migrations.RunPython(migrate_one_rep_max_to_program_specific, migrations.RunPython.noop),
+        migrations.RunPython(
+            migrate_one_rep_max_to_program_specific, migrations.RunPython.noop
+        ),
         migrations.RemoveField(
             model_name="onerepmax",
             name="bench",

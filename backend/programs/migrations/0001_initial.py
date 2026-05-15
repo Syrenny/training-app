@@ -5,90 +5,227 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Day',
+            name="Day",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('weekday', models.CharField(choices=[('MON', 'Понедельник'), ('WED', 'Среда'), ('FRI', 'Пятница')], max_length=3, verbose_name='День недели')),
-                ('order', models.PositiveIntegerField(default=1, verbose_name='Порядок')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "weekday",
+                    models.CharField(
+                        choices=[
+                            ("MON", "Понедельник"),
+                            ("WED", "Среда"),
+                            ("FRI", "Пятница"),
+                        ],
+                        max_length=3,
+                        verbose_name="День недели",
+                    ),
+                ),
+                (
+                    "order",
+                    models.PositiveIntegerField(default=1, verbose_name="Порядок"),
+                ),
             ],
             options={
-                'verbose_name': 'День',
-                'verbose_name_plural': 'Дни',
-                'ordering': ['order'],
+                "verbose_name": "День",
+                "verbose_name_plural": "Дни",
+                "ordering": ["order"],
             },
         ),
         migrations.CreateModel(
-            name='Exercise',
+            name="Exercise",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200, unique=True, verbose_name='Название')),
-                ('category', models.CharField(choices=[('BENCH', 'Жим'), ('SQUAT', 'Присед'), ('DEADLIFT', 'Тяга'), ('ACCESSORY', 'Подсобка')], max_length=10, verbose_name='Категория')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        max_length=200, unique=True, verbose_name="Название"
+                    ),
+                ),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("BENCH", "Жим"),
+                            ("SQUAT", "Присед"),
+                            ("DEADLIFT", "Тяга"),
+                            ("ACCESSORY", "Подсобка"),
+                        ],
+                        max_length=10,
+                        verbose_name="Категория",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Упражнение',
-                'verbose_name_plural': 'Упражнения',
-                'ordering': ['name'],
+                "verbose_name": "Упражнение",
+                "verbose_name_plural": "Упражнения",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Week',
+            name="Week",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('number', models.PositiveIntegerField(unique=True, verbose_name='Номер недели')),
-                ('title', models.CharField(blank=True, max_length=100, verbose_name='Название')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "number",
+                    models.PositiveIntegerField(
+                        unique=True, verbose_name="Номер недели"
+                    ),
+                ),
+                (
+                    "title",
+                    models.CharField(
+                        blank=True, max_length=100, verbose_name="Название"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Неделя',
-                'verbose_name_plural': 'Недели',
-                'ordering': ['number'],
+                "verbose_name": "Неделя",
+                "verbose_name_plural": "Недели",
+                "ordering": ["number"],
             },
         ),
         migrations.CreateModel(
-            name='DayExercise',
+            name="DayExercise",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('order', models.PositiveIntegerField(default=1, verbose_name='Порядок')),
-                ('day', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='exercises', to='programs.day', verbose_name='День')),
-                ('exercise', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='programs.exercise', verbose_name='Упражнение')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "order",
+                    models.PositiveIntegerField(default=1, verbose_name="Порядок"),
+                ),
+                (
+                    "day",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="exercises",
+                        to="programs.day",
+                        verbose_name="День",
+                    ),
+                ),
+                (
+                    "exercise",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="programs.exercise",
+                        verbose_name="Упражнение",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Упражнение в дне',
-                'verbose_name_plural': 'Упражнения в дне',
-                'ordering': ['order'],
+                "verbose_name": "Упражнение в дне",
+                "verbose_name_plural": "Упражнения в дне",
+                "ordering": ["order"],
             },
         ),
         migrations.CreateModel(
-            name='ExerciseSet',
+            name="ExerciseSet",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('load_type', models.CharField(choices=[('PERCENT', 'Процент от максимума'), ('KG', 'Фиксированный вес (кг)'), ('INDIVIDUAL', 'Индивидуальный вес'), ('BODYWEIGHT', 'Собственный вес')], max_length=10, verbose_name='Тип нагрузки')),
-                ('load_value', models.DecimalField(blank=True, decimal_places=1, max_digits=6, null=True, verbose_name='Значение нагрузки')),
-                ('reps', models.PositiveIntegerField(verbose_name='Повторения')),
-                ('sets', models.PositiveIntegerField(default=1, verbose_name='Подходы')),
-                ('order', models.PositiveIntegerField(default=1, verbose_name='Порядок')),
-                ('day_exercise', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='sets', to='programs.dayexercise', verbose_name='Упражнение')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "load_type",
+                    models.CharField(
+                        choices=[
+                            ("PERCENT", "Процент от максимума"),
+                            ("KG", "Фиксированный вес (кг)"),
+                            ("INDIVIDUAL", "Индивидуальный вес"),
+                            ("BODYWEIGHT", "Собственный вес"),
+                        ],
+                        max_length=10,
+                        verbose_name="Тип нагрузки",
+                    ),
+                ),
+                (
+                    "load_value",
+                    models.DecimalField(
+                        blank=True,
+                        decimal_places=1,
+                        max_digits=6,
+                        null=True,
+                        verbose_name="Значение нагрузки",
+                    ),
+                ),
+                ("reps", models.PositiveIntegerField(verbose_name="Повторения")),
+                (
+                    "sets",
+                    models.PositiveIntegerField(default=1, verbose_name="Подходы"),
+                ),
+                (
+                    "order",
+                    models.PositiveIntegerField(default=1, verbose_name="Порядок"),
+                ),
+                (
+                    "day_exercise",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="sets",
+                        to="programs.dayexercise",
+                        verbose_name="Упражнение",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Подход',
-                'verbose_name_plural': 'Подходы',
-                'ordering': ['order'],
+                "verbose_name": "Подход",
+                "verbose_name_plural": "Подходы",
+                "ordering": ["order"],
             },
         ),
         migrations.AddField(
-            model_name='day',
-            name='week',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='days', to='programs.week', verbose_name='Неделя'),
+            model_name="day",
+            name="week",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="days",
+                to="programs.week",
+                verbose_name="Неделя",
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='day',
-            unique_together={('week', 'weekday')},
+            name="day",
+            unique_together={("week", "weekday")},
         ),
     ]

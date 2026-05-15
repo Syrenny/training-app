@@ -20,12 +20,20 @@ from programs.models import (
 class ProgramCurrentViewTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.program = Program.objects.create(slug="live-program", name="Живая программа")
+        cls.program = Program.objects.create(
+            slug="live-program", name="Живая программа"
+        )
         cls.week = Week.objects.create(program=cls.program, number=1, title="1 неделя")
         cls.day = Day.objects.create(week=cls.week, weekday=Weekday.MON, order=1)
-        cls.squat = Exercise.objects.create(name="Тестовые приседания live", category=ExerciseCategory.SQUAT)
-        cls.bench = Exercise.objects.create(name="Тестовый жим live", category=ExerciseCategory.BENCH)
-        day_exercise = DayExercise.objects.create(day=cls.day, exercise=cls.squat, order=1)
+        cls.squat = Exercise.objects.create(
+            name="Тестовые приседания live", category=ExerciseCategory.SQUAT
+        )
+        cls.bench = Exercise.objects.create(
+            name="Тестовый жим live", category=ExerciseCategory.BENCH
+        )
+        day_exercise = DayExercise.objects.create(
+            day=cls.day, exercise=cls.squat, order=1
+        )
         ExerciseSet.objects.create(
             day_exercise=day_exercise,
             load_type=LoadType.PERCENT,
@@ -88,8 +96,14 @@ class ProgramCurrentViewTest(TestCase):
         data = response.json()
         weekdays = [day["weekday"] for day in data["weeks"][0]["days"]]
         self.assertEqual(weekdays, ["MON", "WED"])
-        self.assertEqual(data["weeks"][0]["days"][1]["exercises"][0]["exercise"]["name"], "Тестовый жим live")
+        self.assertEqual(
+            data["weeks"][0]["days"][1]["exercises"][0]["exercise"]["name"],
+            "Тестовый жим live",
+        )
 
     def test_snapshot_endpoints_are_not_available(self):
         self.assertEqual(self.client.get("/api/program/history/").status_code, 404)
-        self.assertEqual(self.client.post("/api/program/snapshots/", {}, format="json").status_code, 404)
+        self.assertEqual(
+            self.client.post("/api/program/snapshots/", {}, format="json").status_code,
+            404,
+        )

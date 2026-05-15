@@ -33,7 +33,9 @@ def build_start_items(program):
 class OneRepMaxModelTest(TestCase):
     @classmethod
     def setUpTestData(cls):
-        cls.program = Program.objects.create(slug="test-one-rep-max", name="Test One Rep Max")
+        cls.program = Program.objects.create(
+            slug="test-one-rep-max", name="Test One Rep Max"
+        )
         cls.squat, _ = Exercise.objects.get_or_create(
             name="Приседания",
             defaults={"category": ExerciseCategory.SQUAT},
@@ -63,9 +65,13 @@ class OneRepMaxModelTest(TestCase):
         self.assertEqual(orm.value, 0)
 
     def test_unique_per_program_and_exercise(self):
-        OneRepMax.objects.create(telegram_id=789, program=self.program, exercise=self.bench)
+        OneRepMax.objects.create(
+            telegram_id=789, program=self.program, exercise=self.bench
+        )
         with self.assertRaises(Exception):
-            OneRepMax.objects.create(telegram_id=789, program=self.program, exercise=self.bench)
+            OneRepMax.objects.create(
+                telegram_id=789, program=self.program, exercise=self.bench
+            )
 
 
 @override_settings(TELEGRAM_BOT_TOKEN="")
@@ -94,7 +100,10 @@ class OneRepMaxAPITest(TestCase):
         self.assertIsNone(response.data["cycle_id"])
         values = {item["exercise_id"]: item["value"] for item in response.data["items"]}
         self.assertEqual(values, {item["exercise_id"]: item["value"] for item in items})
-        self.assertEqual(OneRepMax.objects.filter(telegram_id=111, program=self.program).count(), len(items))
+        self.assertEqual(
+            OneRepMax.objects.filter(telegram_id=111, program=self.program).count(),
+            len(items),
+        )
 
     def test_start_cycle_persists_initial_cycle_one_rep_max(self):
         items = build_start_items(self.program)
@@ -110,7 +119,9 @@ class OneRepMaxAPITest(TestCase):
         get_response = self.client.get("/api/one-rep-max/")
         self.assertEqual(get_response.status_code, 200)
         self.assertIsNone(get_response.data["cycle_id"])
-        values = {item["exercise_id"]: item["value"] for item in get_response.data["items"]}
+        values = {
+            item["exercise_id"]: item["value"] for item in get_response.data["items"]
+        }
         self.assertEqual(values, {item["exercise_id"]: item["value"] for item in items})
 
     def test_finished_cycle_prefills_pending_one_rep_max(self):
@@ -132,7 +143,10 @@ class OneRepMaxAPITest(TestCase):
         pending_response = self.client.get("/api/one-rep-max/")
         self.assertEqual(pending_response.status_code, 200)
         self.assertIsNone(pending_response.data["cycle_id"])
-        values = {item["exercise_id"]: item["value"] for item in pending_response.data["items"]}
+        values = {
+            item["exercise_id"]: item["value"]
+            for item in pending_response.data["items"]
+        }
         self.assertEqual(values, {item["exercise_id"]: item["value"] for item in items})
 
     def test_put_updates_pending_one_rep_max_even_with_active_cycle(self):

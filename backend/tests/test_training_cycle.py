@@ -37,8 +37,12 @@ class TrainingCycleFlowTest(TestCase):
         self.client = APIClient()
         self.client.force_authenticate(user={"id": 77, "first_name": "Cycle"})
         self.program = Program.objects.create(slug="cycle-flow", name="Cycle Flow")
-        exercise = Exercise.objects.create(name="Тестовый жим", category=ExerciseCategory.BENCH)
-        ProgramOneRepMaxExercise.objects.create(program=self.program, exercise=exercise, label="Тестовый жим")
+        exercise = Exercise.objects.create(
+            name="Тестовый жим", category=ExerciseCategory.BENCH
+        )
+        ProgramOneRepMaxExercise.objects.create(
+            program=self.program, exercise=exercise, label="Тестовый жим"
+        )
         week = Week.objects.create(program=self.program, number=1, title="1 неделя")
         day = Day.objects.create(week=week, weekday=Weekday.MON, order=1)
         day_exercise = DayExercise.objects.create(
@@ -74,7 +78,10 @@ class TrainingCycleFlowTest(TestCase):
         self.assertFalse(finish.json()["is_active"])
 
     def test_start_is_blocked_when_active_cycle_exists(self):
-        payload = {"program_id": self.program.id, "items": build_start_items(self.program)}
+        payload = {
+            "program_id": self.program.id,
+            "items": build_start_items(self.program),
+        }
         self.client.post("/api/training-cycle/start/", payload, format="json")
         second = self.client.post("/api/training-cycle/start/", payload, format="json")
         self.assertEqual(second.status_code, 409)
@@ -143,11 +150,21 @@ class ProgramSelectionTest(TestCase):
         self.profile = UserProfile.objects.create(user=self.user, telegram_id=88)
         self.client = APIClient()
         self.client.force_authenticate(user=self.user)
-        self.program = Program.objects.create(slug="selection-guard", name="Selection Guard")
-        exercise = Exercise.objects.create(name="Тестовая тяга", category=ExerciseCategory.DEADLIFT)
-        ProgramOneRepMaxExercise.objects.create(program=self.program, exercise=exercise, label="Тестовая тяга")
-        self.program_two = Program.objects.create(slug="selection-second", name="Selection Second")
-        second_exercise = Exercise.objects.create(name="Тестовый присед", category=ExerciseCategory.SQUAT)
+        self.program = Program.objects.create(
+            slug="selection-guard", name="Selection Guard"
+        )
+        exercise = Exercise.objects.create(
+            name="Тестовая тяга", category=ExerciseCategory.DEADLIFT
+        )
+        ProgramOneRepMaxExercise.objects.create(
+            program=self.program, exercise=exercise, label="Тестовая тяга"
+        )
+        self.program_two = Program.objects.create(
+            slug="selection-second", name="Selection Second"
+        )
+        second_exercise = Exercise.objects.create(
+            name="Тестовый присед", category=ExerciseCategory.SQUAT
+        )
         ProgramOneRepMaxExercise.objects.create(
             program=self.program_two,
             exercise=second_exercise,
@@ -183,7 +200,10 @@ class ProgramSelectionTest(TestCase):
         )
         second_start = self.client.post(
             "/api/training-cycle/start/",
-            {"program_id": self.program_two.id, "items": build_start_items(self.program_two)},
+            {
+                "program_id": self.program_two.id,
+                "items": build_start_items(self.program_two),
+            },
             format="json",
         )
         self.assertEqual(second_start.status_code, 201)

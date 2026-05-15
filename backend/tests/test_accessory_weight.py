@@ -80,7 +80,9 @@ class AccessoryWeightAPITest(TestCase):
             week=self.week,
         )
 
-        response = self.client.get(f"/api/accessory-weights/{self.exercise.id}/history/")
+        response = self.client.get(
+            f"/api/accessory-weights/{self.exercise.id}/history/"
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()[0]["note"], "Контрольная запись")

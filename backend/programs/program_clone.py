@@ -1,7 +1,15 @@
 from django.db import transaction
 from django.utils.text import slugify
 
-from .models import Day, DayExercise, DayTextBlock, ExerciseSet, Program, ProgramOneRepMaxExercise, Week
+from .models import (
+    Day,
+    DayExercise,
+    DayTextBlock,
+    ExerciseSet,
+    Program,
+    ProgramOneRepMaxExercise,
+    Week,
+)
 
 
 def build_duplicate_program_slug(source_program, *, suffix="copy"):
@@ -30,7 +38,9 @@ def clone_program_structure(source_program, target_program):
     if source_program is None:
         return
 
-    for item in source_program.one_rep_max_exercises.select_related("exercise").order_by("order", "id"):
+    for item in source_program.one_rep_max_exercises.select_related(
+        "exercise"
+    ).order_by("order", "id"):
         ProgramOneRepMaxExercise.objects.create(
             program=target_program,
             exercise=item.exercise,
@@ -87,13 +97,17 @@ def clone_program_structure(source_program, target_program):
 
 
 @transaction.atomic
-def duplicate_program(source_program, *, owner=None, source_program_ref=None, suffix="копия"):
+def duplicate_program(
+    source_program, *, owner=None, source_program_ref=None, suffix="копия"
+):
     duplicated = Program.objects.create(
         slug=build_duplicate_program_slug(source_program),
         name=build_duplicate_program_name(source_program, suffix=suffix),
         description=source_program.description,
         owner=owner if owner is not None else source_program.owner,
-        source_program=source_program_ref if source_program_ref is not None else source_program.source_program,
+        source_program=source_program_ref
+        if source_program_ref is not None
+        else source_program.source_program,
     )
     clone_program_structure(source_program, duplicated)
     return duplicated

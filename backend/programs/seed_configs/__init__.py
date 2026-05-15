@@ -1,5 +1,7 @@
 from .base_program import PROGRAM_CONFIG as BASE_PROGRAM_CONFIG
-from .jeff_nippard_powerbuilding import PROGRAM_CONFIG as JEFF_NIPPARD_POWERBUILDING_CONFIG
+from .jeff_nippard_powerbuilding import (
+    PROGRAM_CONFIG as JEFF_NIPPARD_POWERBUILDING_CONFIG,
+)
 
 BUNDLED_PROGRAMS = [
     BASE_PROGRAM_CONFIG,

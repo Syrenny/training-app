@@ -2,7 +2,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("programs", "0014_trainingcycle_programadaptation_and_more"),
     ]
@@ -16,7 +15,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="programadaptation",
             name="cancellation_reason",
-            field=models.TextField(blank=True, default="", verbose_name="Причина отмены"),
+            field=models.TextField(
+                blank=True, default="", verbose_name="Причина отмены"
+            ),
         ),
         migrations.AddField(
             model_name="programadaptation",

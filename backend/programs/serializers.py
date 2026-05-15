@@ -111,7 +111,14 @@ class DaySerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Day
-        fields = ["id", "weekday", "weekday_display", "title", "exercises", "text_blocks"]
+        fields = [
+            "id",
+            "weekday",
+            "weekday_display",
+            "title",
+            "exercises",
+            "text_blocks",
+        ]
 
 
 class WeekListSerializer(serializers.ModelSerializer):
@@ -169,7 +176,9 @@ class ProgramOneRepMaxExerciseSerializer(serializers.ModelSerializer):
 
 
 class AccessoryWeightSerializer(serializers.ModelSerializer):
-    week_number = serializers.IntegerField(source="week.number", read_only=True, default=None)
+    week_number = serializers.IntegerField(
+        source="week.number", read_only=True, default=None
+    )
 
     class Meta:
         model = AccessoryWeight
@@ -214,14 +223,32 @@ class ProgramSetInputSerializer(serializers.Serializer):
         reps_max = attrs.get("reps_max")
         if load_type in (LoadType.PERCENT, LoadType.KG) and load_value is None:
             raise serializers.ValidationError("Для этого типа нагрузки нужно значение.")
-        if load_type in (LoadType.INDIVIDUAL, LoadType.BODYWEIGHT) and load_value is not None:
-            raise serializers.ValidationError("Для этого типа нагрузки значение не используется.")
-        if load_type in (LoadType.INDIVIDUAL, LoadType.BODYWEIGHT) and load_value_max is not None:
-            raise serializers.ValidationError("Для этого типа нагрузки диапазон не используется.")
-        if load_value is not None and load_value_max is not None and load_value_max < load_value:
-            raise serializers.ValidationError("Максимальная нагрузка не может быть меньше минимальной.")
+        if (
+            load_type in (LoadType.INDIVIDUAL, LoadType.BODYWEIGHT)
+            and load_value is not None
+        ):
+            raise serializers.ValidationError(
+                "Для этого типа нагрузки значение не используется."
+            )
+        if (
+            load_type in (LoadType.INDIVIDUAL, LoadType.BODYWEIGHT)
+            and load_value_max is not None
+        ):
+            raise serializers.ValidationError(
+                "Для этого типа нагрузки диапазон не используется."
+            )
+        if (
+            load_value is not None
+            and load_value_max is not None
+            and load_value_max < load_value
+        ):
+            raise serializers.ValidationError(
+                "Максимальная нагрузка не может быть меньше минимальной."
+            )
         if reps_max is not None and reps_max < attrs["reps"]:
-            raise serializers.ValidationError("Максимум повторений не может быть меньше минимума.")
+            raise serializers.ValidationError(
+                "Максимум повторений не может быть меньше минимума."
+            )
         return attrs
 
 
@@ -232,7 +259,9 @@ class ProgramExerciseInputSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
-    superset_group = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    superset_group = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1
+    )
     notes = serializers.CharField(required=False, allow_blank=True)
     sets = ProgramSetInputSerializer(many=True, allow_empty=False)
 
@@ -256,7 +285,9 @@ class ProgramWeekInputSerializer(serializers.Serializer):
     def validate(self, attrs):
         weekdays = [day["weekday"] for day in attrs.get("days", [])]
         if len(set(weekdays)) != len(weekdays):
-            raise serializers.ValidationError("Дни недели внутри недели не должны повторяться.")
+            raise serializers.ValidationError(
+                "Дни недели внутри недели не должны повторяться."
+            )
         attrs["days"] = sorted(
             attrs.get("days", []),
             key=lambda day: WEEKDAY_SORT_ORDER.get(day["weekday"], 99),
@@ -298,8 +329,12 @@ class ProgramStructureInputSerializer(serializers.Serializer):
                                     "sets": [
                                         {
                                             "load_type": set_item["load_type"],
-                                            "load_value": decimal_to_json(set_item.get("load_value")),
-                                            "load_value_max": decimal_to_json(set_item.get("load_value_max")),
+                                            "load_value": decimal_to_json(
+                                                set_item.get("load_value")
+                                            ),
+                                            "load_value_max": decimal_to_json(
+                                                set_item.get("load_value_max")
+                                            ),
                                             "reps": set_item["reps"],
                                             "reps_max": set_item.get("reps_max"),
                                             "sets": set_item["sets"],
@@ -319,9 +354,13 @@ class ProgramStructureInputSerializer(serializers.Serializer):
 
 
 class ProgramCreateSerializer(serializers.Serializer):
-    name = serializers.CharField(max_length=200, allow_blank=False, trim_whitespace=True)
+    name = serializers.CharField(
+        max_length=200, allow_blank=False, trim_whitespace=True
+    )
     description = serializers.CharField(required=False, allow_blank=True, default="")
-    source_program_id = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    source_program_id = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1
+    )
 
 
 class TrainingCycleSummarySerializer(serializers.ModelSerializer):
@@ -355,6 +394,12 @@ class TrainingCycleStartSerializer(serializers.Serializer):
 
 
 class TrainingCycleFinishSerializer(serializers.Serializer):
-    notes = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
-    reason = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
-    feeling = serializers.CharField(required=False, allow_blank=True, trim_whitespace=True)
+    notes = serializers.CharField(
+        required=False, allow_blank=True, trim_whitespace=True
+    )
+    reason = serializers.CharField(
+        required=False, allow_blank=True, trim_whitespace=True
+    )
+    feeling = serializers.CharField(
+        required=False, allow_blank=True, trim_whitespace=True
+    )

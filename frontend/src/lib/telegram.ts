@@ -12,8 +12,6 @@ interface TelegramWebApp {
   close: () => void;
   initData: string;
   initDataUnsafe: Record<string, unknown>;
-  colorScheme: "light" | "dark";
-  themeParams: Record<string, string>;
   viewportHeight: number;
   viewportStableHeight: number;
   onEvent: (event: string, callback: (...args: unknown[]) => void) => void;
@@ -43,9 +41,6 @@ export function initTelegram(): () => void {
   }
 
   const tg = getTelegram();
-  const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-  const handleThemeChange = () => syncTheme(tg, media.matches);
   const handleViewportChange = () => {
     if (tg) {
       syncViewport(tg);
@@ -56,56 +51,12 @@ export function initTelegram(): () => void {
     tg.ready();
     tg.expand();
     syncViewport(tg);
-    tg.onEvent("themeChanged", handleThemeChange);
     tg.onEvent("viewportChanged", handleViewportChange);
   }
 
-  syncTheme(tg, media.matches);
-
-  if (typeof media.addEventListener === "function") {
-    media.addEventListener("change", handleThemeChange);
-  } else {
-    media.addListener(handleThemeChange);
-  }
-
   return () => {
-    tg?.offEvent?.("themeChanged", handleThemeChange);
     tg?.offEvent?.("viewportChanged", handleViewportChange);
-
-    if (typeof media.removeEventListener === "function") {
-      media.removeEventListener("change", handleThemeChange);
-    } else {
-      media.removeListener(handleThemeChange);
-    }
   };
-}
-
-function syncTheme(tg: TelegramWebApp | null, systemPrefersDark: boolean): void {
-  const root = document.documentElement;
-  const isDark = tg ? tg.colorScheme === "dark" : systemPrefersDark;
-
-  if (isDark) {
-    root.classList.add("dark");
-  } else {
-    root.classList.remove("dark");
-  }
-
-  root.style.colorScheme = isDark ? "dark" : "light";
-
-  if (!tg) {
-    return;
-  }
-
-  const tp = tg.themeParams;
-  if (tp.bg_color) root.style.setProperty("--tg-bg-color", tp.bg_color);
-  if (tp.text_color) root.style.setProperty("--tg-text-color", tp.text_color);
-  if (tp.hint_color) root.style.setProperty("--tg-hint-color", tp.hint_color);
-  if (tp.button_color) {
-    root.style.setProperty("--tg-button-color", tp.button_color);
-  }
-  if (tp.button_text_color) {
-    root.style.setProperty("--tg-button-text-color", tp.button_text_color);
-  }
 }
 
 function syncViewport(tg: TelegramWebApp): void {

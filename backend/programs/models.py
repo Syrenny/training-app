@@ -10,15 +10,21 @@ class UserProfile(models.Model):
         related_name="profile",
         verbose_name="Пользователь",
     )
-    telegram_id = models.BigIntegerField(unique=True, db_index=True, verbose_name="Telegram ID")
+    telegram_id = models.BigIntegerField(
+        unique=True, db_index=True, verbose_name="Telegram ID"
+    )
     telegram_username = models.CharField(
         max_length=255,
         blank=True,
         default="",
         verbose_name="Telegram username",
     )
-    first_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Имя")
-    last_name = models.CharField(max_length=255, blank=True, default="", verbose_name="Фамилия")
+    first_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Имя"
+    )
+    last_name = models.CharField(
+        max_length=255, blank=True, default="", verbose_name="Фамилия"
+    )
     telegram_photo_url = models.CharField(
         max_length=500,
         blank=True,
@@ -109,7 +115,9 @@ class ProgramOneRepMaxExercise(models.Model):
         related_name="program_one_rep_max_configs",
         verbose_name="Упражнение 1ПМ",
     )
-    label = models.CharField(max_length=200, blank=True, default="", verbose_name="Подпись")
+    label = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="Подпись"
+    )
     order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
 
     class Meta:
@@ -124,7 +132,10 @@ class ProgramOneRepMaxExercise(models.Model):
 
 class Week(models.Model):
     program = models.ForeignKey(
-        Program, on_delete=models.CASCADE, related_name="weeks", verbose_name="Программа"
+        Program,
+        on_delete=models.CASCADE,
+        related_name="weeks",
+        verbose_name="Программа",
     )
     number = models.PositiveIntegerField(verbose_name="Номер недели")
     title = models.CharField(max_length=100, blank=True, verbose_name="Название")
@@ -147,7 +158,9 @@ class Day(models.Model):
         max_length=3, choices=Weekday.choices, verbose_name="День недели"
     )
     order = models.PositiveIntegerField(default=1, verbose_name="Порядок")
-    title = models.CharField(max_length=200, blank=True, default="", verbose_name="Заголовок")
+    title = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="Заголовок"
+    )
 
     class Meta:
         ordering = ["order"]
@@ -284,8 +297,7 @@ class TrainingCycle(models.Model):
 
     def __str__(self):
         return (
-            f"tg:{self.telegram_id} — {self.program.name} — "
-            f"{self.started_at:%Y-%m-%d}"
+            f"tg:{self.telegram_id} — {self.program.name} — {self.started_at:%Y-%m-%d}"
         )
 
     @property
@@ -306,7 +318,9 @@ class CycleOneRepMax(models.Model):
         related_name="cycle_one_rep_max_values",
         verbose_name="Упражнение 1ПМ",
     )
-    label = models.CharField(max_length=200, blank=True, default="", verbose_name="Подпись")
+    label = models.CharField(
+        max_length=200, blank=True, default="", verbose_name="Подпись"
+    )
     value = models.PositiveIntegerField(
         default=0,
         validators=[MaxValueValidator(999)],
@@ -320,7 +334,9 @@ class CycleOneRepMax(models.Model):
         verbose_name_plural = "1ПМ тренировочных циклов"
 
     def __str__(self):
-        return f"Цикл {self.cycle_id}: {self.label or self.exercise.name} = {self.value}"
+        return (
+            f"Цикл {self.cycle_id}: {self.label or self.exercise.name} = {self.value}"
+        )
 
 
 class AdaptationScope(models.TextChoices):
@@ -586,16 +602,22 @@ class ExerciseSet(models.Model):
         if self.load_type == LoadType.PERCENT:
             value = self._format_load_value(self.load_value)
             max_value = self._format_load_value(self.load_value_max)
-            parts.append(f"{value}-{max_value}%" if max_value is not None else f"{value}%")
+            parts.append(
+                f"{value}-{max_value}%" if max_value is not None else f"{value}%"
+            )
         elif self.load_type == LoadType.KG:
             value = self._format_load_value(self.load_value)
             max_value = self._format_load_value(self.load_value_max)
-            parts.append(f"{value}-{max_value}кг" if max_value is not None else f"{value}кг")
+            parts.append(
+                f"{value}-{max_value}кг" if max_value is not None else f"{value}кг"
+            )
         elif self.load_type == LoadType.INDIVIDUAL:
             parts.append("🏋")
 
         parts.append(
-            f"{self.reps}-{self.reps_max}" if self.reps_max and self.reps_max != self.reps else str(self.reps)
+            f"{self.reps}-{self.reps_max}"
+            if self.reps_max and self.reps_max != self.reps
+            else str(self.reps)
         )
 
         if self.sets > 1:

@@ -5,24 +5,57 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('programs', '0001_initial'),
+        ("programs", "0001_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='OneRepMax',
+            name="OneRepMax",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('telegram_id', models.BigIntegerField(db_index=True, unique=True, verbose_name='Telegram ID')),
-                ('bench', models.PositiveIntegerField(default=0, validators=[django.core.validators.MaxValueValidator(999)], verbose_name='Жим лёжа (кг)')),
-                ('squat', models.PositiveIntegerField(default=0, validators=[django.core.validators.MaxValueValidator(999)], verbose_name='Присед (кг)')),
-                ('deadlift', models.PositiveIntegerField(default=0, validators=[django.core.validators.MaxValueValidator(999)], verbose_name='Тяга (кг)')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "telegram_id",
+                    models.BigIntegerField(
+                        db_index=True, unique=True, verbose_name="Telegram ID"
+                    ),
+                ),
+                (
+                    "bench",
+                    models.PositiveIntegerField(
+                        default=0,
+                        validators=[django.core.validators.MaxValueValidator(999)],
+                        verbose_name="Жим лёжа (кг)",
+                    ),
+                ),
+                (
+                    "squat",
+                    models.PositiveIntegerField(
+                        default=0,
+                        validators=[django.core.validators.MaxValueValidator(999)],
+                        verbose_name="Присед (кг)",
+                    ),
+                ),
+                (
+                    "deadlift",
+                    models.PositiveIntegerField(
+                        default=0,
+                        validators=[django.core.validators.MaxValueValidator(999)],
+                        verbose_name="Тяга (кг)",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Разовый максимум',
-                'verbose_name_plural': 'Разовые максимумы',
+                "verbose_name": "Разовый максимум",
+                "verbose_name_plural": "Разовые максимумы",
             },
         ),
     ]

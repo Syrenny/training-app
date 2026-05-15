@@ -33,19 +33,57 @@ urlpatterns = [
     path("weeks/<int:number>/", WeekDetailView.as_view(), name="week-detail"),
     path("programs/", ProgramListView.as_view(), name="program-list"),
     path("programs/create/", ProgramCreateView.as_view(), name="program-create"),
-    path("programs/selected/", ProgramSelectionView.as_view(), name="program-selection"),
+    path(
+        "programs/selected/", ProgramSelectionView.as_view(), name="program-selection"
+    ),
     path("program/", ProgramCurrentView.as_view(), name="program-current"),
     path("program/original/", ProgramOriginalView.as_view(), name="program-original"),
     path("exercises/", ExerciseCatalogView.as_view(), name="exercise-catalog"),
     path("one-rep-max/", OneRepMaxView.as_view(), name="one-rep-max"),
     path("completions/", CompletionListView.as_view(), name="completion-list"),
-    path("completions/<int:week_number>/<str:weekday>/", CompletionDetailView.as_view(), name="completion-detail"),
-    path("training-cycle/active/", TrainingCycleActiveView.as_view(), name="training-cycle-active"),
-    path("training-cycle/start/", TrainingCycleStartView.as_view(), name="training-cycle-start"),
-    path("training-cycle/finish/", TrainingCycleFinishView.as_view(), name="training-cycle-finish"),
-    path("training-cycle/history/", TrainingCycleHistoryView.as_view(), name="training-cycle-history"),
-    path("training-cycle/history/<int:cycle_id>/", TrainingCycleHistoryDetailView.as_view(), name="training-cycle-history-detail"),
-    path("accessory-weights/latest/", AccessoryWeightLatestView.as_view(), name="accessory-weight-latest"),
-    path("accessory-weights/<int:exercise_id>/", AccessoryWeightView.as_view(), name="accessory-weight-upsert"),
-    path("accessory-weights/<int:exercise_id>/history/", AccessoryWeightHistoryView.as_view(), name="accessory-weight-history"),
+    path(
+        "completions/<int:week_number>/<str:weekday>/",
+        CompletionDetailView.as_view(),
+        name="completion-detail",
+    ),
+    path(
+        "training-cycle/active/",
+        TrainingCycleActiveView.as_view(),
+        name="training-cycle-active",
+    ),
+    path(
+        "training-cycle/start/",
+        TrainingCycleStartView.as_view(),
+        name="training-cycle-start",
+    ),
+    path(
+        "training-cycle/finish/",
+        TrainingCycleFinishView.as_view(),
+        name="training-cycle-finish",
+    ),
+    path(
+        "training-cycle/history/",
+        TrainingCycleHistoryView.as_view(),
+        name="training-cycle-history",
+    ),
+    path(
+        "training-cycle/history/<int:cycle_id>/",
+        TrainingCycleHistoryDetailView.as_view(),
+        name="training-cycle-history-detail",
+    ),
+    path(
+        "accessory-weights/latest/",
+        AccessoryWeightLatestView.as_view(),
+        name="accessory-weight-latest",
+    ),
+    path(
+        "accessory-weights/<int:exercise_id>/",
+        AccessoryWeightView.as_view(),
+        name="accessory-weight-upsert",
+    ),
+    path(
+        "accessory-weights/<int:exercise_id>/history/",
+        AccessoryWeightHistoryView.as_view(),
+        name="accessory-weight-history",
+    ),
 ]

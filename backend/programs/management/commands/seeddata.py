@@ -1,7 +1,16 @@
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from programs.models import Day, DayExercise, DayTextBlock, Exercise, ExerciseSet, OneRepMax, Program, Week
+from programs.models import (
+    Day,
+    DayExercise,
+    DayTextBlock,
+    Exercise,
+    ExerciseSet,
+    OneRepMax,
+    Program,
+    Week,
+)
 from programs.seed_configs import BUNDLED_PROGRAMS
 from programs.seed_configs.common import EXERCISE_NAME_ALIASES
 
@@ -49,18 +58,24 @@ class Command(BaseCommand):
                     },
                 )
                 self.reset_program_structure(program)
-                one_rep_max_sources = self.seed_program_one_rep_max_exercises(program, config)
+                one_rep_max_sources = self.seed_program_one_rep_max_exercises(
+                    program, config
+                )
                 created_count = self.seed_program(program, config, one_rep_max_sources)
                 results.append((program.name, created_count))
 
             if options["dev_user"]:
                 self.seed_dev_user_one_rep_max()
 
-        summary = "; ".join(f"{name} — {count} недель пересобрано" for name, count in results)
+        summary = "; ".join(
+            f"{name} — {count} недель пересобрано" for name, count in results
+        )
         self.stdout.write(self.style.SUCCESS(f"Done: {summary}"))
 
         if options["dev_user"]:
-            self.stdout.write(self.style.SUCCESS("Dev user OneRepMax created/updated (telegram_id=1)"))
+            self.stdout.write(
+                self.style.SUCCESS("Dev user OneRepMax created/updated (telegram_id=1)")
+            )
 
     def reset_program_structure(self, program):
         self.stdout.write(f"  {program.name}: удаляю старую исходную структуру")
@@ -100,8 +115,12 @@ class Command(BaseCommand):
 
     def seed_program(self, program, config, one_rep_max_sources):
         if config["format"] == "legacy":
-            return self.seed_legacy_program(program, config["weeks"], config, one_rep_max_sources)
-        return self.seed_structured_program(program, config["weeks"], config, one_rep_max_sources)
+            return self.seed_legacy_program(
+                program, config["weeks"], config, one_rep_max_sources
+            )
+        return self.seed_structured_program(
+            program, config["weeks"], config, one_rep_max_sources
+        )
 
     def seed_legacy_program(self, program, weeks_data, config, one_rep_max_sources):
         created_count = 0
@@ -175,7 +194,9 @@ class Command(BaseCommand):
                     title=day_data.get("title", ""),
                 )
 
-                for ex_order, exercise_data in enumerate(day_data.get("exercises", []), start=1):
+                for ex_order, exercise_data in enumerate(
+                    day_data.get("exercises", []), start=1
+                ):
                     exercise = self.get_or_update_exercise(
                         exercise_data["name"],
                         exercise_data["category"],
@@ -194,7 +215,9 @@ class Command(BaseCommand):
                         notes=exercise_data.get("notes", ""),
                     )
 
-                    for set_order, set_data in enumerate(exercise_data.get("sets", []), start=1):
+                    for set_order, set_data in enumerate(
+                        exercise_data.get("sets", []), start=1
+                    ):
                         ExerciseSet.objects.create(
                             day_exercise=day_exercise,
                             load_type=set_data["load_type"],
@@ -206,7 +229,9 @@ class Command(BaseCommand):
                             order=set_order,
                         )
 
-                for block_order, block_data in enumerate(day_data.get("text_blocks", []), start=1):
+                for block_order, block_data in enumerate(
+                    day_data.get("text_blocks", []), start=1
+                ):
                     DayTextBlock.objects.create(
                         day=day,
                         kind=block_data["kind"],
@@ -220,11 +245,15 @@ class Command(BaseCommand):
         return created_count
 
     def seed_dev_user_one_rep_max(self):
-        for program in Program.objects.prefetch_related("one_rep_max_exercises__exercise"):
+        for program in Program.objects.prefetch_related(
+            "one_rep_max_exercises__exercise"
+        ):
             for item in program.one_rep_max_exercises.all():
                 OneRepMax.objects.update_or_create(
                     telegram_id=1,
                     program=program,
                     exercise=item.exercise,
-                    defaults={"value": DEV_DEFAULT_ONE_REP_MAX.get(item.exercise.name, 0)},
+                    defaults={
+                        "value": DEV_DEFAULT_ONE_REP_MAX.get(item.exercise.name, 0)
+                    },
                 )

@@ -51,7 +51,9 @@ def format_number_range(min_value, max_value):
     return f"{first}-{last}"
 
 
-def render_set_display(load_type, load_value, reps, sets, *, load_value_max=None, reps_max=None):
+def render_set_display(
+    load_type, load_value, reps, sets, *, load_value_max=None, reps_max=None
+):
     parts = []
     if load_type == "PERCENT":
         parts.append(f"{format_number_range(load_value, load_value_max)}%")
@@ -78,7 +80,9 @@ def serialize_program_summary(program):
         "description": program.description,
         "is_custom": program.owner_id is not None,
         "source_program_id": program.source_program_id,
-        "source_program_name": program.source_program.name if program.source_program_id else None,
+        "source_program_name": program.source_program.name
+        if program.source_program_id
+        else None,
         "one_rep_max_exercises": [
             {
                 "exercise_id": item.exercise_id,
@@ -90,7 +94,9 @@ def serialize_program_summary(program):
                     "category": item.exercise.category,
                 },
             }
-            for item in program.one_rep_max_exercises.select_related("exercise").all().order_by("order", "id")
+            for item in program.one_rep_max_exercises.select_related("exercise")
+            .all()
+            .order_by("order", "id")
         ],
     }
 
@@ -127,7 +133,9 @@ def build_base_program_payload(program=None):
                             {
                                 "load_type": set_item.load_type,
                                 "load_value": decimal_to_json(set_item.load_value),
-                                "load_value_max": decimal_to_json(set_item.load_value_max),
+                                "load_value_max": decimal_to_json(
+                                    set_item.load_value_max
+                                ),
                                 "reps": set_item.reps,
                                 "reps_max": set_item.reps_max,
                                 "sets": set_item.sets,
@@ -178,7 +186,9 @@ def collect_exercise_ids(payload):
     return ids
 
 
-def build_program_response(payload, *, program=None, version=None, created_at=None, commit_message=None):
+def build_program_response(
+    payload, *, program=None, version=None, created_at=None, commit_message=None
+):
     exercise_ids = collect_exercise_ids(payload)
     exercises = Exercise.objects.in_bulk(exercise_ids)
 
@@ -190,10 +200,14 @@ def build_program_response(payload, *, program=None, version=None, created_at=No
             weekday = day["weekday"]
             day_id = f"{week_number}:{weekday}"
             exercise_items = []
-            for exercise_index, exercise_item in enumerate(day.get("exercises", []), start=1):
+            for exercise_index, exercise_item in enumerate(
+                day.get("exercises", []), start=1
+            ):
                 exercise = exercises[exercise_item["exercise_id"]]
                 set_items = []
-                for set_index, set_item in enumerate(exercise_item.get("sets", []), start=1):
+                for set_index, set_item in enumerate(
+                    exercise_item.get("sets", []), start=1
+                ):
                     load_value = decimal_to_json(set_item.get("load_value"))
                     load_value_max = decimal_to_json(set_item.get("load_value_max"))
                     set_items.append(
@@ -221,12 +235,16 @@ def build_program_response(payload, *, program=None, version=None, created_at=No
                     {
                         "id": f"{day_id}:{exercise_index}",
                         "order": exercise_index,
-                        "slot_key": exercise_item.get("slot_key", f"{week_number}:{weekday}:{exercise_index}"),
+                        "slot_key": exercise_item.get(
+                            "slot_key", f"{week_number}:{weekday}:{exercise_index}"
+                        ),
                         "exercise": {
                             "id": exercise.id,
                             "name": exercise.name,
                             "category": exercise.category,
-                            "one_rep_max_exercise_id": exercise_item.get("one_rep_max_exercise_id"),
+                            "one_rep_max_exercise_id": exercise_item.get(
+                                "one_rep_max_exercise_id"
+                            ),
                         },
                         "sets": set_items,
                         "superset_group": exercise_item.get("superset_group"),

@@ -55,7 +55,9 @@ class ProgramCatalogAccessTest(TestCase):
             label="Жим",
             order=1,
         )
-        week = Week.objects.create(program=self.base_program, number=1, title="1 неделя")
+        week = Week.objects.create(
+            program=self.base_program, number=1, title="1 неделя"
+        )
         day = Day.objects.create(
             week=week,
             weekday=Weekday.MON,

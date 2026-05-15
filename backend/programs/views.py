@@ -240,10 +240,14 @@ class AuthSessionView(APIView):
                     "user": {
                         "id": request.user.id,
                         "telegram_id": getattr(profile, "telegram_id", None),
-                        "first_name": getattr(profile, "first_name", "") or request.user.first_name,
-                        "last_name": getattr(profile, "last_name", "") or request.user.last_name,
+                        "first_name": getattr(profile, "first_name", "")
+                        or request.user.first_name,
+                        "last_name": getattr(profile, "last_name", "")
+                        or request.user.last_name,
                         "telegram_username": getattr(profile, "telegram_username", ""),
-                        "telegram_photo_url": getattr(profile, "telegram_photo_url", ""),
+                        "telegram_photo_url": getattr(
+                            profile, "telegram_photo_url", ""
+                        ),
                     },
                 }
             )
@@ -279,7 +283,9 @@ class TelegramLoginView(APIView):
 
     def post(self, request):
         if settings.DEBUG and request.headers.get("X-Dev-Mode") == "1":
-            user = sync_telegram_user({"id": 1, "first_name": "Dev"}, username_prefix="dev")
+            user = sync_telegram_user(
+                {"id": 1, "first_name": "Dev"}, username_prefix="dev"
+            )
         else:
             init_data = request.data.get("init_data", "")
             auth_data = request.data.get("auth_data")
@@ -370,11 +376,17 @@ class OneRepMaxView(APIView):
             .order_by("order", "id")
         )
         allowed_ids = {item.exercise_id for item in configs}
-        provided = {item["exercise_id"]: item["value"] for item in serializer.validated_data["items"]}
+        provided = {
+            item["exercise_id"]: item["value"]
+            for item in serializer.validated_data["items"]
+        }
         invalid_ids = sorted(set(provided) - allowed_ids)
         if invalid_ids:
             return Response(
-                {"detail": "Unknown one rep max exercises.", "exercise_ids": invalid_ids},
+                {
+                    "detail": "Unknown one rep max exercises.",
+                    "exercise_ids": invalid_ids,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -419,18 +431,17 @@ class CompletionListView(APIView):
         if program is None:
             return Response({"completions": []})
 
-        completions = (
-            WorkoutCompletion.objects.filter(
-                telegram_id=telegram_id,
-                program=program,
-            )
-            .order_by("completed_at")
-        )
+        completions = WorkoutCompletion.objects.filter(
+            telegram_id=telegram_id,
+            program=program,
+        ).order_by("completed_at")
         latest_by_day = {}
         for item in completions:
             if item.week_number is None or item.weekday is None:
                 continue
-            latest_by_day[(item.week_number, item.weekday)] = item.completed_at.strftime("%Y-%m-%d")
+            latest_by_day[(item.week_number, item.weekday)] = (
+                item.completed_at.strftime("%Y-%m-%d")
+            )
 
         result = [
             {
@@ -578,13 +589,10 @@ class AccessoryWeightLatestView(APIView):
             .values("recorded_date")[:1]
         )
 
-        records = (
-            AccessoryWeight.objects.filter(
-                telegram_id=telegram_id,
-                recorded_date=Subquery(latest_dates),
-            )
-            .select_related("exercise", "week")
-        )
+        records = AccessoryWeight.objects.filter(
+            telegram_id=telegram_id,
+            recorded_date=Subquery(latest_dates),
+        ).select_related("exercise", "week")
 
         result = {}
         for rec in records:
@@ -629,11 +637,15 @@ class AccessoryWeightHistoryView(APIView):
         serializer = AccessoryWeightNoteUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        record = AccessoryWeight.objects.filter(
-            telegram_id=telegram_id,
-            exercise_id=exercise_id,
-            recorded_date=serializer.validated_data["recorded_date"],
-        ).select_related("week").first()
+        record = (
+            AccessoryWeight.objects.filter(
+                telegram_id=telegram_id,
+                exercise_id=exercise_id,
+                recorded_date=serializer.validated_data["recorded_date"],
+            )
+            .select_related("week")
+            .first()
+        )
         if record is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -656,7 +668,9 @@ class WeekDetailView(generics.RetrieveAPIView):
     lookup_field = "number"
 
     def get_queryset(self):
-        return Week.objects.filter(program=get_program_context(self.request)).prefetch_related(
+        return Week.objects.filter(
+            program=get_program_context(self.request)
+        ).prefetch_related(
             "days__exercises__exercise",
             "days__exercises__one_rep_max_exercise",
             "days__exercises__sets",
@@ -675,7 +689,9 @@ class ProgramCurrentView(APIView):
 
     def get(self, request):
         program = get_program_context(request)
-        return Response(build_program_response(build_base_program_payload(program), program=program))
+        return Response(
+            build_program_response(build_base_program_payload(program), program=program)
+        )
 
 
 class ProgramOriginalView(APIView):
@@ -684,7 +700,11 @@ class ProgramOriginalView(APIView):
     def get(self, request):
         program = get_selected_program(request)
         original_program = program
-        if program is not None and program.owner_id is not None and program.source_program_id is not None:
+        if (
+            program is not None
+            and program.owner_id is not None
+            and program.source_program_id is not None
+        ):
             original_program = program.source_program
         return Response(
             build_program_response(
@@ -718,7 +738,10 @@ class ProgramCreateView(APIView):
 
         profile = get_request_profile(request)
         if profile is None:
-            return Response({"detail": "User profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "User profile not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         serializer = ProgramCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -739,7 +762,9 @@ class ProgramCreateView(APIView):
 
         with transaction.atomic():
             program = Program.objects.create(
-                slug=generate_custom_program_slug(profile, serializer.validated_data["name"]),
+                slug=generate_custom_program_slug(
+                    profile, serializer.validated_data["name"]
+                ),
                 name=serializer.validated_data["name"],
                 description=serializer.validated_data.get("description", ""),
                 owner=profile,
@@ -749,7 +774,9 @@ class ProgramCreateView(APIView):
             profile.selected_program = program
             profile.save(update_fields=["selected_program"])
 
-        program = Program.objects.prefetch_related("one_rep_max_exercises__exercise", "source_program").get(pk=program.pk)
+        program = Program.objects.prefetch_related(
+            "one_rep_max_exercises__exercise", "source_program"
+        ).get(pk=program.pk)
         return Response(ProgramSerializer(program).data, status=status.HTTP_201_CREATED)
 
 
@@ -765,11 +792,17 @@ class ProgramSelectionView(APIView):
 
         profile = getattr(request.user, "profile", None)
         if profile is None:
-            return Response({"detail": "User profile not found."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "User profile not found."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         program_id = request.data.get("program_id")
         if not program_id:
-            return Response({"detail": "program_id is required."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "program_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         program = (
             get_program_queryset_for_profile(profile)
@@ -816,9 +849,11 @@ class TrainingCycleStartView(APIView):
         serializer = TrainingCycleStartSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        program = get_accessible_program_queryset(request).filter(
-            pk=serializer.validated_data["program_id"]
-        ).first()
+        program = (
+            get_accessible_program_queryset(request)
+            .filter(pk=serializer.validated_data["program_id"])
+            .first()
+        )
         if program is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -828,17 +863,26 @@ class TrainingCycleStartView(APIView):
             .order_by("order", "id")
         )
         allowed_ids = {item.exercise_id for item in configs}
-        provided = {item["exercise_id"]: item["value"] for item in serializer.validated_data["items"]}
+        provided = {
+            item["exercise_id"]: item["value"]
+            for item in serializer.validated_data["items"]
+        }
         invalid_ids = sorted(set(provided) - allowed_ids)
         if invalid_ids:
             return Response(
-                {"detail": "Unknown one rep max exercises.", "exercise_ids": invalid_ids},
+                {
+                    "detail": "Unknown one rep max exercises.",
+                    "exercise_ids": invalid_ids,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
         missing_ids = sorted(allowed_ids - set(provided))
         if missing_ids:
             return Response(
-                {"detail": "Не заданы все обязательные 1ПМ.", "exercise_ids": missing_ids},
+                {
+                    "detail": "Не заданы все обязательные 1ПМ.",
+                    "exercise_ids": missing_ids,
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -912,7 +956,9 @@ class TrainingCycleStartView(APIView):
         return Response(
             {
                 "cycle": TrainingCycleSummarySerializer(cycle).data,
-                "program": build_program_response(build_base_program_payload(program), program=program),
+                "program": build_program_response(
+                    build_base_program_payload(program), program=program
+                ),
                 "one_rep_max": OneRepMaxResponseSerializer(
                     build_cycle_one_rep_max_response(cycle)
                 ).data,
@@ -949,7 +995,9 @@ class TrainingCycleFinishView(APIView):
         cycle.completed_at = timezone.now()
         cycle.completion_reason = serializer.validated_data.get("reason", "")
         cycle.completion_feeling = notes
-        cycle.save(update_fields=["completed_at", "completion_reason", "completion_feeling"])
+        cycle.save(
+            update_fields=["completed_at", "completion_reason", "completion_feeling"]
+        )
         return Response(TrainingCycleSummarySerializer(cycle).data)
 
 
@@ -964,7 +1012,9 @@ class TrainingCycleHistoryView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        cycles = TrainingCycle.objects.filter(telegram_id=telegram_id).select_related("program")
+        cycles = TrainingCycle.objects.filter(telegram_id=telegram_id).select_related(
+            "program"
+        )
         return Response(TrainingCycleSummarySerializer(cycles, many=True).data)
 
 
@@ -979,7 +1029,9 @@ class TrainingCycleHistoryDetailView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        cycle = TrainingCycle.objects.filter(id=cycle_id, telegram_id=telegram_id).first()
+        cycle = TrainingCycle.objects.filter(
+            id=cycle_id, telegram_id=telegram_id
+        ).first()
         if cycle is None:
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 

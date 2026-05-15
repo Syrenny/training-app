@@ -15,15 +15,40 @@ class Migration(migrations.Migration):
             fields=[
                 (
                     "id",
-                    models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID"),
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
                 ),
-                ("telegram_id", models.BigIntegerField(db_index=True, unique=True, verbose_name="Telegram ID")),
+                (
+                    "telegram_id",
+                    models.BigIntegerField(
+                        db_index=True, unique=True, verbose_name="Telegram ID"
+                    ),
+                ),
                 (
                     "telegram_username",
-                    models.CharField(blank=True, default="", max_length=255, verbose_name="Telegram username"),
+                    models.CharField(
+                        blank=True,
+                        default="",
+                        max_length=255,
+                        verbose_name="Telegram username",
+                    ),
                 ),
-                ("first_name", models.CharField(blank=True, default="", max_length=255, verbose_name="Имя")),
-                ("last_name", models.CharField(blank=True, default="", max_length=255, verbose_name="Фамилия")),
+                (
+                    "first_name",
+                    models.CharField(
+                        blank=True, default="", max_length=255, verbose_name="Имя"
+                    ),
+                ),
+                (
+                    "last_name",
+                    models.CharField(
+                        blank=True, default="", max_length=255, verbose_name="Фамилия"
+                    ),
+                ),
                 (
                     "user",
                     models.OneToOneField(

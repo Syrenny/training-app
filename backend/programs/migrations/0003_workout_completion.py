@@ -5,24 +5,45 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('programs', '0002_onerepmax'),
+        ("programs", "0002_onerepmax"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='WorkoutCompletion',
+            name="WorkoutCompletion",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('telegram_id', models.BigIntegerField(db_index=True, verbose_name='Telegram ID')),
-                ('completed_at', models.DateTimeField(auto_now_add=True, verbose_name='Завершено')),
-                ('day', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='completions', to='programs.day', verbose_name='День')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "telegram_id",
+                    models.BigIntegerField(db_index=True, verbose_name="Telegram ID"),
+                ),
+                (
+                    "completed_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="Завершено"),
+                ),
+                (
+                    "day",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="completions",
+                        to="programs.day",
+                        verbose_name="День",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'Завершение тренировки',
-                'verbose_name_plural': 'Завершения тренировок',
-                'unique_together': {('telegram_id', 'day')},
+                "verbose_name": "Завершение тренировки",
+                "verbose_name_plural": "Завершения тренировок",
+                "unique_together": {("telegram_id", "day")},
             },
         ),
     ]

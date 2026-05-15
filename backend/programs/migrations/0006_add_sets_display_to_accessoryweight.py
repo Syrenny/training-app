@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('programs', '0005_accessoryweight'),
+        ("programs", "0005_accessoryweight"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='accessoryweight',
-            name='sets_display',
-            field=models.CharField(blank=True, default='', max_length=200, verbose_name='Подходы (снапшот)'),
+            model_name="accessoryweight",
+            name="sets_display",
+            field=models.CharField(
+                blank=True, default="", max_length=200, verbose_name="Подходы (снапшот)"
+            ),
         ),
     ]

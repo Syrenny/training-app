@@ -41,7 +41,14 @@ def changelist_link(url_name, label, filters):
 class DayExerciseAdminForm(forms.ModelForm):
     class Meta:
         model = DayExercise
-        fields = ["day", "order", "exercise", "one_rep_max_exercise", "superset_group", "notes"]
+        fields = [
+            "day",
+            "order",
+            "exercise",
+            "one_rep_max_exercise",
+            "superset_group",
+            "notes",
+        ]
         widgets = {
             "notes": forms.Textarea(attrs={"rows": 1}),
         }
@@ -59,7 +66,13 @@ class ProgramAdmin(admin.ModelAdmin):
         "weeks_link",
         "configs_link",
     ]
-    search_fields = ["name", "slug", "description", "owner__user__username", "owner__telegram_username"]
+    search_fields = [
+        "name",
+        "slug",
+        "description",
+        "owner__user__username",
+        "owner__telegram_username",
+    ]
     prepopulated_fields = {"slug": ("name",)}
     actions = ["duplicate_selected_programs"]
     autocomplete_fields = ["source_program"]
@@ -104,11 +117,15 @@ class ProgramAdmin(admin.ModelAdmin):
             if action:
                 if action == "select-week":
                     selected_week = request.POST.get("active_week")
-                    weeks, active_week, active_day = get_editor_selection(program, selected_week, None)
+                    weeks, active_week, active_day = get_editor_selection(
+                        program, selected_week, None
+                    )
                     target_week = active_week.id if active_week else None
                     target_day = active_day.id if active_day else None
                 else:
-                    target_week, target_day = perform_editor_action(program, action, week_id, day_id)
+                    target_week, target_day = perform_editor_action(
+                        program, action, week_id, day_id
+                    )
                 url = reverse("admin:programs_program_editor", args=[program.pk])
                 params = {}
                 if target_week:
@@ -120,7 +137,11 @@ class ProgramAdmin(admin.ModelAdmin):
                 return redirect(url)
             else:
                 if save_active_week_day(program, week_id, day_id, request.POST):
-                    self.message_user(request, "Программа сохранена через единый редактор.", level=messages.SUCCESS)
+                    self.message_user(
+                        request,
+                        "Программа сохранена через единый редактор.",
+                        level=messages.SUCCESS,
+                    )
                     url = reverse("admin:programs_program_editor", args=[program.pk])
                     params = {}
                     if week_id:
@@ -130,7 +151,9 @@ class ProgramAdmin(admin.ModelAdmin):
                     if params:
                         return redirect(f"{url}?{urlencode(params)}")
                     return redirect(url)
-                render_tree = build_server_render_editor_context(program, week_id, day_id, bound_data=request.POST)
+                render_tree = build_server_render_editor_context(
+                    program, week_id, day_id, bound_data=request.POST
+                )
         else:
             render_tree = build_server_render_editor_context(program, week_id, day_id)
 
@@ -145,10 +168,15 @@ class ProgramAdmin(admin.ModelAdmin):
         return TemplateResponse(request, "admin/programs/program/editor.html", context)
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("owner", "source_program").annotate(
-            week_total=Count("weeks", distinct=True),
-            day_total=Count("weeks__days", distinct=True),
-            exercise_total=Count("weeks__days__exercises", distinct=True),
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("owner", "source_program")
+            .annotate(
+                week_total=Count("weeks", distinct=True),
+                day_total=Count("weeks__days", distinct=True),
+                exercise_total=Count("weeks__days__exercises", distinct=True),
+            )
         )
 
     @admin.display(ordering="week_total", description="Недель")
@@ -202,7 +230,11 @@ class ProgramAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
-        if obj.source_program_id and not obj.weeks.exists() and not obj.one_rep_max_exercises.exists():
+        if (
+            obj.source_program_id
+            and not obj.weeks.exists()
+            and not obj.one_rep_max_exercises.exists()
+        ):
             clone_program_structure(obj.source_program, obj)
             self.message_user(
                 request,
@@ -237,7 +269,14 @@ class WeekAdmin(SortableAdminBase, admin.ModelAdmin):
 
 @admin.register(Day)
 class DayAdmin(SortableAdminBase, admin.ModelAdmin):
-    list_display = ["program_name", "week", "weekday", "title", "order", "exercises_link"]
+    list_display = [
+        "program_name",
+        "week",
+        "weekday",
+        "title",
+        "order",
+        "exercises_link",
+    ]
     search_fields = ["title", "week__program__name"]
     ordering = ["week__program__name", "week__number", "order"]
     autocomplete_fields = ["week"]
@@ -281,13 +320,23 @@ class ExerciseAdmin(admin.ModelAdmin):
 @admin.register(DayExercise)
 class DayExerciseAdmin(SortableAdminBase, admin.ModelAdmin):
     form = DayExerciseAdminForm
-    list_display = ["day", "exercise", "one_rep_max_exercise", "order", "superset_display"]
+    list_display = [
+        "day",
+        "exercise",
+        "one_rep_max_exercise",
+        "order",
+        "superset_display",
+    ]
     search_fields = ["day__week__program__name", "exercise__name", "notes"]
     ordering = ["day__week__program__name", "day__week__number", "day__order", "order"]
     autocomplete_fields = ["day", "exercise", "one_rep_max_exercise"]
 
     def get_queryset(self, request):
-        return super().get_queryset(request).select_related("day__week__program", "exercise", "one_rep_max_exercise")
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("day__week__program", "exercise", "one_rep_max_exercise")
+        )
 
     def get_list_display(self, request):
         if self._get_filtered_day(request) is not None:
@@ -327,6 +376,13 @@ class ExerciseSetAdmin(SortableAdminBase, admin.ModelAdmin):
         "sets",
         "order",
     ]
-    search_fields = ["day_exercise__day__week__program__name", "day_exercise__exercise__name"]
-    ordering = ["day_exercise__day__week__program__name", "day_exercise__day__week__number", "order"]
+    search_fields = [
+        "day_exercise__day__week__program__name",
+        "day_exercise__exercise__name",
+    ]
+    ordering = [
+        "day_exercise__day__week__program__name",
+        "day_exercise__day__week__number",
+        "order",
+    ]
     autocomplete_fields = ["day_exercise"]

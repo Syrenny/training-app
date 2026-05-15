@@ -23,13 +23,23 @@ from programs.models import (
 
 class ProgramEditorFormTest(TestCase):
     def setUp(self):
-        self.bench = Exercise.objects.create(name="Жим лежа", category=ExerciseCategory.BENCH)
-        self.squat = Exercise.objects.create(name="Присед", category=ExerciseCategory.SQUAT)
-        self.row = Exercise.objects.create(name="Тяга штанги", category=ExerciseCategory.ACCESSORY)
+        self.bench = Exercise.objects.create(
+            name="Жим лежа", category=ExerciseCategory.BENCH
+        )
+        self.squat = Exercise.objects.create(
+            name="Присед", category=ExerciseCategory.SQUAT
+        )
+        self.row = Exercise.objects.create(
+            name="Тяга штанги", category=ExerciseCategory.ACCESSORY
+        )
         self.program = Program.objects.create(slug="editor-program", name="Редактор")
 
-        week = Week.objects.create(program=self.program, number=1, title="Старая неделя")
-        day = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="Старый день")
+        week = Week.objects.create(
+            program=self.program, number=1, title="Старая неделя"
+        )
+        day = Day.objects.create(
+            week=week, weekday=Weekday.MON, order=1, title="Старый день"
+        )
         day_exercise = DayExercise.objects.create(day=day, exercise=self.bench, order=1)
         ExerciseSet.objects.create(
             day_exercise=day_exercise,
@@ -158,14 +168,21 @@ class ProgramEditorFormTest(TestCase):
 
         self.assertEqual(self.program.one_rep_max_exercises.count(), 2)
         self.assertEqual(
-            list(self.program.one_rep_max_exercises.order_by("order").values_list("label", flat=True)),
+            list(
+                self.program.one_rep_max_exercises.order_by("order").values_list(
+                    "label", flat=True
+                )
+            ),
             ["Жим", "Присед"],
         )
 
         self.assertEqual(self.program.weeks.count(), 1)
         week = self.program.weeks.get(number=1)
         self.assertEqual(week.title, "Интенсивность")
-        self.assertEqual(list(week.days.values_list("weekday", flat=True)), [Weekday.MON, Weekday.WED])
+        self.assertEqual(
+            list(week.days.values_list("weekday", flat=True)),
+            [Weekday.MON, Weekday.WED],
+        )
 
         monday = week.days.get(weekday=Weekday.MON)
         self.assertEqual(monday.title, "Тяжелый верх")
@@ -181,7 +198,9 @@ class ProgramEditorFormTest(TestCase):
         second_exercise = wednesday.exercises.get(order=2)
         self.assertEqual(second_exercise.exercise, self.row)
         self.assertEqual(second_exercise.superset_group, 1)
-        self.assertEqual(second_exercise.sets.get(order=1).load_type, LoadType.BODYWEIGHT)
+        self.assertEqual(
+            second_exercise.sets.get(order=1).load_type, LoadType.BODYWEIGHT
+        )
 
     def test_editor_form_rejects_duplicate_one_rep_max_exercises(self):
         form = ProgramEditorForm(
@@ -203,7 +222,9 @@ class ProgramEditorFormTest(TestCase):
         )
 
         self.assertFalse(form.is_valid())
-        self.assertIn("Упражнения 1ПМ не должны повторяться.", form.errors["one_rep_max_config"])
+        self.assertIn(
+            "Упражнения 1ПМ не должны повторяться.", form.errors["one_rep_max_config"]
+        )
 
     def test_editor_uses_source_program_when_custom_program_is_still_empty(self):
         source_program = Program.objects.create(slug="source-program", name="Источник")
@@ -213,8 +234,12 @@ class ProgramEditorFormTest(TestCase):
             label="Присед источник",
             order=1,
         )
-        week = Week.objects.create(program=source_program, number=1, title="Неделя источника")
-        day = Day.objects.create(week=week, weekday=Weekday.FRI, order=1, title="День источника")
+        week = Week.objects.create(
+            program=source_program, number=1, title="Неделя источника"
+        )
+        day = Day.objects.create(
+            week=week, weekday=Weekday.FRI, order=1, title="День источника"
+        )
         day_exercise = DayExercise.objects.create(
             day=day,
             exercise=self.squat,
@@ -240,7 +265,9 @@ class ProgramEditorFormTest(TestCase):
 
         self.assertEqual(state["one_rep_max_config"][0]["label"], "Присед источник")
         self.assertEqual(state["structure"]["weeks"][0]["title"], "Неделя источника")
-        self.assertEqual(state["structure"]["weeks"][0]["days"][0]["weekday"], Weekday.FRI)
+        self.assertEqual(
+            state["structure"]["weeks"][0]["days"][0]["weekday"], Weekday.FRI
+        )
 
 
 class ProgramEditorAdminViewTest(TestCase):
@@ -251,11 +278,15 @@ class ProgramEditorAdminViewTest(TestCase):
             email="admin@example.com",
             password="secret123",
         )
-        self.program = Program.objects.create(slug="admin-program", name="Admin Program")
+        self.program = Program.objects.create(
+            slug="admin-program", name="Admin Program"
+        )
         self.client.force_login(self.admin_user)
 
     def test_program_editor_view_is_available_in_admin(self):
-        response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
+        response = self.client.get(
+            reverse("admin:programs_program_editor", args=[self.program.pk])
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'id="program-editor-form"', html=False)
@@ -264,32 +295,46 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertContains(response, 'id="program-day-editor"', html=False)
 
     def test_program_editor_renders_week_sections_when_program_has_weeks(self):
-        week = Week.objects.create(program=self.program, number=1, title="Первая неделя")
+        week = Week.objects.create(
+            program=self.program, number=1, title="Первая неделя"
+        )
         Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="День")
 
-        response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
+        response = self.client.get(
+            reverse("admin:programs_program_editor", args=[self.program.pk])
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'value="1"', html=False)
         self.assertContains(response, "Первая неделя")
 
     def test_program_editor_renders_day_navigation_and_single_open_day(self):
-        week = Week.objects.create(program=self.program, number=1, title="Первая неделя")
-        monday = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="Понедельник")
-        wednesday = Day.objects.create(week=week, weekday=Weekday.WED, order=2, title="Среда")
+        week = Week.objects.create(
+            program=self.program, number=1, title="Первая неделя"
+        )
+        monday = Day.objects.create(
+            week=week, weekday=Weekday.MON, order=1, title="Понедельник"
+        )
+        wednesday = Day.objects.create(
+            week=week, weekday=Weekday.WED, order=2, title="Среда"
+        )
 
-        response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
+        response = self.client.get(
+            reverse("admin:programs_program_editor", args=[self.program.pk])
+        )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, f'?week={week.id}&day={monday.id}', html=False)
-        self.assertContains(response, f'?week={week.id}&day={wednesday.id}', html=False)
+        self.assertContains(response, f"?week={week.id}&day={monday.id}", html=False)
+        self.assertContains(response, f"?week={week.id}&day={wednesday.id}", html=False)
         self.assertContains(response, f'id="day-{monday.id}"', html=False)
         self.assertNotContains(response, f'id="day-{wednesday.id}"', html=False)
         self.assertContains(response, "Понедельник")
         self.assertContains(response, "Среда")
 
     def test_program_editor_renders_server_side_hierarchy_classes(self):
-        exercise = Exercise.objects.create(name="Жим стоя", category=ExerciseCategory.BENCH)
+        exercise = Exercise.objects.create(
+            name="Жим стоя", category=ExerciseCategory.BENCH
+        )
         week = Week.objects.create(program=self.program, number=1, title="Неделя")
         day = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="День")
         day_exercise = DayExercise.objects.create(day=day, exercise=exercise, order=1)
@@ -302,7 +347,9 @@ class ProgramEditorAdminViewTest(TestCase):
             order=1,
         )
 
-        response = self.client.get(reverse("admin:programs_program_editor", args=[self.program.pk]))
+        response = self.client.get(
+            reverse("admin:programs_program_editor", args=[self.program.pk])
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "editor-exercise-card")
@@ -310,8 +357,12 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertContains(response, "editor-day-nav-item")
 
     def test_change_form_clones_source_program_for_empty_program(self):
-        exercise = Exercise.objects.create(name="Становая", category=ExerciseCategory.DEADLIFT)
-        source_program = Program.objects.create(slug="source-admin", name="Source Admin")
+        exercise = Exercise.objects.create(
+            name="Становая", category=ExerciseCategory.DEADLIFT
+        )
+        source_program = Program.objects.create(
+            slug="source-admin", name="Source Admin"
+        )
         ProgramOneRepMaxExercise.objects.create(
             program=source_program,
             exercise=exercise,
@@ -319,7 +370,9 @@ class ProgramEditorAdminViewTest(TestCase):
             order=1,
         )
         week = Week.objects.create(program=source_program, number=1, title="1 неделя")
-        day = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="Тяговый день")
+        day = Day.objects.create(
+            week=week, weekday=Weekday.MON, order=1, title="Тяговый день"
+        )
         day_exercise = DayExercise.objects.create(day=day, exercise=exercise, order=1)
         ExerciseSet.objects.create(
             day_exercise=day_exercise,
@@ -360,15 +413,21 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertEqual(target_program.one_rep_max_exercises.count(), 1)
 
     def test_program_change_form_links_to_unified_editor(self):
-        response = self.client.get(reverse("admin:programs_program_change", args=[self.program.pk]))
+        response = self.client.get(
+            reverse("admin:programs_program_change", args=[self.program.pk])
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Единый редактор")
         self.assertContains(response, "Открыть редактор программы")
-        self.assertContains(response, reverse("admin:programs_program_editor", args=[self.program.pk]))
+        self.assertContains(
+            response, reverse("admin:programs_program_editor", args=[self.program.pk])
+        )
 
     def test_day_exercise_changelist_hides_redundant_columns_for_single_day(self):
-        exercise = Exercise.objects.create(name="Тестовый жим", category=ExerciseCategory.BENCH)
+        exercise = Exercise.objects.create(
+            name="Тестовый жим", category=ExerciseCategory.BENCH
+        )
         week = Week.objects.create(program=self.program, number=1, title="Неделя")
         day = Day.objects.create(week=week, weekday=Weekday.MON, order=1, title="День")
         DayExercise.objects.create(day=day, exercise=exercise, order=1)
@@ -380,7 +439,9 @@ class ProgramEditorAdminViewTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, f"Упражнения: {day}")
-        self.assertNotContains(response, "<th scope=\"col\" class=\"sortable column-day\">", html=False)
+        self.assertNotContains(
+            response, '<th scope="col" class="sortable column-day">', html=False
+        )
         self.assertNotContains(response, "ФИЛЬТР")
 
     def test_day_admin_exercises_link_points_to_dayexercise_changelist(self):
@@ -392,15 +453,19 @@ class ProgramEditorAdminViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(
             response,
-            f'{reverse("admin:programs_dayexercise_changelist")}?day__id__exact={day.pk}',
+            f"{reverse('admin:programs_dayexercise_changelist')}?day__id__exact={day.pk}",
             html=False,
         )
         self.assertContains(response, "Открыть упражнения")
 
     def test_day_change_form_is_now_flat_without_inline_exercises(self):
-        exercise = Exercise.objects.create(name="Тестовая тяга", category=ExerciseCategory.DEADLIFT)
+        exercise = Exercise.objects.create(
+            name="Тестовая тяга", category=ExerciseCategory.DEADLIFT
+        )
         week = Week.objects.create(program=self.program, number=1, title="Неделя")
-        day = Day.objects.create(week=week, weekday=Weekday.WED, order=1, title="День тяги")
+        day = Day.objects.create(
+            week=week, weekday=Weekday.WED, order=1, title="День тяги"
+        )
         day_exercise = DayExercise.objects.create(day=day, exercise=exercise, order=1)
         ExerciseSet.objects.create(
             day_exercise=day_exercise,
@@ -415,5 +480,8 @@ class ProgramEditorAdminViewTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "admin/programs/day_admin.css")
-        self.assertNotContains(response, reverse("admin:programs_dayexercise_change", args=[day_exercise.pk]))
+        self.assertNotContains(
+            response,
+            reverse("admin:programs_dayexercise_change", args=[day_exercise.pk]),
+        )
         self.assertNotContains(response, ">Изменить<", html=False)
