@@ -1,4 +1,5 @@
 import { OneRepMaxPage } from '@/components/OneRepMaxPage'
+import { TrainingCycleHeatmap } from '@/components/TrainingCycleHeatmap'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import type { AuthUser } from '@/lib/api'
@@ -69,6 +70,7 @@ export function ProfilePage({ user, onLogout }: ProfilePageProps) {
 							</div>
 						</CardContent>
 					</Card>
+					<TrainingCycleHeatmap />
 					<OneRepMaxPage />
 				</div>
 			</div>
