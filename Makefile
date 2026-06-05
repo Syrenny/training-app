@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := dev
 
-.PHONY: dev con migrate mm mmm seed sh dbsh createsuperuser \
+.PHONY: dev con migrate mm mmm seed sh dbsh createsuperuser dumpdb \
 	build test-backend lint clean 
 
 ENV_FILE := .env
@@ -42,6 +42,9 @@ dbsh:
 createsuperuser:
 	$(ENV_INFO)
 	$(PM) python manage.py createsuperuser
+
+dumpdb:
+	cd backend && uv run python scripts/dump_db.py $(args)
 
 test-backend:
 	cd backend && uv run python manage.py test tests/ --verbosity=2
